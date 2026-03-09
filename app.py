@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import geopandas as gpd
 import folium
+import pyogrio
 from streamlit_folium import st_folium
 import plotly.express as px
 import plotly.graph_objects as go
@@ -219,10 +220,10 @@ html, body, [class*="css"] {
 #  FUNCIÓN PRINCIPAL (la tuya)
 # ─────────────────────────────────────────────
 def muestra_coordenada(archivo_gpkg, dissolve_by_upm=False):
-    capas = gpd.io.file.fiona.listlayers(archivo_gpkg)
-    man = gpd.read_file(archivo_gpkg, layer=capas[0])
-    disp = gpd.read_file(archivo_gpkg, layer=capas[1])
-
+    capas = pyogrio.list_layers(archivo_gpkg)
+    man = gpd.read_file(archivo_gpkg, layer=capas[0][0])
+    disp = gpd.read_file(archivo_gpkg, layer=capas[1][0])
+    
     litoral_man = man[man['zonal'] == 'LITORAL']
     litoral_disp = disp[disp['zonal'] == 'LITORAL']
 
