@@ -301,6 +301,16 @@ if "data_filtered" not in st.session_state:
 if "dissolve" not in st.session_state:
     st.session_state.dissolve = True
 
+
+# ─────────────────────────────────────────────
+#  CALCULATE COEFFICIENT OF VARIATION (CV)
+# ─────────────────────────────────────────────
+def calculate_cv(series):
+    if series.mean() == 0: # Avoid division by zero
+        return 0.0
+    return (series.std() / series.mean()) * 100
+
+
 # ─────────────────────────────────────────────
 #  SIDEBAR
 # ─────────────────────────────────────────────
@@ -632,13 +642,69 @@ with tab2:
             entidades=("id_entidad","count"),
             viviendas_total=("viv","sum"),
             viviendas_media=("viv","mean"),
-            viviendas_cv=("viv", lambda x: x.std()/x.mean()*100 if x.mean()>0 else 0)
+            viviendas_cv=("viv", calculate_cv) # Use the new function
         ).reset_index()
         resumen_mes.columns = ["Mes","Entidades","Viviendas totales","Media viv","CV (%)"]
         resumen_mes["CV (%)"] = resumen_mes["CV (%)"].round(1)
         resumen_mes["Media viv"] = resumen_mes["Media viv"].round(1)
         st.dataframe(resumen_mes, use_container_width=True, height=280)
+        
+        # Display load distribution per team and surveyor (New charts)
+        if 'equipo' in df.columns and 'encuestador' in df.columns:
+            st.markdown("<div class='section-header'><span>Análisis de carga de trabajo por equipo y encuestador</span><div class='line'></div></div>", unsafe_allow_html=True)
 
+            # CV for teams
+            team_cv = df.groupby('equipo')['viv'].apply(calculate_cv).reset_index(name='CV (%)')
+            team_cv = team_cv.sort_values(by='equipo')
+            
+            st.markdown("**Coeficiente de Variación (CV) de viviendas por Equipo**")
+            st.info("Un CV bajo (idealmente <50%) indica una carga de trabajo más equilibrada entre los equipos.")
+            st.dataframe(team_cv, use_container_width=True)
+
+            # Drill-down for surveyors within a selected team
+            st.markdown("**CV de viviendas por Encuestador (drill-down por Equipo)**")
+            selected_team = st.selectbox(
+                "Seleccione un equipo para ver el CV de sus encuestadores:",
+                options=sorted(df['equipo'].unique()),
+                format_func=lambda x: f"Equipo {int(x)}"
+            )
+
+            if selected_team:
+                df_selected_team = df[df['equipo'] == selected_team]
+                surveyor_cv = df_selected_team.groupby('encuestador')['viv'].apply(calculate_cv).reset_index(name='CV (%)')
+                surveyor_cv = surveyor_cv.sort_values(by='encuestador')
+
+                st.info(f"CV de viviendas para los encuestadores del Equipo {int(selected_team)}. De manera similar, un CV bajo es deseable.")
+                st.dataframe(surveyor_cv, use_container_width=True)
+
+            st.markdown("<br>")
+
+            col_load1, col_load2 = st.columns(2)
+
+            with col_load1:
+                team_load = df.groupby('equipo')['viv'].sum().reset_index()
+                fig_team_load = px.bar(
+                    team_load, x='equipo', y='viv',
+                    title='Viviendas asignadas por Equipo (Suma)',
+                    labels={'equipo': 'Equipo', 'viv': 'Total Viviendas'},
+                    template='plotly_dark',
+                    color_discrete_sequence=px.colors.sequential.Viridis
+                )
+                fig_team_load.update_layout(paper_bgcolor="#1a1f2e", plot_bgcolor="#0d1117", title_font_size=13)
+                st.plotly_chart(fig_team_load, use_container_width=True)
+
+            with col_load2:
+                surveyor_load = df.groupby(['equipo', 'encuestador'])['viv'].sum().reset_index()
+                fig_surveyor_load = px.bar(
+                    surveyor_load, x='encuestador', y='viv', color='equipo',
+                    title='Viviendas asignadas por Encuestador (por Equipo)',
+                    labels={'encuestador': 'Encuestador', 'viv': 'Total Viviendas', 'equipo': 'Equipo'},
+                    template='plotly_dark',
+                    barmode='group',
+                    color_discrete_sequence=px.colors.sequential.Viridis
+                )
+                fig_surveyor_load.update_layout(paper_bgcolor="#1a1f2e", plot_bgcolor="#0d1117", title_font_size=13)
+                st.plotly_chart(fig_surveyor_load, use_container_width=True)
 # ══════════════════════════════════════════════
 #  TAB 3 — GENERADOR DE RUTAS
 # ══════════════════════════════════════════════
