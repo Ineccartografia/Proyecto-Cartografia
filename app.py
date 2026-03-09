@@ -386,20 +386,62 @@ with st.sidebar:
 
         df_mes = data[data["mes"] == mes_sel].copy()
         
-        # Add team and surveyor assignment here
-        n_equipos_val = st.session_state.get('n_equipos', 4) # Default value if not set
-        n_enc_val = st.session_state.get('n_enc', 3) # Default value if not set
+        # ─────────────────────────────────────────────
+        #  Dynamic Team Configuration
+        # ─────────────────────────────────────────────
+        st.markdown("**🏢 Configuración de Equipos**")
 
-        if len(df_mes) > 0:
+        if "team_configs" not in st.session_state:
+            st.session_state.team_configs = [{'id': 1, 'surveyors': 3}] # Initial default team
+
+        col_add, col_remove = st.columns([1, 1])
+        with col_add:
+            if st.button("➕ Añadir Equipo", use_container_width=True):
+                new_team_id = max([t['id'] for t in st.session_state.team_configs]) + 1 if st.session_state.team_configs else 1
+                st.session_state.team_configs.append({'id': new_team_id, 'surveyors': 3})
+        with col_remove:
+            if st.button("➖ Eliminar Último", use_container_width=True, disabled=len(st.session_state.team_configs) == 1):
+                if st.session_state.team_configs:
+                    st.session_state.team_configs.pop()
+
+        for i, team in enumerate(st.session_state.team_configs):
+            st.session_state.team_configs[i]['surveyors'] = st.number_input(
+                f"Integrantes Equipo {team['id']}",
+                min_value=1, max_value=5, value=team['surveyors'], key=f"surveyors_team_{team['id']}"
+            )
+        
+        # Calculate n_equipos and n_enc from dynamic configurations
+        n_equipos_val = len(st.session_state.team_configs)
+        total_surveyors_configured = sum(t['surveyors'] for t in st.session_state.team_configs)
+        surveyors_per_team_dict = {t['id']: t['surveyors'] for t in st.session_state.team_configs}
+        team_ids = [t['id'] for t in st.session_state.team_configs]
+
+        # Update session state values based on dynamic configuration for use in assignment and reports
+        st.session_state.n_equipos = n_equipos_val
+        st.session_state.n_enc_total = total_surveyors_configured # Renamed to avoid confusion
+
+        # ─────────────────────────────────────────────
+        #  Update Team/Surveyor Assignment Logic
+        # ─────────────────────────────────────────────
+        if len(df_mes) > 0:            
+            df_mes = df_mes.copy() # Ensure we are working on a copy to avoid SettingWithCopyWarning
+            
             # Assign teams cyclically
-            df_mes['equipo'] = (np.arange(len(df_mes)) % n_equipos_val) + 1
+            df_mes['equipo'] = pd.Series(team_ids * (len(df_mes) // len(team_ids) + 1)).head(len(df_mes)).values
 
             # Assign surveyors cyclically within each team
-            # Sort first by 'equipo' to ensure consistent assignment within teams
-            df_mes = df_mes.sort_values(by=['equipo']).reset_index(drop=True)
-            df_mes['encuestador'] = (df_mes.groupby('equipo').cumcount() % n_enc_val) + 1
+            def assign_surveyors_func(group):
+                team_id = group['equipo'].iloc[0]
+                num_surveyors = surveyors_per_team_dict.get(team_id, 1) # Default to 1 if not found
+                group['encuestador'] = (np.arange(len(group)) % num_surveyors) + 1
+                return group
+
+            df_mes = df_mes.groupby('equipo', group_keys=False).apply(assign_surveyors_func).reset_index(drop=True)
+            # Ensure 'equipo' and 'encuestador' are integers if possible
+            df_mes['equipo'] = df_mes['equipo'].astype(int)
+            df_mes['encuestador'] = df_mes['encuestador'].astype(int)
+
         else:
-            # Ensure 'equipo' and 'encuestador' columns exist even if no assignment happens
             if 'equipo' not in df_mes.columns:
                 df_mes['equipo'] = pd.NA
             if 'encuestador' not in df_mes.columns:
@@ -407,20 +449,12 @@ with st.sidebar:
 
         st.session_state.data_filtered = df_mes # Update the session state with assigned teams/surveyors
 
-        st.markdown("**🏢 Equipos de campo**")
-        n_equipos = st.number_input("Número de equipos", min_value=1, max_value=20, value=4, key='n_equipos')
-        n_enc = st.number_input("Encuestadores por equipo", min_value=1, max_value=5, value=3, key='n_enc')
         n_vehiculos = st.number_input("Número de vehículos", min_value=1, max_value=20, value=4, key='n_vehiculos')
-
-        # These lines are redundant because the `key` argument in st.number_input automatically manages st.session_state
-        # st.session_state.n_equipos = n_equipos
-        # st.session_state.n_enc = n_enc
-        # st.session_state.n_vehiculos = n_vehiculos
+        st.session_state.n_vehiculos = n_vehiculos
 
         st.divider()
-        total_enc = n_equipos * n_enc
         total_viv = int(df_mes["viv"].sum()) if len(df_mes) > 0 else 0
-        viv_x_enc = total_viv // total_enc if total_enc > 0 else 0
+        viv_x_enc = total_viv // total_surveyors_configured if total_surveyors_configured > 0 else 0
         st.markdown(f"""
         <div style='font-size:11px;color:#556677;line-height:2'>
         📍 <b style='color:#89b4d4'>{len(df_mes):,}</b> entidades en mes {int(mes_sel)}<br>
@@ -566,10 +600,10 @@ with tab1:
 
             # Puntos
             if color_map_by == "Equipo" and 'equipo' in df.columns and not df['equipo'].isna().all():
-                unique_teams = sorted(df['equipo'].dropna().unique())
+                unique_team_ids_map = sorted(df['equipo'].dropna().unique())
                 team_color_map = {
-                    team: px.colors.qualitative.Plotly[i % len(px.colors.qualitative.Plotly)]
-                    for i, team in enumerate(unique_teams)
+                    team_id: px.colors.qualitative.Plotly[i % len(px.colors.qualitative.Plotly)]
+                    for i, team_id in enumerate(unique_team_ids_map)
                 }
             else:
                 team_color_map = {} # Empty if not coloring by team
@@ -871,7 +905,7 @@ with tab3:
                             axis=1
                         )
 
-                        main_teams_list = [f'Equipo {i+1}' for i in range(st.session_state.n_equipos)] # Use sidebar n_equipos
+                        main_teams_list = [f'Equipo {t["id"]}' for t in st.session_state.team_configs] # Use dynamic team configs
 
                         for jornada_name in ['Jornada 1', 'Jornada 2']:
                             mask_balance = (df['jornada'] == jornada_name) & (df['equipo'] != 'equipo_bombero')
@@ -890,7 +924,7 @@ with tab3:
 
                         st.write("--- Resumen de Balanceo Greedy por Equipo y Jornada ---")
                         summary_teams_greedy = df.groupby(['jornada', 'equipo']).agg(
-                            n_puntos=('id_entidad', 'count'), # Using id_entidad for points
+                            n_puntos=('id_entidad', 'count'), # Use id_entidad for points
                             carga_ponderada_total=('weighted_viv', 'sum'),
                             viviendas_reales=('viv', 'sum') # Using 'viv' for real dwellings
                         ).reset_index()
@@ -1058,17 +1092,10 @@ with tab3:
 
                             m_final = folium.Map(location=[base_coords[0], base_coords[1]], zoom_start=8, tiles='OpenStreetMap')
 
-                            team_colors_map = {
-                                'Equipo 1': 'blue',
-                                'Equipo 2': 'green',
-                                'Equipo 3': 'red', # Assuming 3 teams for these colors
-                                'equipo_bombero': 'purple'
-                            }
-                            # Extend team_colors_map for more teams if n_equipos > 3
-                            for i in range(st.session_state.n_equipos):
-                                team_name = f'Equipo {i+1}'
-                                if team_name not in team_colors_map:
-                                    team_colors_map[team_name] = px.colors.qualitative.Plotly[i % len(px.colors.qualitative.Plotly)]
+                            team_colors_map = {'equipo_bombero': 'purple'} # Keep special team color
+                            unique_team_ids = sorted([t['id'] for t in st.session_state.team_configs])
+                            for i, team_id in enumerate(unique_team_ids):
+                                team_colors_map[f'Equipo {team_id}'] = px.colors.qualitative.Plotly[i % len(px.colors.qualitative.Plotly)]
 
                             fg_dict = {}
                             folium.Marker([base_coords[0], base_coords[1]], popup='Base Guayaquil', icon=folium.Icon(color='black', icon='home')).add_to(m_final)
@@ -1148,3 +1175,50 @@ with tab3:
             <div class='desc'>Carga el archivo <code>zonal.graphml</code> para habilitar esta sección.</div>
         </div>
         """, unsafe_allow_html=True)
+
+# ══════════════════════════════════════════════
+#  TAB 4 — REPORTE MENSUAL
+# ══════════════════════════════════════════════
+with tab4:
+    st.markdown("""
+    <div class='info-box'>
+    📋 &nbsp; Una vez generadas las rutas, esta sección permitirá exportar el programa mensual
+    en formato Excel: equipo, encuestador, día, UPM asignada, viviendas estimadas y distancia al siguiente punto.
+    También incluirá el resumen estadístico de CV de carga y comparación entre jornadas.
+    </div>
+    """, unsafe_allow_html=True)
+
+    col_rep1, col_rep2, col_rep3 = st.columns(3)
+    with col_rep1:
+        st.markdown("""<div class='coming-soon'>
+            <div class='icon'>📅</div>
+            <div class='title'>Programa mensual</div>
+            <div class='desc'>Asignación día a día por equipo y encuestador para las dos rondas de 12 días.</div>
+        </div>""", unsafe_allow_html=True)
+    with col_rep2:
+        st.markdown("""<div class='coming-soon'>
+            <div class='icon'>📈</div>
+            <div class='title'>Resumen estadístico</div>
+            <div class='desc'>CV de carga, distancia total por equipo, balance entre jornadas.</div>
+        </div>""", unsafe_allow_html=True)
+    with col_rep3:
+        st.markdown("""<div class='coming-soon'>
+            <div class='icon'>⬇️</div>
+            <div class='title'>Exportar Excel</div>
+            <div class='desc'>Reporte descargable listo para entregar a los equipos de campo.</div>
+        </div>""", unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("**Vista previa de estructura del reporte:**")
+    preview = pd.DataFrame({
+        "Equipo": ["Equipo 1"]*3 + ["Equipo 2"]*3,
+        "Encuestador": ["Enc. A","Enc. B","Enc. C"]*2,
+        "Jornada": [1]*3 + [1]*3,
+        "Día": [1,1,1,1,1,1],
+        "UPM": ["—"]*6,
+        "id_entidad": ["—"]*6,
+        "Viviendas est.": ["—"]*6,
+        "Dist. siguiente (km)": ["—"]*6
+    })
+    st.dataframe(preview, use_container_width=True, height=200)
+    st.caption("Esta estructura se completará automáticamente al generar las rutas desde la pestaña anterior.")
