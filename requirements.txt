@@ -1,6 +1,7 @@
 streamlit
 pandas
 geopandas
+pyogrio
 plotly
 folium
 streamlit-folium
