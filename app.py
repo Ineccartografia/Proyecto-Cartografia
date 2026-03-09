@@ -323,7 +323,7 @@ with st.sidebar:
         st.markdown("**⚙️ Parámetros de procesamiento**")
         dissolve_option = st.radio(
             "Nivel de análisis",
-            options=["Por UPM (disuelto)", "Por manzana/sector"],
+            options=["Por UPM (disuelto)", "Por manzana"],
             index=0,
             help="UPM agrupa manzanas contiguas en un solo punto representativo"
         )
