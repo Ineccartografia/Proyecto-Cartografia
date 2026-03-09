@@ -5,3 +5,4 @@ pyogrio
 plotly
 folium
 streamlit-folium
+osmnx
