@@ -814,31 +814,16 @@ with tab3:
                         # Define base coordinates for Guayaquil
                         base_coords = (-2.1458259, -79.8938396) 
                         
-                        # --- Load and filter graph --- 
+                        # --- Load graph from uploaded file ---
                         with tempfile.NamedTemporaryFile(delete=False, suffix=".graphml") as tmp:
                             tmp.write(graphml_file.read())
                             tmp_path_graph = tmp.name
 
-                        G = ox.load_graphml(tmp_path_graph)
+                        G_active = ox.load_graphml(tmp_path_graph)
                         os.unlink(tmp_path_graph) # Clean up temp file
+                        st.session_state.graph_G = G_active # Store loaded graph in session state
 
-                        edges_df = ox.graph_to_gdfs(G, nodes=False)
-
-                        # Filter main roads
-                        main_roads_types = ['motorway', 'trunk', 'primary', 'secondary', 'motorway_link', 'trunk_link', 'primary_link']
-                        edges_to_keep = []
-                        for u, v, k, data in G.edges(data=True, keys=True):
-                            highway = data.get('highway', '')
-                            if isinstance(highway, list):
-                                if any(item in main_roads_types for item in highway):
-                                    edges_to_keep.append((u, v, k))
-                            else:
-                                if highway in main_roads_types:
-                                    edges_to_keep.append((u, v, k))
-                        G_main = G.edge_subgraph(edges_to_keep).copy()
-                        st.session_state.graph_G = G_main # Store filtered graph in session state
-
-                        st.success(f"Grafo vial filtrado. Original: {len(G.nodes)} nodos y {len(G.edges)} arcos. Filtrado (carreteras principales): {len(G_main.nodes)} nodos y {len(G_main.edges)} arcos.")
+                        st.success(f"Grafo vial cargado (pre-filtrado). Nodos: {len(G_active.nodes)}, Arcos: {len(G_active.edges)}.")
 
                         # --- Outlier Detection and Journey Stratification ---
                         # Ensure df has necessary columns, initialize if not
@@ -932,11 +917,33 @@ with tab3:
                                 if len(group_df) == 0:
                                     continue
 
-                                point_nodes = ox.nearest_nodes(G_active, group_df['lon'].values, group_df['lat'].values)
-                                unique_nodes = [base_node] + list(dict.fromkeys(point_nodes))
-                                num_nodes = len(unique_nodes)
+                                point_nodes_raw = ox.nearest_nodes(G_active, group_df['lon'].values, group_df['lat'].values)
+                                
+                                # Filter point_nodes to include only those reachable from base_node's component
+                                # First, find the connected component of base_node
+                                base_component = None
+                                try:
+                                    base_component = nx.node_connected_component(G_active, base_node)
+                                except nx.NetworkXError: # If base_node is not in G_active
+                                    st.warning(f"Base node {base_node} is not in the active graph for {team}-{journey}. Skipping TSP.")
+                                    tsp_results[f"{team}_{journey}"] = {'node_sequence': [], 'total_distance_m': 0}
+                                    road_paths[f"{team}_{journey}"] = []
+                                    continue
 
-                                if num_nodes <= 1: # Not enough points for TSP
+                                reachable_point_nodes = [node for node in point_nodes_raw if node in base_component]
+                                
+                                # If after filtering, no points are left (or only the base point)
+                                if not reachable_point_nodes:
+                                    st.warning(f"No reachable points for {team}-{journey} from base node. Skipping TSP.")
+                                    tsp_results[f"{team}_{journey}"] = {'node_sequence': [], 'total_distance_m': 0}
+                                    road_paths[f"{team}_{journey}"] = []
+                                    continue
+                                
+                                # Re-create unique_nodes ensuring base_node is first and all others are reachable
+                                unique_nodes_for_tsp = [base_node] + list(dict.fromkeys(reachable_point_nodes))
+                                num_nodes = len(unique_nodes_for_tsp)
+
+                                if num_nodes <= 1: # Not enough points for TSP after filtering
                                     tsp_results[f"{team}_{journey}"] = {'node_sequence': [], 'total_distance_m': 0}
                                     road_paths[f"{team}_{journey}"] = []
                                     continue
@@ -944,57 +951,95 @@ with tab3:
                                 dist_matrix = np.zeros((num_nodes, num_nodes))
                                 for i in range(num_nodes):
                                     for j in range(i + 1, num_nodes):
+                                        u_node = unique_nodes_for_tsp[i]
+                                        v_node = unique_nodes_for_tsp[j]
                                         try:
-                                            d = nx.shortest_path_length(G_active, unique_nodes[i], unique_nodes[j], weight='length')
+                                            d = nx.shortest_path_length(G_active, u_node, v_node, weight='length')
                                             dist_matrix[i, j] = d
                                             dist_matrix[j, i] = d
                                         except nx.NetworkXNoPath:
                                             dist_matrix[i, j] = 1e9 # High cost for no path
                                             dist_matrix[j, i] = 1e9
 
-                                tsp_g = nx.Graph()
+                                tsp_g = nx.Graph() # Create a new graph for TSP approximation
                                 for i in range(num_nodes):
                                     for j in range(i + 1, num_nodes):
-                                        if dist_matrix[i,j] != 1e9: # Only add edges where a path exists
+                                        if dist_matrix[i,j] != 1e9: # Only add edges where a path exists and is not 'infinite'
                                             tsp_g.add_edge(i, j, weight=dist_matrix[i, j])
+                                            
+                                # Ensure tsp_g is connected for approximation.traveling_salesman_problem
+                                if not nx.is_connected(tsp_g):
+                                    st.warning(f"TSP graph for {team}-{journey} is disconnected. A single tour is not possible. Displaying individual point-to-point connections if available.")
+                                    tsp_results[f"{team}_{journey}"] = {'node_sequence': [], 'total_distance_m': 0}
+                                    road_paths[f"{team}_{journey}"] = []
+                                    continue
 
-                                # Handle disconnected components or single nodes
-                                if len(tsp_g.nodes) < 2:
+                                if len(tsp_g.nodes) < 2: # Check again after potential filtering
                                     tsp_results[f"{team}_{journey}"] = {'node_sequence': [], 'total_distance_m': 0}
                                     road_paths[f"{team}_{journey}"] = []
                                     continue
 
                                 try:
-                                    cycle_indices = approximation.traveling_salesman_problem(tsp_g, weight='weight', cycle=True)
+                                    cycle_indices_raw = approximation.traveling_salesman_problem(tsp_g, weight='weight', cycle=True)
+                                    
+                                    if cycle_indices_raw is None or not cycle_indices_raw: 
+                                        raise ValueError("TSP approximation returned an empty or invalid cycle.")
 
-                                    if cycle_indices and cycle_indices[0] != 0:
-                                        idx_zero = cycle_indices.index(0)
-                                        cycle_indices = cycle_indices[idx_zero:-1] + cycle_indices[:idx_zero] + [0]
-                                    elif not cycle_indices: # Handle empty cycle from TSP (e.g., if only one node left)
-                                        raise ValueError("TSP returned an empty cycle.")
-
-                                    optimal_node_sequence = [unique_nodes[idx] for idx in cycle_indices]
-                                    total_dist = sum(dist_matrix[cycle_indices[i], cycle_indices[i+1]] for i in range(len(cycle_indices)-1))
-
-                                    full_route_coords = []
-                                    for k in range(len(optimal_node_sequence) - 1):
-                                        u, v = optimal_node_sequence[k], optimal_node_sequence[k+1]
+                                    # Ensure the cycle starts and ends at the base_node (which is index 0 in unique_nodes_for_tsp and tsp_g.nodes)
+                                    if cycle_indices_raw[0] != 0: # If it doesn't start at base node
                                         try:
-                                            path_nodes = nx.shortest_path(G_active, u, v, weight='length')
-                                            segment_coords = [(G_active.nodes[n]['y'], G_active.nodes[n]['x']) for n in path_nodes[:-1]]
-                                            full_route_coords.extend(segment_coords)
-                                        except nx.NetworkXNoPath:
-                                            st.warning(f"No path found between {u} and {v} for {team}-{journey}. Skipping segment.")
-                                            continue
-                                    if optimal_node_sequence:
-                                        last_n = optimal_node_sequence[-1]
-                                        full_route_coords.append((G_active.nodes[last_n]['y'], G_active.nodes[last_n]['x']))
+                                            idx_zero = cycle_indices_raw.index(0)
+                                            # Reorder the cycle to start with the base node (index 0)
+                                            cycle_indices_reordered = cycle_indices_raw[idx_zero:] + cycle_indices_raw[1:idx_zero] + [0]
+                                        except ValueError:
+                                            st.warning(f"Base node not found in TSP cycle for {team}-{journey}. Reordering attempt failed.")
+                                            cycle_indices_reordered = cycle_indices_raw
+                                    else:
+                                        cycle_indices_reordered = cycle_indices_raw
+                                    
+                                    # Remove duplicate last node for path reconstruction if it's already a cycle
+                                    if len(cycle_indices_reordered) > 1 and cycle_indices_reordered[0] == cycle_indices_reordered[-1]:
+                                        path_segment_indices = cycle_indices_reordered[:-1] 
+                                    else:
+                                        path_segment_indices = cycle_indices_reordered # If not a cycle, use as-is
+                                    
+                                    # Calculate total distance and reconstruct paths
+                                    total_dist = 0
+                                    full_route_coords = []
+                                    optimal_node_sequence = [unique_nodes_for_tsp[idx] for idx in path_segment_indices]
+                                    
+                                    # Add base node at the end to close the tour for distance calculation
+                                    full_cycle_indices = path_segment_indices + [path_segment_indices[0]]
+
+                                    for k in range(len(full_cycle_indices) - 1):
+                                        u_idx = full_cycle_indices[k]
+                                        v_idx = full_cycle_indices[k+1]
+                                        
+                                        if dist_matrix[u_idx, v_idx] != 1e9: # Check if path exists
+                                            total_dist += dist_matrix[u_idx, v_idx]
+                                            u_node = unique_nodes_for_tsp[u_idx]
+                                            v_node = unique_nodes_for_tsp[v_idx]
+                                            try:
+                                                path_nodes = nx.shortest_path(G_active, u_node, v_node, weight='length')
+                                                segment_coords = [(G_active.nodes[n]['y'], G_active.nodes[n]['x']) for n in path_nodes[:-1]]
+                                                full_route_coords.extend(segment_coords)
+                                            except nx.NetworkXNoPath:
+                                                st.warning(f"Unexpected: No path found between {u_node} and {v_node} for {team}-{journey} (dist_matrix indicated path). Skipping segment.")
+                                        else:
+                                            st.warning(f"No path found in dist_matrix between {unique_nodes_for_tsp[u_idx]} and {unique_nodes_for_tsp[v_idx]} for {team}-{journey}. Skipping segment in route drawing.")
+                                            # This segment is unreachable, so we don't add to distance or route coords
+                                            
+                                    # Add the last point's coordinates to complete the route visually
+                                    if full_cycle_indices:
+                                        last_node_in_cycle = unique_nodes_for_tsp[full_cycle_indices[-1]]
+                                        full_route_coords.append((G_active.nodes[last_node_in_cycle]['y'], G_active.nodes[last_node_in_cycle]['x']))
 
                                     tsp_results[f"{team}_{journey}"] = {
                                         'node_sequence': optimal_node_sequence,
                                         'total_distance_m': total_dist
                                     }
                                     road_paths[f"{team}_{journey}"] = full_route_coords
+
                                 except Exception as e:
                                     st.error(f"Error solving TSP for {team}-{journey}: {e}")
                                     tsp_results[f"{team}_{journey}"] = {'node_sequence': [], 'total_distance_m': 0}
@@ -1040,9 +1085,9 @@ with tab3:
                                 folium.CircleMarker(
                                     location=[row['lat'], row['lon']], # Use lat, lon from df
                                     radius=5,
-                                    color=team_colors_map.get(team, 'gray'),
+                                    color=team_colors_map.get(team, 'gray'), # Outline color
                                     fill=True,
-                                    fill_color=color,
+                                    fill_color=team_colors_map.get(team, 'gray'), # Fill color consistent with team
                                     fill_opacity=0.7,
                                     popup=f"ID: {row['id_entidad']}<br>UPM: {row['upm']}<br>Viv: {int(row['viv'])}<br>Equipo: {team}<br>Jornada: {jornada}", # Use correct df columns
                                     tooltip=f"{team} | {jornada} | {int(row['viv'])} viv"
@@ -1103,50 +1148,3 @@ with tab3:
             <div class='desc'>Carga el archivo <code>zonal.graphml</code> para habilitar esta sección.</div>
         </div>
         """, unsafe_allow_html=True)
-
-# ══════════════════════════════════════════════
-#  TAB 4 — REPORTE MENSUAL
-# ══════════════════════════════════════════════
-with tab4:
-    st.markdown("""
-    <div class='info-box'>
-    📋 &nbsp; Una vez generadas las rutas, esta sección permitirá exportar el programa mensual
-    en formato Excel: equipo, encuestador, día, UPM asignada, viviendas estimadas y distancia al siguiente punto.
-    También incluirá el resumen estadístico de CV de carga y comparación entre jornadas.
-    </div>
-    """, unsafe_allow_html=True)
-
-    col_rep1, col_rep2, col_rep3 = st.columns(3)
-    with col_rep1:
-        st.markdown("""<div class='coming-soon'>
-            <div class='icon'>📅</div>
-            <div class='title'>Programa mensual</div>
-            <div class='desc'>Asignación día a día por equipo y encuestador para las dos rondas de 12 días.</div>
-        </div>""", unsafe_allow_html=True)
-    with col_rep2:
-        st.markdown("""<div class='coming-soon'>
-            <div class='icon'>📈</div>
-            <div class='title'>Resumen estadístico</div>
-            <div class='desc'>CV de carga, distancia total por equipo, balance entre jornadas.</div>
-        </div>""", unsafe_allow_html=True)
-    with col_rep3:
-        st.markdown("""<div class='coming-soon'>
-            <div class='icon'>⬇️</div>
-            <div class='title'>Exportar Excel</div>
-            <div class='desc'>Reporte descargable listo para entregar a los equipos de campo.</div>
-        </div>""", unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("**Vista previa de estructura del reporte:**")
-    preview = pd.DataFrame({
-        "Equipo": ["Equipo 1"]*3 + ["Equipo 2"]*3,
-        "Encuestador": ["Enc. A","Enc. B","Enc. C"]*2,
-        "Jornada": [1]*3 + [1]*3,
-        "Día": [1,1,1,1,1,1],
-        "UPM": ["—"]*6,
-        "id_entidad": ["—"]*6,
-        "Viviendas est.": ["—"]*6,
-        "Dist. siguiente (km)": ["—"]*6
-    })
-    st.dataframe(preview, use_container_width=True, height=200)
-    st.caption("Esta estructura se completará automáticamente al generar las rutas desde la pestaña anterior.")
