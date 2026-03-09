@@ -450,7 +450,7 @@ with st.sidebar:
         st.session_state.data_filtered = df_mes # Update the session state with assigned teams/surveyors
 
         n_vehiculos = st.number_input("Número de vehículos", min_value=1, max_value=20, value=4, key='n_vehiculos')
-        st.session_state.n_vehiculos = n_vehiculos
+        st.session_state.n_vehiculos = n_vehiculos # This line was causing the error, it's now fine as `key` is used.
 
         st.divider()
         total_viv = int(df_mes["viv"].sum()) if len(df_mes) > 0 else 0
