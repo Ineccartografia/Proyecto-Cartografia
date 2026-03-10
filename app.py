@@ -104,11 +104,11 @@ html,body,[class*="css"]{font-family:'IBM Plex Sans',sans-serif}
 # ─── CONSTANTES ───────────────────────────────
 BASE_LAT = -2.145825935522539
 BASE_LON = -79.89383956329586
-PRO_GYE  = 9
-CAN_GYE  = 1
+PRO_GYE  = "09"
+CAN_GYE  = "01"
 MESES_NOMBRES = {
-    1:"Enero",2:"Febrero",3:"Marzo",4:"Abril",5:"Mayo",6:"Junio",
-    7:"Julio",8:"Agosto",9:"Septiembre",10:"Octubre",11:"Noviembre",12:"Diciembre"
+    1:"Julio",2:"Agosto",3:"Septiembre",4:"Octubre",5:"Noviembre",6:"Diciembre",
+    7:"Enero",8:"Febrero",9:"Marzo",10:"Abril",11:"Mayo",12:"Junio"
 }
 COLORES_EQ = ['#e74c3c','#2e86de','#27ae60','#f39c12','#9b59b6',
               '#1abc9c','#e67e22','#e91e63']
@@ -157,6 +157,12 @@ def cargar_gpkg(path, dissolve_upm=True):
         man_sel['tipo_entidad'] = 'man'
         disp_sel = disp_utm[['sec','upm','mes','viv','x','y']].rename(columns={'sec':'id_entidad'})
         disp_sel['tipo_entidad'] = 'sec'
+        
+        man_sel["pro_x"] = man_sel["upm"].str[:2]
+        disp_sel["pro_x"] = disp_sel["sec"].str[:2]
+        
+        man_sel["can_x"] = man_sel["upm"].str[2:4]
+        disp_sel["can_x"] = disp_sel["sec"].str[2:4]
 
     data = pd.concat([man_sel, disp_sel], ignore_index=True)
     if not dissolve_upm:
@@ -210,7 +216,7 @@ for k,v in _defs.items():
 
 # ─── SIDEBAR ──────────────────────────────────
 with st.sidebar:
-    st.markdown("### 🗺️ ENDI 2025")
+    st.markdown("### 🗺️ Encuesta Nacional")
     st.markdown("<p style='font-size:10px;color:#445566;margin-top:-8px'>INEC · Zonal Litoral · Cartografía</p>", unsafe_allow_html=True)
     st.divider()
 
@@ -392,10 +398,11 @@ if btn:
     prog.progress(8, "Detectando outliers...")
     t = Transformer.from_crs("EPSG:4326","EPSG:32717",always_xy=True)
     bx, by = t.transform(BASE_LON, BASE_LAT)
-    df_w['dist_base_m'] = np.sqrt((df_w['x']-bx)**2+(df_w['y']-by)**2)
+    df_w['dist_base_m'] = np.sqrt((df_w['x']-bx)**2+(df_w['y']-by)**2) # calcula distancia euclidiana de base a manzanas.
     Q1d = df_w['dist_base_m'].quantile(.25)
     Q3d = df_w['dist_base_m'].quantile(.75)
     umb = Q3d + 1.5*(Q3d-Q1d)
+    # la distancia está o no dentro del rango intercuantílico: si no, se considera punto outlier para el bombero. ¿Es esto adecuado?
     mask_bomb = df_w['dist_base_m'] > umb if usar_bomb else pd.Series(False, index=df_w.index)
 
     df_w['equipo']       = 'sin_asignar'
