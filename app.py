@@ -66,7 +66,7 @@ html,body,[class*="css"]{font-family:'IBM Plex Sans',sans-serif}
 .hdr{background:linear-gradient(135deg,#071e3d,#0d3b6e 60%,#0a2a52);border-radius:12px;
      padding:26px 34px;margin-bottom:22px;border-left:5px solid #2e86de;
      position:relative;overflow:hidden}
-.hdr::after{content:"ENDI";position:absolute;right:24px;top:50%;transform:translateY(-50%);
+.hdr::after{content:"INEC";position:absolute;right:24px;top:50%;transform:translateY(-50%);
             font-family:'IBM Plex Mono',monospace;font-size:76px;font-weight:600;
             color:rgba(255,255,255,.04);letter-spacing:6px}
 .hdr h1{color:#fff!important;font-size:19px!important;font-weight:600!important;
@@ -199,6 +199,10 @@ def asignar_encuestadores_y_dias(df_grp, n_enc, dias_tot, viv_min, viv_max, inic
     df_g['dia_operativo'] = dias_col
     return df_g
 
+
+
+
+
 # ─── SESSION STATE ────────────────────────────
 _defs = {
     "data_raw": None, "data_mes": None, "graph_G": None,
@@ -226,7 +230,7 @@ with st.sidebar:
     gpkg_f = st.file_uploader("GeoPackage", type=["gpkg"], key="gpkg_up")
     if gpkg_f:
         dissolve = st.radio("Nivel de análisis",
-                            ["Por UPM (recomendado)","Por manzana/sector"], index=0)
+                            ["Por UPM","Por manzana"], index=0)
         if st.button("⚡ Procesar GeoPackage", use_container_width=True, type="primary"):
             with st.spinner("Leyendo geometrías..."):
                 try:
@@ -339,7 +343,7 @@ with st.sidebar:
 st.markdown("""
 <div class='hdr'>
   <h1>Planificación Automática · Actualización Cartográfica</h1>
-  <p>ENDI 2025 &nbsp;·&nbsp; Zonal Litoral &nbsp;·&nbsp; INEC Ecuador</p>
+  <p>Encuesta Nacional &nbsp;·&nbsp; Zonal Litoral &nbsp;·&nbsp; INEC Ecuador</p>
 </div>
 """, unsafe_allow_html=True)
 
