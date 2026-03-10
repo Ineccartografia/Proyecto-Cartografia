@@ -158,11 +158,11 @@ def cargar_gpkg(path, dissolve_upm=True):
         disp_sel = disp_utm[['sec','upm','mes','viv','x','y']].rename(columns={'sec':'id_entidad'})
         disp_sel['tipo_entidad'] = 'sec'
         
-        man_sel["pro_x"] = man_sel["upm"].str[:2]
-        disp_sel["pro_x"] = disp_sel["sec"].str[:2]
+        man_sel["pro_x"] = man_sel["id_entidad"].str[:2]
+        disp_sel["pro_x"] = disp_sel["id_entidad"].str[:2]
         
-        man_sel["can_x"] = man_sel["upm"].str[2:4]
-        disp_sel["can_x"] = disp_sel["sec"].str[2:4]
+        man_sel["can_x"] = man_sel["id_entidad"].str[2:4]
+        disp_sel["can_x"] = disp_sel["id_entidad"].str[2:4]
 
     data = pd.concat([man_sel, disp_sel], ignore_index=True)
     if not dissolve_upm:
