@@ -184,28 +184,44 @@ def cargar_gpkg(path, dissolve_upm=True):
 
 def asignar_encuestadores_y_dias(df_grp, n_enc, dias_tot, viv_min, viv_max, inicio_dia=1):
     """
-    Asignación greedy + distribución equitativa en días (v3).
+    Asignación greedy de encuestadores + distribución CUMULATIVA en días (v5).
 
-    MEJORAS vs versión anterior:
-    ─────────────────────────────
-    • Meta diaria = total_viv_enc / dias_tot
-      → Garantiza que se usen los 12 días completos, no 7-8.
-      → Antes usaba max(viv_min, total/dias), lo que forzaba días vacíos al final.
+    PROBLEMA RESUELTO: día 1 y día 12 recargados
+    ─────────────────────────────────────────────
+    El bug anterior:
+      - Calculaba dias_m = ceil(viv / meta) → para la manzana más grande
+        (ordenadas DESC) podía ser 6-8 días → dia_fin = día 7 u 8.
+      - El dia_cursor quedaba en 8+1=9, y con 20 manzanas pequeñas restantes
+        las ponía TODAS en dia_cursor hasta que dia_cursor > ultimo_dia y
+        entraba al fallback "dia_cursor = ultimo_dia" → TODAS las restantes
+        al último día. Eso causaba el pico de 800 viv en día 12.
+      - El día 1 también salía recargado porque el ordenamiento DESC ponía
+        la manzana más grande PRIMERO para CADA encuestador, y todos
+        comenzaban en dia=1 → suma exagerada el día 1.
 
-    • Manzanas grandes (viv > viv_max):
-      → dias_necesarios = ceil(viv / meta_diaria)
-      → El encuestador trabaja esa manzana durante N días consecutivos.
-      → Sus compañeros trabajan otras manzanas esos mismos días.
-      → La manzana NO se divide entre personas: pertenece a uno.
+    SOLUCIÓN: asignación cumulativa fraccionaria
+    ─────────────────────────────────────────────
+    Para cada encuestador:
+      budget = total_viv_enc / dias_tot  (cuántas viv por día en promedio)
+      acum = 0
+      Para cada manzana:
+        d_ini = inicio_dia + floor(acum / budget)          ← dónde empieza
+        acum += viv_manzana
+        d_fin = inicio_dia + floor((acum - ε) / budget)    ← dónde termina
+        Ambos se CLAMPEAN a [inicio_dia, ultimo_dia].
 
-    • Se añaden columnas 'dia_inicio' y 'dia_fin' (antes solo 'dia_operativo').
-      → dia_inicio = día en que empieza la manzana
-      → dia_fin    = día en que termina (dia_inicio si cabe en 1 día)
-      → En el Excel, ✓ aparece en todos los días de [dia_inicio, dia_fin].
+    Ventajas:
+      • Nunca hay overflow al último día: d_ini y d_fin se calculan
+        como fracción del total, siempre dentro de [0, dias_tot-1].
+      • Manzanas grandes (250 viv con budget=40) → d_fin = d_ini + 5 (6 días).
+        Sus compañeros trabajan otras manzanas esos mismos días.
+      • Días interiores (2-11) reciben carga uniforme ≈ budget.
+      • Ordena manzanas por tamaño DESC solo para el greedy de encuestadores;
+        para los días usa el mismo orden (la manzana grande ocupa días 1-N
+        para ESE encuestador, pero el budget lo distribuye equitativamente).
     """
+    # ── Paso 1: greedy de encuestadores (ordenar DESC para balance) ──
     df_g = df_grp.sort_values('carga_pond', ascending=False).copy()
-
-    # ── Paso 1: asignación greedy de encuestadores ──
     cargas = np.zeros(n_enc)
     enc_asig = []
     for _, row in df_g.iterrows():
@@ -214,46 +230,43 @@ def asignar_encuestadores_y_dias(df_grp, n_enc, dias_tot, viv_min, viv_max, inic
         cargas[em] += row['carga_pond']
     df_g['encuestador'] = enc_asig
 
-    # ── Paso 2: asignación de rangos de días ──
-    ultimo_dia  = inicio_dia + dias_tot - 1
-    n_rows      = len(df_g)
+    # ── Paso 2: distribución cumulativa de días ──
+    ultimo = inicio_dia + dias_tot - 1
+    n_rows = len(df_g)
     dia_ini_col = [inicio_dia] * n_rows
     dia_fin_col = [inicio_dia] * n_rows
 
     for enc_id in range(1, n_enc + 1):
         idx_enc = df_g[df_g['encuestador'] == enc_id].index.tolist()
-        if not idx_enc: continue
+        if not idx_enc:
+            continue
 
         total_viv = max(1.0, float(df_g.loc[idx_enc, 'viv'].sum()))
+        # budget = viviendas por día objetivo para ESTE encuestador
+        budget = total_viv / dias_tot
 
-        # Meta diaria que DISTRIBUYE el trabajo en TODOS los días disponibles.
-        # Ejemplo: 480 viv / 12 días = 40 viv/día → usa los 12 días.
-        # Con viv_max=80 antes terminaba en 6 días. Ahora usa todos.
-        viv_x_dia = total_viv / dias_tot
-
-        dia_cursor = inicio_dia
+        acum = 0.0  # viviendas acumuladas ANTES de la manzana actual
 
         for idx in idx_enc:
             loc   = df_g.index.get_loc(idx)
-            viv_m = float(df_g.iloc[loc]['viv'])
+            viv_m = max(0.0, float(df_g.iloc[loc]['viv']))
 
-            # ¿Cuántos días necesita esta manzana?
-            # Si viv_m=250 y meta=40 → 7 días para esta manzana sola.
-            # Sus compañeros trabajan otras manzanas esos mismos 7 días.
-            dias_m = max(1, int(np.ceil(viv_m / viv_x_dia)))
-            dias_m = min(dias_m, ultimo_dia - dia_cursor + 1)
-            if dias_m <= 0: dias_m = 1
+            # Día de inicio: cuántos días completos ya se han "gastado"
+            d_ini = inicio_dia + min(int(acum / budget), dias_tot - 1)
 
-            d_ini = min(dia_cursor, ultimo_dia)
-            d_fin = min(d_ini + dias_m - 1, ultimo_dia)
+            acum += viv_m
+
+            # Día de fin: cuántos días completos se habrán gastado al terminar
+            # El -1e-9 evita que el límite exacto salte un día extra
+            d_fin = inicio_dia + min(int((acum - 1e-9) / budget), dias_tot - 1)
+            d_fin = max(d_fin, d_ini)  # siempre al menos 1 día
+
+            # Clamp de seguridad (nunca sale del rango)
+            d_ini = max(inicio_dia, min(d_ini, ultimo))
+            d_fin = max(d_ini,      min(d_fin, ultimo))
 
             dia_ini_col[loc] = d_ini
             dia_fin_col[loc] = d_fin
-
-            # La siguiente manzana empieza cuando termina ésta
-            dia_cursor = d_fin + 1
-            if dia_cursor > ultimo_dia:
-                dia_cursor = ultimo_dia  # Últimas manzanas se apilan en el último día
 
     df_g['dia_inicio']    = dia_ini_col
     df_g['dia_fin']       = dia_fin_col
@@ -287,21 +300,29 @@ def generar_excel(df_plan, eq_cfg, personal_info,
     # ── Estilos ──
     AZ_OSCURO = "0D3B6E"; AZ_MEDIO="1A5276"; AZ_CLARO="D6EAF8"
     VRD_CHECK  = "D5F5E3"; GRIS="F2F3F4"; BLANCO="FFFFFF"
-    AMARILLO   = "FFF9C4"
+    # Paletas de color por encuestador (rotativas)
+    # Cada encuestador tiene su propia familia de colores para identificarlo visualmente
+    ENC_PALETAS = [
+        {"par": "DBEAFE", "impar": "EFF6FF", "subtot": "BFDBFE", "hdr": "1D4ED8"},  # azul
+        {"par": "D1FAE5", "impar": "ECFDF5", "subtot": "A7F3D0", "hdr": "065F46"},  # verde
+        {"par": "FEF9C3", "impar": "FEFCE8", "subtot": "FDE68A", "hdr": "854D0E"},  # amarillo
+        {"par": "FCE7F3", "impar": "FDF4FF", "subtot": "F9A8D4", "hdr": "831843"},  # rosa
+        {"par": "FFE4E6", "impar": "FFF1F2", "subtot": "FECACA", "hdr": "9F1239"},  # rojo
+        {"par": "E0E7FF", "impar": "EEF2FF", "subtot": "C7D2FE", "hdr": "3730A3"},  # índigo
+    ]
 
     def sc(cell, bold=False, bg=None, fg="000000",
            ha="left", sz=9, brd=False, wrap=False, italic=False):
         """Shortcut para estilizar una celda."""
         cell.font      = Font(bold=bold, size=sz, color=fg, italic=italic)
-        cell.alignment = Alignment(horizontal=ha, vertical="center",
-                                   wrap_text=wrap)
+        cell.alignment = Alignment(horizontal=ha, vertical="center", wrap_text=wrap)
         if bg:
             cell.fill = PatternFill("solid", fgColor=bg)
         if brd:
             t = Side(style='thin')
             cell.border = Border(left=t, right=t, top=t, bottom=t)
 
-    ct_counter = [700]  # CT global, empieza en CT700 (ajustable)
+    ct_counter = [700]  # CT global, empieza en CT700
 
     for jornada_nombre, fecha_inicio in [("Jornada 1", fecha_j1),
                                           ("Jornada 2", fecha_j2)]:
@@ -444,54 +465,95 @@ def generar_excel(df_plan, eq_cfg, personal_info,
             ws.row_dimensions[cur].height = 32
             cur += 1
 
-            # ── Filas de datos ──────────────────────────
+            # ── Filas de datos agrupadas por encuestador ─
+            # Ordenamos por encuestador primero, luego por dia_inicio
             df_sorted = df_eq.sort_values(['encuestador','dia_inicio']).copy()
 
-            for ri,(_, rd) in enumerate(df_sorted.iterrows()):
-                bg_row = BLANCO if ri % 2 == 0 else GRIS
-                p      = parse_codigo(str(rd['id_entidad']))
-                enc_id = int(rd.get('encuestador',0))
-                enc_i  = enc_list[enc_id-1] if 0 < enc_id <= len(enc_list) else {}
+            enc_actual  = None      # encuestador en curso
+            fila_enc    = 0         # contador de fila dentro del encuestador
+            viv_enc_acum = 0        # viviendas acumuladas para el subtotal
+            enc_color_idx = -1      # índice de paleta del encuestador actual
 
-                # CT code (incrementa globalmente por manzana)
-                ct_str = f"CT{ct_counter[0]:03d}"
+            for ri, (_, rd) in enumerate(df_sorted.iterrows()):
+                enc_id = int(rd.get('encuestador', 0))
+
+                # ¿Cambiamos de encuestador? → insertar fila de subtotal del anterior
+                if enc_id != enc_actual and enc_actual is not None:
+                    pal_sub = ENC_PALETAS[enc_color_idx % len(ENC_PALETAS)]
+                    bg_sub  = pal_sub["subtot"]
+                    fg_sub  = pal_sub["hdr"]
+                    enc_info_prev = enc_list[enc_actual-1] if 0 < enc_actual <= len(enc_list) else {}
+                    # Fila separadora / subtotal
+                    merge_row(cur, 1, 9,
+                              f"SUBTOTAL {enc_info_prev.get('nombre', f'Encuestador {enc_actual}')}",
+                              bold=True, bg=bg_sub, fg=fg_sub, ha="right", sz=8)
+                    for ci in range(10, last_col_idx):
+                        sc(ws.cell(cur, ci, ""), bg=bg_sub, brd=True)
+                    sc(ws.cell(cur, last_col_idx, viv_enc_acum),
+                       bold=True, ha="center", sz=9, bg=bg_sub, fg=fg_sub, brd=True)
+                    ws.row_dimensions[cur].height = 14
+                    cur += 1
+                    viv_enc_acum = 0
+
+                # Actualizar encuestador actual
+                if enc_id != enc_actual:
+                    enc_actual    = enc_id
+                    fila_enc      = 0
+                    enc_color_idx = (enc_color_idx + 1) % len(ENC_PALETAS)
+
+                pal      = ENC_PALETAS[enc_color_idx % len(ENC_PALETAS)]
+                bg_row   = pal["par"] if fila_enc % 2 == 0 else pal["impar"]
+                fila_enc += 1
+                viv_enc_acum += int(rd.get('viv', 0))
+
+                p_cod    = parse_codigo(str(rd['id_entidad']))
+                enc_i    = enc_list[enc_id-1] if 0 < enc_id <= len(enc_list) else {}
+                ct_str   = f"CT{ct_counter[0]:03d}"
                 ct_counter[0] += 1
 
                 row_vals = [
-                    pi.get('supervisor_cedula',''),  # col 1 SUPERVISOR
-                    enc_i.get('cedula',''),           # col 2 ENCUESTADOR
-                    ct_str,                           # col 3 CARGA
-                    p['prov'], p['canton'],           # PROV CANTON
-                    p['ciudad_parroq'],               # CIUDAD
-                    p['zona'], p['sector'], p['man'], # ZONA SECTOR MAN
-                    str(rd['id_entidad']),            # CÓDIGO
-                    '', '', '',                       # PROVINCIA CANTÓN CIUDAD (blank)
-                    '',                               # NRO EDIF
+                    pi.get('supervisor_cedula', ''),
+                    enc_i.get('cedula', ''),
+                    ct_str,
+                    p_cod['prov'], p_cod['canton'],
+                    p_cod['ciudad_parroq'],
+                    p_cod['zona'], p_cod['sector'], p_cod['man'],
+                    str(rd['id_entidad']),
+                    '', '', '', '',
                 ]
                 for ci, val in enumerate(row_vals, 1):
                     c = ws.cell(cur, ci, val)
-                    sc(c, bg=AMARILLO if ci==10 else bg_row,
+                    sc(c, bg=AZ_CLARO if ci == 10 else bg_row,
                        ha="center", sz=8, brd=True)
 
-                # ✓ en días del rango [dia_inicio, dia_fin]
                 d_ini = int(rd.get('dia_inicio', rd.get('dia_operativo', 1)))
-                d_fin = int(rd.get('dia_fin',    d_ini))
-                # Normalizamos relativo a inicio_dia (por si hay fase GYE)
-                inicio_dia_rel = d_ini  # ya es 1-based relativo al inicio de jornada
-
+                d_fin = int(rd.get('dia_fin', d_ini))
                 for i in range(dias_op):
-                    dia_num = i + 1  # 1 = primer día de la jornada
-                    col_idx = 15 + i
+                    dia_num = i + 1
                     in_rng  = (d_ini <= dia_num <= d_fin)
                     if in_rng:
-                        c = ws.cell(cur, col_idx, "✓")
+                        c = ws.cell(cur, 15 + i, "✓")
                         sc(c, bold=True, bg=VRD_CHECK, ha="center", sz=11, brd=True)
                     else:
-                        c = ws.cell(cur, col_idx, "")
-                        sc(c, bg=bg_row, ha="center", brd=True)
+                        sc(ws.cell(cur, 15 + i, ""), bg=bg_row, ha="center", brd=True)
 
-                sc(ws.cell(cur, last_col_idx, int(rd.get('viv',0))),
+                sc(ws.cell(cur, last_col_idx, int(rd.get('viv', 0))),
                    ha="center", sz=8, brd=True, bg=bg_row)
+                cur += 1
+
+            # Subtotal del último encuestador
+            if enc_actual is not None:
+                pal_sub  = ENC_PALETAS[enc_color_idx % len(ENC_PALETAS)]
+                enc_info = enc_list[enc_actual-1] if 0 < enc_actual <= len(enc_list) else {}
+                merge_row(cur, 1, 9,
+                          f"SUBTOTAL {enc_info.get('nombre', f'Encuestador {enc_actual}')}",
+                          bold=True, bg=pal_sub["subtot"], fg=pal_sub["hdr"], ha="right", sz=8)
+                for ci in range(10, last_col_idx):
+                    sc(ws.cell(cur, ci, ""), bg=pal_sub["subtot"], brd=True)
+                sc(ws.cell(cur, last_col_idx, viv_enc_acum),
+                   bold=True, ha="center", sz=9,
+                   bg=pal_sub["subtot"], fg=pal_sub["hdr"], brd=True)
+                ws.row_dimensions[cur].height = 14
                 cur += 1
 
             # Total de viviendas del equipo
@@ -628,6 +690,11 @@ with st.sidebar:
                  "No cambia la cantidad real a visitar, solo la asignación interna.")
         p["usar_bomb"] = st.toggle("Equipo Bombero",value=p["usar_bomb"],
             help="Detecta UPMs outliers DENTRO de cada cluster y las asigna a un equipo especial.")
+        if p["usar_bomb"]:
+            p["min_dist_bomb_m"] = st.slider(
+                "Distancia mín. Bombero (km)", 10, 150,
+                p.get("min_dist_bomb_m", 40000) // 1000) * 1000
+            st.caption("Solo va al Bombero si además supera esta distancia al centroide del cluster.")
         p["usar_gye"]  = st.toggle("Restricción Guayaquil",value=p["usar_gye"])
         p["dias_gye"]  = st.slider("Días GYE",1,5,p["dias_gye"],disabled=not p["usar_gye"])
         p["umbral_gye"]= st.slider("Umbral GYE (%)",5,30,p["umbral_gye"],disabled=not p["usar_gye"])
@@ -763,29 +830,38 @@ if btn:
         df_no_gye['equipo']  = df_no_gye['cluster_geo'].map(lambda c: asig[c][0])
         df_no_gye['jornada'] = df_no_gye['cluster_geo'].map(lambda c: asig[c][1])
 
-        # EQUIPO BOMBERO POR CLUSTER (v3):
-        # Detectamos outliers DENTRO de cada cluster, no globalmente desde la base.
-        # Lógica: distancia de cada punto a su centroide propio → IQR → outlier.
-        # Esto es más preciso: un cluster en Manabí norte tiene su propio IQR,
-        # sin verse afectado por la distancia a Guayaquil.
+        # EQUIPO BOMBERO POR CLUSTER (v5 — menos agresivo):
+        # Usamos 3×IQR en vez de 1.5×IQR, Y añadimos un umbral mínimo
+        # absoluto de distancia al centroide. Así evitamos marcar como
+        # "bombero" puntos que son estadísticamente outliers pero en la
+        # práctica están a sólo unos kilómetros del resto del cluster.
+        # El parámetro MIN_DIST_BOMBERO se puede subir/bajar según criterio.
         if p["usar_bomb"]:
             prog.progress(30,"Detectando outliers por cluster (Equipo Bombero)...")
+            MIN_DIST_BOMBERO_M = p.get("min_dist_bomb_m", 40000)  # 40 km por defecto
             for c_id in range(n_clust):
                 if c_id not in asig: continue
                 mask_c = df_no_gye['cluster_geo'] == c_id
                 pts = df_no_gye[mask_c]
-                if len(pts) < 6: continue  # necesitamos suficientes puntos para IQR
+                # Necesitamos al menos 8 puntos para que el IQR sea significativo
+                if len(pts) < 8: continue
 
-                cx,cy = centroides[c_id]
-                dists = np.sqrt((pts['x']-cx)**2+(pts['y']-cy)**2)
-                Q1c,Q3c = dists.quantile(.25),dists.quantile(.75)
-                iqrc    = Q3c-Q1c
-                if iqrc == 0: continue  # cluster muy compacto, sin outliers
+                cx, cy = centroides[c_id]
+                dists = np.sqrt((pts['x'] - cx)**2 + (pts['y'] - cy)**2)
+                Q1c, Q3c = dists.quantile(.25), dists.quantile(.75)
+                iqrc = Q3c - Q1c
+                if iqrc == 0: continue  # cluster compacto, sin outliers
 
-                bomb_idx = dists[dists > Q3c + 1.5*iqrc].index
+                # 3×IQR (en vez de 1.5×) = criterio mucho más permisivo
+                umbral_iqr = Q3c + 3.0 * iqrc
+
+                # Condición DOBLE: outlier estadístico Y suficientemente lejos
+                bomb_cands = dists[(dists > umbral_iqr) & (dists > MIN_DIST_BOMBERO_M)]
+                bomb_idx   = bomb_cands.index
+
                 if len(bomb_idx) > 0:
-                    df_no_gye.loc[bomb_idx,'equipo']  = 'Equipo Bombero'
-                    df_no_gye.loc[bomb_idx,'jornada'] = 'Jornada Especial'
+                    df_no_gye.loc[bomb_idx, 'equipo']  = 'Equipo Bombero'
+                    df_no_gye.loc[bomb_idx, 'jornada'] = 'Jornada Especial'
                     mask_bomb_global.loc[bomb_idx] = True
 
         df_w.update(df_no_gye[['equipo','jornada','cluster_geo']])
@@ -1102,50 +1178,90 @@ with tab_analisis:
         fig2.update_layout(paper_bgcolor="#111827",plot_bgcolor="#0a1020",title_font_size=12)
         st.plotly_chart(fig2,use_container_width=True)
 
-    # Distribución por días — FILTRABLE POR JORNADA (v3)
+    # Distribución por días — FILTRABLE POR JORNADA
     st.markdown("<div class='stitle'>Distribución diaria de viviendas</div>",
                 unsafe_allow_html=True)
     st.markdown("""<div class='ibox'>
-    El gráfico muestra cuántas viviendas trabaja cada equipo por día.
-    Las manzanas grandes (viv &gt; meta diaria) aparecen como barras altas en días consecutivos.
-    </div>""",unsafe_allow_html=True)
+    Viviendas distribuidas por día (manzanas grandes se reparten proporcionalmente
+    entre sus días de duración). Los días del eje son días de la jornada, no del mes.
+    Jornada 1 = días lejanos primero. Jornada 2 = días cercanos.
+    </div>""", unsafe_allow_html=True)
 
-    # NUEVO: filtro por jornada para este gráfico
-    jor_filtro = st.radio("Filtrar por jornada:",
-                           ["Jornada 1","Jornada 2","Ambas"],
-                           horizontal=True, key="filtro_jornada_dias")
+    # Filtro con índice explícito para evitar el bug del radio
+    jor_opts   = ["Jornada 1", "Jornada 2", "Ambas"]
+    jor_idx    = st.radio("Filtrar:", jor_opts, horizontal=True,
+                          key="radio_jornada_dias_v5",
+                          index=0)
+    jor_filtro = jor_opts[jor_opts.index(jor_idx)]
 
     pivot_all = df_plan[df_plan['equipo'].isin(eq_act)].copy()
     if jor_filtro != "Ambas":
-        pivot_all = pivot_all[pivot_all['jornada']==jor_filtro]
+        pivot_all = pivot_all[pivot_all['jornada'] == jor_filtro]
 
-    # Para manzanas multi-día, "explodemos" cada día dentro del rango
-    # Esto muestra la carga real por día, no solo el día de inicio.
+    # Explotar manzanas multi-día: cada día recibe viv/duración de la manzana
     rows_exp = []
-    for _,row in pivot_all.iterrows():
-        d_ini = int(row.get('dia_inicio',row.get('dia_operativo',1)))
-        d_fin = int(row.get('dia_fin',d_ini))
-        dias_tot_m = max(1,d_fin-d_ini+1)
-        viv_x_dia  = row['viv'] / dias_tot_m
-        for dd in range(d_ini, d_fin+1):
-            rows_exp.append({'equipo':row['equipo'],'dia':dd,'viv':viv_x_dia})
-    df_exp = pd.DataFrame(rows_exp)
+    for _, row in pivot_all.iterrows():
+        d_ini = int(row.get('dia_inicio', row.get('dia_operativo', 1)))
+        d_fin = int(row.get('dia_fin', d_ini))
+        # Normalizamos el eje X al día 1 relativo de la jornada
+        # (si inicio es día 4 por GYE, hacemos día_rel = d - inicio + 1)
+        dias_dur = max(1, d_fin - d_ini + 1)
+        viv_d    = row['viv'] / dias_dur
+        for dd in range(d_ini, d_fin + 1):
+            rows_exp.append({
+                'equipo': row['equipo'],
+                'encuestador': int(row.get('encuestador', 0)),
+                'dia': dd,
+                'viv': viv_d
+            })
 
-    if len(df_exp)>0:
-        pivot = df_exp.groupby(['equipo','dia'])['viv'].sum().reset_index()
-        fig_d = px.bar(pivot,x='dia',y='viv',color='equipo',barmode='group',
-                       title=f'Viviendas por día — {jor_filtro}',
-                       labels={'dia':'Día','viv':'Viviendas','equipo':'Equipo'},
-                       template='plotly_dark',color_discrete_map=color_map)
-        tot_enc_all = sum(e["enc"] for e in eq_cfg)
-        avg_enc     = tot_enc_all / max(1,len(eq_act))
-        fig_d.add_hline(y=p["viv_min"]*avg_enc,line_dash="dot",line_color="#f39c12",
-                        annotation_text=f"Mín {p['viv_min']} viv/enc")
-        fig_d.add_hline(y=p["viv_max"]*avg_enc,line_dash="dot",line_color="#e74c3c",
-                        annotation_text=f"Máx {p['viv_max']} viv/enc")
-        fig_d.update_layout(paper_bgcolor="#111827",plot_bgcolor="#0a1020",
-                             xaxis=dict(dtick=1))
-        st.plotly_chart(fig_d,use_container_width=True)
+    if len(rows_exp) > 0:
+        df_exp  = pd.DataFrame(rows_exp)
+        # Normalizar al día 1 relativo (independiente de si hay fase GYE)
+        d_min   = df_exp['dia'].min()
+        df_exp['dia_rel'] = df_exp['dia'] - d_min + 1
+
+        pivot   = df_exp.groupby(['equipo', 'dia_rel'])['viv'].sum().reset_index()
+        fig_d   = px.bar(pivot, x='dia_rel', y='viv', color='equipo',
+                         barmode='group',
+                         title=f'Viviendas por día operativo — {jor_filtro}',
+                         labels={'dia_rel': 'Día', 'viv': 'Viviendas', 'equipo': 'Equipo'},
+                         template='plotly_dark',
+                         color_discrete_map=color_map)
+
+        # Líneas de referencia por encuestador promedio
+        tot_enc_f = sum(e["enc"] for e in eq_cfg if e["nombre"] in eq_act)
+        n_eq_act  = max(1, len(eq_act))
+        avg_enc_f = tot_enc_f / n_eq_act
+        fig_d.add_hline(y=p["viv_min"] * avg_enc_f, line_dash="dot",
+                        line_color="#f39c12",
+                        annotation_text=f"Mín referencia ({p['viv_min']} viv/enc)")
+        fig_d.add_hline(y=p["viv_max"] * avg_enc_f, line_dash="dot",
+                        line_color="#e74c3c",
+                        annotation_text=f"Máx referencia ({p['viv_max']} viv/enc)")
+        fig_d.update_layout(
+            paper_bgcolor="#111827", plot_bgcolor="#0a1020",
+            xaxis=dict(dtick=1, title="Día de la jornada"),
+            yaxis_title="Viviendas"
+        )
+        st.plotly_chart(fig_d, use_container_width=True)
+
+        # Gráfico de carga por encuestador (más granular)
+        pivot_enc = df_exp.groupby(['encuestador','dia_rel'])['viv'].sum().reset_index()
+        pivot_enc['encuestador'] = pivot_enc['encuestador'].astype(str)
+        fig_enc = px.line(pivot_enc, x='dia_rel', y='viv', color='encuestador',
+                          markers=True,
+                          title=f'Carga diaria por encuestador — {jor_filtro}',
+                          labels={'dia_rel':'Día','viv':'Viviendas','encuestador':'Encuestador'},
+                          template='plotly_dark')
+        fig_enc.add_hline(y=p["viv_min"], line_dash="dot", line_color="#f39c12",
+                          annotation_text=f"Mín {p['viv_min']}")
+        fig_enc.add_hline(y=p["viv_max"], line_dash="dot", line_color="#e74c3c",
+                          annotation_text=f"Máx {p['viv_max']}")
+        fig_enc.update_layout(paper_bgcolor="#111827", plot_bgcolor="#0a1020",
+                              xaxis=dict(dtick=1))
+
+        st.plotly_chart(fig_enc, use_container_width=True)
 
     # Equipo Bombero
     df_bm = df_plan[df_plan['equipo']=='Equipo Bombero']
