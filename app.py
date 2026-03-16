@@ -184,43 +184,37 @@ def cargar_gpkg(path, dissolve_upm=True):
 
 def asignar_encuestadores_y_dias(df_grp, n_enc, dias_tot, viv_min, viv_max, inicio_dia=1):
     """
-    Asignación greedy de encuestadores + distribución CUMULATIVA en días (v5).
+    Asignación greedy de encuestadores + distribución por target diario (v6).
 
-    PROBLEMA RESUELTO: día 1 y día 12 recargados
-    ─────────────────────────────────────────────
-    El bug anterior:
-      - Calculaba dias_m = ceil(viv / meta) → para la manzana más grande
-        (ordenadas DESC) podía ser 6-8 días → dia_fin = día 7 u 8.
-      - El dia_cursor quedaba en 8+1=9, y con 20 manzanas pequeñas restantes
-        las ponía TODAS en dia_cursor hasta que dia_cursor > ultimo_dia y
-        entraba al fallback "dia_cursor = ultimo_dia" → TODAS las restantes
-        al último día. Eso causaba el pico de 800 viv en día 12.
-      - El día 1 también salía recargado porque el ordenamiento DESC ponía
-        la manzana más grande PRIMERO para CADA encuestador, y todos
-        comenzaban en dia=1 → suma exagerada el día 1.
+    LÓGICA CORREGIDA:
+    ─────────────────
+    target_dia = promedio(viv_min, viv_max) = 65 viv/día por defecto.
 
-    SOLUCIÓN: asignación cumulativa fraccionaria
-    ─────────────────────────────────────────────
-    Para cada encuestador:
-      budget = total_viv_enc / dias_tot  (cuántas viv por día en promedio)
-      acum = 0
-      Para cada manzana:
-        d_ini = inicio_dia + floor(acum / budget)          ← dónde empieza
-        acum += viv_manzana
-        d_fin = inicio_dia + floor((acum - ε) / budget)    ← dónde termina
-        Ambos se CLAMPEAN a [inicio_dia, ultimo_dia].
+    Para cada manzana de un encuestador:
+      • Si viv > viv_max → manzana GRANDE: necesita ceil(viv / target) días
+        consecutivos. El encuestador trabaja SOLO esa manzana esos días.
+        Sus compañeros trabajan otras manzanas en paralelo.
+        # Para cambiar el umbral de "manzana grande" modifica viv_max en el slider.
+      • Si viv <= viv_max → manzana NORMAL: acumula en el día actual hasta
+        superar el target, luego avanza al siguiente día.
+        # Para cambiar el ritmo diario, ajusta viv_min/viv_max en los sliders.
 
-    Ventajas:
-      • Nunca hay overflow al último día: d_ini y d_fin se calculan
-        como fracción del total, siempre dentro de [0, dias_tot-1].
-      • Manzanas grandes (250 viv con budget=40) → d_fin = d_ini + 5 (6 días).
-        Sus compañeros trabajan otras manzanas esos mismos días.
-      • Días interiores (2-11) reciben carga uniforme ≈ budget.
-      • Ordena manzanas por tamaño DESC solo para el greedy de encuestadores;
-        para los días usa el mismo orden (la manzana grande ocupa días 1-N
-        para ESE encuestador, pero el budget lo distribuye equitativamente).
+    Por qué ya no se sobrecargan día 1 y día 12:
+      • Antes: cursor avanzaba manzana a manzana con ceil() → overflow al último día.
+      • Ahora: el cursor avanza solo cuando la acumulación supera el target.
+        Las manzanas pequeñas restantes van a días intermedios, no al último.
+
+    Por qué ya no aparece "227 viv en 1 día":
+      • Manzana con 227 viv con target=65 → ceil(227/65)=4 días consecutivos.
+        Antes podía quedar en 1 día si el budget se calculaba con total_viv alto.
+        # Si aun así quieres más días para manzanas grandes, baja viv_max.
     """
-    # ── Paso 1: greedy de encuestadores (ordenar DESC para balance) ──
+    target = (viv_min + viv_max) / 2.0   # e.g. (50+80)/2 = 65 viv/día
+    ultimo = inicio_dia + dias_tot - 1
+
+    # ── Paso 1: greedy de encuestadores ──────────────────────────────────────
+    # Ordenamos DESC por carga_pond para que el greedy balancee primero las
+    # manzanas más pesadas. No cambiar este orden sin revisar el balance.
     df_g = df_grp.sort_values('carga_pond', ascending=False).copy()
     cargas = np.zeros(n_enc)
     enc_asig = []
@@ -230,9 +224,8 @@ def asignar_encuestadores_y_dias(df_grp, n_enc, dias_tot, viv_min, viv_max, inic
         cargas[em] += row['carga_pond']
     df_g['encuestador'] = enc_asig
 
-    # ── Paso 2: distribución cumulativa de días ──
-    ultimo = inicio_dia + dias_tot - 1
-    n_rows = len(df_g)
+    # ── Paso 2: asignación de días por target ────────────────────────────────
+    n_rows      = len(df_g)
     dia_ini_col = [inicio_dia] * n_rows
     dia_fin_col = [inicio_dia] * n_rows
 
@@ -241,27 +234,37 @@ def asignar_encuestadores_y_dias(df_grp, n_enc, dias_tot, viv_min, viv_max, inic
         if not idx_enc:
             continue
 
-        total_viv = max(1.0, float(df_g.loc[idx_enc, 'viv'].sum()))
-        # budget = viviendas por día objetivo para ESTE encuestador
-        budget = total_viv / dias_tot
-
-        acum = 0.0  # viviendas acumuladas ANTES de la manzana actual
+        dia_cursor = inicio_dia   # día en que empieza la manzana actual
+        viv_acum   = 0.0          # viviendas acumuladas en el día actual
 
         for idx in idx_enc:
             loc   = df_g.index.get_loc(idx)
             viv_m = max(0.0, float(df_g.iloc[loc]['viv']))
 
-            # Día de inicio: cuántos días completos ya se han "gastado"
-            d_ini = inicio_dia + min(int(acum / budget), dias_tot - 1)
+            if viv_m > viv_max:
+                # ── MANZANA GRANDE ──
+                # Necesita múltiples días consecutivos.
+                # ceil(viv / target) días, clampeado al rango disponible.
+                # El encuestador trabaja esta manzana días seguidos;
+                # sus compañeros van a otras manzanas en paralelo.
+                # Si deseas que sea aún más agresivo (más días), baja viv_max.
+                dias_m    = max(1, int(np.ceil(viv_m / target)))
+                dias_m    = min(dias_m, ultimo - dia_cursor + 1)
+                d_ini     = dia_cursor
+                d_fin     = min(d_ini + dias_m - 1, ultimo)
+                dia_cursor = d_fin + 1       # siguiente manzana empieza después
+                viv_acum  = 0.0
+            else:
+                # ── MANZANA NORMAL ──
+                # Va al día actual. Si acumular supera el target, avanza día.
+                d_ini    = min(dia_cursor, ultimo)
+                d_fin    = d_ini
+                viv_acum += viv_m
+                if viv_acum >= target and dia_cursor < ultimo:
+                    dia_cursor += 1
+                    viv_acum   = 0.0
 
-            acum += viv_m
-
-            # Día de fin: cuántos días completos se habrán gastado al terminar
-            # El -1e-9 evita que el límite exacto salte un día extra
-            d_fin = inicio_dia + min(int((acum - 1e-9) / budget), dias_tot - 1)
-            d_fin = max(d_fin, d_ini)  # siempre al menos 1 día
-
-            # Clamp de seguridad (nunca sale del rango)
+            # Clamp de seguridad final
             d_ini = max(inicio_dia, min(d_ini, ultimo))
             d_fin = max(d_ini,      min(d_fin, ultimo))
 
@@ -275,24 +278,10 @@ def asignar_encuestadores_y_dias(df_grp, n_enc, dias_tot, viv_min, viv_max, inic
 
 
 def generar_excel(df_plan, eq_cfg, personal_info,
-                  fecha_j1, fecha_j2, dias_op, n_jornada, mes_nombre):
+                  fecha_j1, fecha_j2, dias_op, j1_num, j2_num, mes_nombre):
     """
-    Genera un Excel formateado al estilo INEC.
-
-    Estructura por hoja (una por jornada):
-    ─────────────────────────────────────
-    Por cada equipo/grupo:
-      [Encabezado institucional]
-      [Bloque de personal: supervisor, encuestadores, chofer, placa]
-      [Tabla de manzanas con columnas de fecha y ✓]
-
-    Columnas de la tabla:
-      SUPERVISOR | ENCUESTADOR | CARGA (CT) | PROV | CANTON | CIUDAD/PARROQ |
-      ZONA | SECTOR | MAN | CÓDIGO JURISDICCIÓN | PROVINCIA | CANTÓN |
-      CIUDAD/PARROQ/LOC | NRO EDIF | [fecha_1...fecha_N] | # VIV
-
-    Los ✓ aparecen en todas las columnas de fecha dentro del rango
-    [dia_inicio, dia_fin] de cada manzana.
+    Genera Excel con dos hojas (una por jornada), cada una con su número
+    de jornada correcto (j1_num, j2_num) y su fecha de inicio independiente.
     """
     wb = openpyxl.Workbook()
     wb.remove(wb.active)
@@ -324,8 +313,12 @@ def generar_excel(df_plan, eq_cfg, personal_info,
 
     ct_counter = [700]  # CT global, empieza en CT700
 
-    for jornada_nombre, fecha_inicio in [("Jornada 1", fecha_j1),
-                                          ("Jornada 2", fecha_j2)]:
+    # Iteramos con el número de jornada REAL de cada hoja
+    # j1_num y j2_num se calculan automáticamente desde el mes seleccionado
+    for jornada_nombre, fecha_inicio, n_jornada_hoja in [
+        ("Jornada 1", fecha_j1, j1_num),
+        ("Jornada 2", fecha_j2, j2_num)
+    ]:
         df_jor = df_plan[df_plan['jornada'] == jornada_nombre].copy()
         if len(df_jor) == 0:
             continue
@@ -384,9 +377,10 @@ def generar_excel(df_plan, eq_cfg, personal_info,
                 cur += 1
             cur += 1
 
-            # JORNADA / GRUPO
+            # JORNADA / GRUPO — número de jornada real de esta hoja
             ws.cell(cur,1,"JORNADA")
-            ws.cell(cur,2,str(n_jornada)).font = Font(bold=True,size=11)
+            jorn_cell = ws.cell(cur,2,str(n_jornada_hoja))
+            jorn_cell.font = Font(bold=True,size=11)
             ws.cell(cur,7,"GRUPO")
             ws.cell(cur,9,str(grupo_num)).font = Font(bold=True,size=11)
             sc(ws.cell(cur,1),bold=True,sz=10)
@@ -577,7 +571,8 @@ _defs = {
     "tsp_results": {}, "road_paths": {}, "resumen_bal": None,
     "sil_score": None, "n_bombero": 0,
     "personal_info": {},
-    "fecha_j1": None, "fecha_j2": None, "n_jornada": 1,
+    "fecha_j1": None, "fecha_j2": None,
+    "j1_num": 1, "j2_num": 2,
     "params": {"dias_op":12,"viv_min":50,"viv_max":80,"factor_r":1.5,
                "usar_bomb":True,"usar_gye":True,"dias_gye":3,"umbral_gye":10},
     "equipos_cfg": [
@@ -699,10 +694,23 @@ with st.sidebar:
         p["dias_gye"]  = st.slider("Días GYE",1,5,p["dias_gye"],disabled=not p["usar_gye"])
         p["umbral_gye"]= st.slider("Umbral GYE (%)",5,30,p["umbral_gye"],disabled=not p["usar_gye"])
 
+        # ── Número de jornada: auto-calculado desde el mes ───────────────────
+        # Cada mes tiene 2 jornadas. Mes 1→J1+J2, Mes 2→J3+J4, Mes N→J(2N-1)+J(2N).
+        # Si el mes 1 del gpkg no corresponde a la Jornada 1 del calendario INEC,
+        # ajustar OFFSET_JORNADA aquí (por ahora = 0).
+        # OFFSET_JORNADA = 0
+        j1_num = (int(mes_sel) - 1) * 2 + 1
+        j2_num = j1_num + 1
+        st.session_state.j1_num = j1_num
+        st.session_state.j2_num = j2_num
         st.divider()
-        st.markdown("**Número de jornada**")
-        st.session_state.n_jornada = st.number_input("Jornada oficial",1,30,
-                                                       st.session_state.n_jornada)
+        st.markdown(f"""
+        <div style='font-size:11px;background:#0d2035;border-radius:6px;
+                    padding:8px 12px;border-left:3px solid #2e86de'>
+        📅 Mes {int(mes_sel)} →
+        <b style='color:#2e86de'>Jornada {j1_num}</b> +
+        <b style='color:#27ae60'>Jornada {j2_num}</b>
+        </div>""", unsafe_allow_html=True)
 
         tot_enc = sum(e["enc"] for e in st.session_state.equipos_cfg)
         tot_viv = int(df_mes["viv"].sum()) if len(df_mes)>0 else 0
@@ -712,7 +720,7 @@ with st.sidebar:
         🏠 <b style='color:#7eb3d8'>{tot_viv:,}</b> viviendas<br>
         👥 <b style='color:#7eb3d8'>{len(st.session_state.equipos_cfg)}</b> equipos ·
            <b style='color:#7eb3d8'>{tot_enc}</b> enc.
-        </div>""",unsafe_allow_html=True)
+        </div>""", unsafe_allow_html=True)
 
 # ── HEADER ────────────────────────────────────
 st.markdown("""
@@ -870,6 +878,17 @@ if btn:
     st.session_state.n_bombero = n_bomb
 
     # 4. Encuestadores + días
+    # ─────────────────────────────────────────────────────────────────────────
+    # CORRECCIÓN INICIO_DIA:
+    # La restricción de Guayaquil (días_gye primeros días en GYE) SOLO aplica
+    # a la Jornada 1. La Jornada 2 es un período operativo COMPLETAMENTE
+    # SEPARADO de 12 días que siempre empieza en el día 1.
+    #
+    # Bug anterior: inicio = dias_gye+1 se aplicaba a AMBAS jornadas.
+    # Resultado: Jornada 2 tenía días 1-3 vacíos porque empezaba en día 4.
+    #
+    # Si en el futuro la Jornada 2 también tiene restricción GYE,
+    # cambiar la condición a: act_gye and jornada in ['Jornada 1','Jornada 2']
     prog.progress(42,"Asignando encuestadores y distribuyendo días...")
     enc_dict = {e["nombre"]:e["enc"] for e in eq_cfg}
 
@@ -878,11 +897,19 @@ if btn:
             mask_g = (df_w['equipo']==nombre_eq)&(df_w['jornada']==jornada)
             grp = df_w[mask_g].copy()
             if len(grp)==0: continue
-            n_enc     = enc_dict.get(nombre_eq,3)
-            inicio    = (p["dias_gye"]+1) if act_gye else 1
-            dias_disp = p["dias_op"] - (p["dias_gye"] if act_gye else 0)
-            ga = asignar_encuestadores_y_dias(grp,n_enc,dias_disp,
-                                               p["viv_min"],p["viv_max"],inicio)
+            n_enc = enc_dict.get(nombre_eq,3)
+
+            # Jornada 2 siempre empieza en día 1 (período separado)
+            # Jornada 1 empieza después de los días GYE si la restricción está activa
+            if jornada == 'Jornada 1' and act_gye:
+                inicio    = p["dias_gye"] + 1
+                dias_disp = p["dias_op"] - p["dias_gye"]
+            else:
+                inicio    = 1
+                dias_disp = p["dias_op"]
+
+            ga = asignar_encuestadores_y_dias(grp, n_enc, dias_disp,
+                                               p["viv_min"], p["viv_max"], inicio)
             df_w.update(ga[['encuestador','dia_operativo','dia_inicio','dia_fin']])
 
     # Fase Guayaquil
@@ -1198,28 +1225,44 @@ with tab_analisis:
     if jor_filtro != "Ambas":
         pivot_all = pivot_all[pivot_all['jornada'] == jor_filtro]
 
-    # Explotar manzanas multi-día: cada día recibe viv/duración de la manzana
+    # Normalizamos el eje X por jornada de forma INDEPENDIENTE.
+    # Cada jornada tiene su propio "día 1". Si mezclamos ambas y Jornada 1
+    # empieza en día 1 mientras Jornada 2 también empieza en día 1 (tras el fix),
+    # la normalización ya es correcta. Pero si hubiera un offset (ej. GYE en J1),
+    # la normalización por jornada evita que días 1-3 aparezcan vacíos en el eje.
     rows_exp = []
     for _, row in pivot_all.iterrows():
         d_ini = int(row.get('dia_inicio', row.get('dia_operativo', 1)))
         d_fin = int(row.get('dia_fin', d_ini))
-        # Normalizamos el eje X al día 1 relativo de la jornada
-        # (si inicio es día 4 por GYE, hacemos día_rel = d - inicio + 1)
         dias_dur = max(1, d_fin - d_ini + 1)
         viv_d    = row['viv'] / dias_dur
+        # dia_rel: relativo al primer día DENTRO de la misma jornada
+        # Con el fix de inicio_dia, J2 ya empieza en 1, así que esto no cambia nada.
+        # Si en el futuro J1 tuviera fase GYE que empiece en día 4, el gráfico
+        # mostraría esos días como 4,5... Para normalizar basta con restar d_min
+        # pero SOLO dentro de la misma jornada.
         for dd in range(d_ini, d_fin + 1):
             rows_exp.append({
-                'equipo': row['equipo'],
-                'encuestador': int(row.get('encuestador', 0)),
-                'dia': dd,
-                'viv': viv_d
+                'equipo'      : row['equipo'],
+                'jornada'     : row['jornada'],
+                'encuestador' : int(row.get('encuestador', 0)),
+                'dia_abs'     : dd,
+                'viv'         : viv_d
             })
 
     if len(rows_exp) > 0:
-        df_exp  = pd.DataFrame(rows_exp)
-        # Normalizar al día 1 relativo (independiente de si hay fase GYE)
-        d_min   = df_exp['dia'].min()
-        df_exp['dia_rel'] = df_exp['dia'] - d_min + 1
+        df_exp = pd.DataFrame(rows_exp)
+
+        # Normalizar día relativo POR JORNADA (para que siempre empiece en 1)
+        if jor_filtro != "Ambas":
+            d_min_jor = df_exp['dia_abs'].min()
+            df_exp['dia_rel'] = df_exp['dia_abs'] - d_min_jor + 1
+        else:
+            # Para "Ambas" cada jornada se normaliza independientemente a 1..N
+            # Usamos transform dentro de cada jornada
+            df_exp['dia_rel'] = df_exp.groupby('jornada')['dia_abs'].transform(
+                lambda s: s - s.min() + 1
+            ).astype(int)
 
         pivot   = df_exp.groupby(['equipo', 'dia_rel'])['viv'].sum().reset_index()
         fig_d   = px.bar(pivot, x='dia_rel', y='viv', color='equipo',
@@ -1246,22 +1289,24 @@ with tab_analisis:
         )
         st.plotly_chart(fig_d, use_container_width=True)
 
-        # Gráfico de carga por encuestador (más granular)
-        pivot_enc = df_exp.groupby(['encuestador','dia_rel'])['viv'].sum().reset_index()
-        pivot_enc['encuestador'] = pivot_enc['encuestador'].astype(str)
-        fig_enc = px.line(pivot_enc, x='dia_rel', y='viv', color='encuestador',
-                          markers=True,
-                          title=f'Carga diaria por encuestador — {jor_filtro}',
-                          labels={'dia_rel':'Día','viv':'Viviendas','encuestador':'Encuestador'},
-                          template='plotly_dark')
-        fig_enc.add_hline(y=p["viv_min"], line_dash="dot", line_color="#f39c12",
-                          annotation_text=f"Mín {p['viv_min']}")
-        fig_enc.add_hline(y=p["viv_max"], line_dash="dot", line_color="#e74c3c",
-                          annotation_text=f"Máx {p['viv_max']}")
-        fig_enc.update_layout(paper_bgcolor="#111827", plot_bgcolor="#0a1020",
-                              xaxis=dict(dtick=1))
-
-        st.plotly_chart(fig_enc, use_container_width=True)
+        # Gráfico de carga por encuestador — solo cuando se filtra una jornada
+        # (en modo "Ambas" los encuestadores se mezclan y el gráfico pierde sentido)
+        # Para ver ambas jornadas por encuestador usa el drilldown de equipos arriba.
+        if jor_filtro != "Ambas":
+            pivot_enc = df_exp.groupby(['encuestador','dia_rel'])['viv'].sum().reset_index()
+            pivot_enc['encuestador'] = "Enc. " + pivot_enc['encuestador'].astype(str)
+            fig_enc = px.line(pivot_enc, x='dia_rel', y='viv', color='encuestador',
+                              markers=True,
+                              title=f'Carga diaria por encuestador — {jor_filtro}',
+                              labels={'dia_rel':'Día','viv':'Viviendas','encuestador':''},
+                              template='plotly_dark')
+            fig_enc.add_hline(y=p["viv_min"], line_dash="dot", line_color="#f39c12",
+                              annotation_text=f"Mín {p['viv_min']}")
+            fig_enc.add_hline(y=p["viv_max"], line_dash="dot", line_color="#e74c3c",
+                              annotation_text=f"Máx {p['viv_max']}")
+            fig_enc.update_layout(paper_bgcolor="#111827", plot_bgcolor="#0a1020",
+                                  xaxis=dict(dtick=1))
+            st.plotly_chart(fig_enc, use_container_width=True)
 
     # Equipo Bombero
     df_bm = df_plan[df_plan['equipo']=='Equipo Bombero']
@@ -1420,20 +1465,23 @@ with tab_reporte:
         with st.spinner("Generando Excel..."):
             try:
                 excel_bytes = generar_excel(
-                    df_plan        = df_plan,
-                    eq_cfg         = eq_cfg,
-                    personal_info  = st.session_state.personal_info,
-                    fecha_j1       = st.session_state.fecha_j1,
-                    fecha_j2       = st.session_state.fecha_j2,
-                    dias_op        = p["dias_op"],
-                    n_jornada      = st.session_state.n_jornada,
-                    mes_nombre     = MESES_N.get(int(df['mes'].iloc[0]),'')
+                    df_plan       = df_plan,
+                    eq_cfg        = eq_cfg,
+                    personal_info = st.session_state.personal_info,
+                    fecha_j1      = st.session_state.fecha_j1,
+                    fecha_j2      = st.session_state.fecha_j2,
+                    dias_op       = p["dias_op"],
+                    j1_num        = st.session_state.get("j1_num", 1),
+                    j2_num        = st.session_state.get("j2_num", 2),
+                    mes_nombre    = MESES_N.get(int(df['mes'].iloc[0]),'')
                 )
+                j1n = st.session_state.get("j1_num", 1)
+                j2n = st.session_state.get("j2_num", 2)
                 mes_n = MESES_N.get(int(df['mes'].iloc[0]),'mes')
                 st.download_button(
-                    label     = f"⬇️ Descargar planificacion_jornada{st.session_state.n_jornada}_{mes_n}.xlsx",
+                    label     = f"⬇️ Descargar J{j1n}+J{j2n}_{mes_n}.xlsx",
                     data      = excel_bytes,
-                    file_name = f"planificacion_J{st.session_state.n_jornada}_{mes_n}.xlsx",
+                    file_name = f"planificacion_J{j1n}-J{j2n}_{mes_n}.xlsx",
                     mime      = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     use_container_width=True
                 )
