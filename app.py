@@ -1,7 +1,7 @@
 # =============================================================================
 # PLANIFICACIÓN CARTOGRÁFICA ENDI 2025 — STREAMLIT v3
 # INEC · Zonal Litoral · Autores: Franklin López, Carlos Quinto
-#
+# Se realiza cambios para la automatización
 # CAMBIOS v3:
 # 1. MANZANAS GRANDES MULTI-DÍA: una manzana con 250 viv se distribuye en
 #    ceil(250/meta_dia) días consecutivos para el MISMO encuestador.
