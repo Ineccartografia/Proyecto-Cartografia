@@ -146,40 +146,89 @@ def parse_codigo(codigo):
 
 def cargar_gpkg(path, dissolve_upm=True):
     capas = pyogrio.list_layers(path)
-    man   = gpd.read_file(path,layer=capas[0][0])
-    disp  = gpd.read_file(path,layer=capas[1][0])
-    man   = man[man['zonal']=='LITORAL']
-    disp  = disp[disp['zonal']=='LITORAL']
-    man_u = man.to_crs(epsg=32717)
-    dis_u = disp.to_crs(epsg=32717)
+    
+    # Detección de estructura robusta
+    # Caso 1: Una sola capa (Nuevo formato ENCIET)
+    if len(capas) == 1:
+        gdf = gpd.read_file(path, layer=capas[0][0])
+        
+        # Mapeo de columnas dinámico
+        col_map = {
+            '1_mes_cart': 'mes',
+            'viv_total': 'viv',
+            '1_zonal': 'zonal',
+            '1_id_upm': 'upm',
+            'ManSec': 'id_entidad'
+        }
+        gdf = gdf.rename(columns={k: v for k, v in col_map.items() if k in gdf.columns})
+        
+        # Filtrar solo Litoral si la columna existe
+        if 'zonal' in gdf.columns:
+            gdf = gdf[gdf['zonal'].str.contains('LITORAL', na=False, case=False)]
+        
+        # Crear tipo_entidad basado en '999'
+        if 'id_entidad' in gdf.columns:
+            gdf['tipo_entidad'] = gdf['id_entidad'].astype(str).apply(
+                lambda x: 'sec' if '999' in x else 'man'
+            )
+        
+        gdf_u = gdf.to_crs(epsg=32717)
+        gdf_u['geometry'] = gdf_u.geometry.representative_point()
+        gdf_u['x'] = gdf_u.geometry.x
+        gdf_u['y'] = gdf_u.geometry.y
+        
+        # Columnas de provincia/cantón para restricciones GYE
+        if 'pro' in gdf_u.columns: gdf_u['pro_x'] = gdf_u['pro']
+        if 'can' in gdf_u.columns: gdf_u['can_x'] = gdf_u['can']
 
-    if dissolve_upm:
-        def _d(gdf,tipo):
-            d=gdf.dissolve(by='upm',aggfunc={'mes':'first','viv':'sum'})
-            d['geometry']=d.geometry.representative_point()
-            o=d[['mes','viv']].copy()
-            o['id_entidad']=d.index; o['upm']=d.index
-            o['tipo_entidad']=tipo
-            o['x']=d.geometry.x; o['y']=d.geometry.y
-            return o[['id_entidad','upm','mes','viv','x','y','tipo_entidad']]
-        ms=_d(man_u,'man_upm'); ds=_d(dis_u,'sec_upm')
+        if dissolve_upm and 'upm' in gdf_u.columns:
+            agg_dict = {'viv': 'sum', 'mes': 'first', 'x': 'first', 'y': 'first', 'tipo_entidad': 'first'}
+            if 'pro_x' in gdf_u.columns: agg_dict['pro_x'] = 'first'
+            if 'can_x' in gdf_u.columns: agg_dict['can_x'] = 'first'
+            gdf_final = gdf_u.groupby('upm').agg(agg_dict).reset_index()
+            gdf_final['id_entidad'] = gdf_final['upm']
+            gdf_final['tipo_entidad'] = gdf_final['tipo_entidad'].apply(lambda t: f"{t}_upm")
+        else:
+            gdf_final = gdf_u
+            
+        return utm_to_wgs84(gdf_final)
+
+    # Caso 2: Dos capas (Formato anterior)
     else:
-        for g in [man_u,dis_u]:
-            g['geometry']=g.geometry.representative_point()
-            g['x']=g.geometry.x; g['y']=g.geometry.y
-        ms=man_u[['man','upm','mes','viv','x','y']].rename(columns={'man':'id_entidad'})
-        ms['tipo_entidad']='man'
-        ds=dis_u[['sec','upm','mes','viv','x','y']].rename(columns={'sec':'id_entidad'})
-        ds['tipo_entidad']='sec'
-        ms['pro_x']=ms['id_entidad'].astype(str).str[:2]
-        ms['can_x']=ms['id_entidad'].astype(str).str[2:4]
-        ds['pro_x']=ds['id_entidad'].astype(str).str[:2]
-        ds['can_x']=ds['id_entidad'].astype(str).str[2:4]
+        man   = gpd.read_file(path,layer=capas[0][0])
+        disp  = gpd.read_file(path,layer=capas[1][0])
+        man   = man[man['zonal']=='LITORAL']
+        disp  = disp[disp['zonal']=='LITORAL']
+        man_u = man.to_crs(epsg=32717)
+        dis_u = disp.to_crs(epsg=32717)
 
-    data=pd.concat([ms,ds],ignore_index=True)
-    if not dissolve_upm:
-        data=data.drop_duplicates(subset=['id_entidad','upm'],keep='first')
-    return utm_to_wgs84(data)
+        if dissolve_upm:
+            def _d(gdf,tipo):
+                d=gdf.dissolve(by='upm',aggfunc={'mes':'first','viv':'sum'})
+                d['geometry']=d.geometry.representative_point()
+                o=d[['mes','viv']].copy()
+                o['id_entidad']=d.index; o['upm']=d.index
+                o['tipo_entidad']=tipo
+                o['x']=d.geometry.x; o['y']=d.geometry.y
+                return o[['id_entidad','upm','mes','viv','x','y','tipo_entidad']]
+            ms=_d(man_u,'man_upm'); ds=_d(dis_u,'sec_upm')
+        else:
+            for g in [man_u,dis_u]:
+                g['geometry']=g.geometry.representative_point()
+                g['x']=g.geometry.x; g['y']=g.geometry.y
+            ms=man_u[['man','upm','mes','viv','x','y']].rename(columns={'man':'id_entidad'})
+            ms['tipo_entidad']='man'
+            ds=dis_u[['sec','upm','mes','viv','x','y']].rename(columns={'sec':'id_entidad'})
+            ds['tipo_entidad']='sec'
+            ms['pro_x']=ms['id_entidad'].astype(str).str[:2]
+            ms['can_x']=ms['id_entidad'].astype(str).str[2:4]
+            ds['pro_x']=ds['id_entidad'].astype(str).str[:2]
+            ds['can_x']=ds['id_entidad'].astype(str).str[2:4]
+
+        data=pd.concat([ms,ds],ignore_index=True)
+        if not dissolve_upm:
+            data=data.drop_duplicates(subset=['id_entidad','upm'],keep='first')
+        return utm_to_wgs84(data)
 
 
 def asignar_encuestadores_y_dias(df_grp, n_enc, dias_tot, viv_min, viv_max, inicio_dia=1):
