@@ -146,13 +146,8 @@ def parse_codigo(codigo):
 
 def cargar_gpkg(path, dissolve_upm=True):
     capas = pyogrio.list_layers(path)
-    
-    # Detección de estructura robusta
-    # Caso 1: Una sola capa (Nuevo formato ENCIET)
     if len(capas) == 1:
         gdf = gpd.read_file(path, layer=capas[0][0])
-        
-        # Mapeo de columnas dinámico
         col_map = {
             '1_mes_cart': 'mes',
             'viv_total': 'viv',
@@ -161,25 +156,19 @@ def cargar_gpkg(path, dissolve_upm=True):
             'ManSec': 'id_entidad'
         }
         gdf = gdf.rename(columns={k: v for k, v in col_map.items() if k in gdf.columns})
-        
-        # Filtrar solo Litoral si la columna existe
         if 'zonal' in gdf.columns:
             gdf = gdf[gdf['zonal'].str.contains('LITORAL', na=False, case=False)]
-        
-        # Crear tipo_entidad basado en '999'
         if 'id_entidad' in gdf.columns:
             gdf['tipo_entidad'] = gdf['id_entidad'].astype(str).apply(
                 lambda x: 'sec' if '999' in x else 'man'
             )
-        
         gdf_u = gdf.to_crs(epsg=32717)
         gdf_u['geometry'] = gdf_u.geometry.representative_point()
         gdf_u['x'] = gdf_u.geometry.x
         gdf_u['y'] = gdf_u.geometry.y
-        
-        # Columnas de provincia/cantón para restricciones GYE
         if 'pro' in gdf_u.columns: gdf_u['pro_x'] = gdf_u['pro']
         if 'can' in gdf_u.columns: gdf_u['can_x'] = gdf_u['can']
+        if 'mes' in gdf_u.columns: gdf_u['mes'] = pd.to_numeric(gdf_u['mes'], errors='coerce')
 
         if dissolve_upm and 'upm' in gdf_u.columns:
             agg_dict = {'viv': 'sum', 'mes': 'first', 'x': 'first', 'y': 'first', 'tipo_entidad': 'first'}
@@ -190,10 +179,7 @@ def cargar_gpkg(path, dissolve_upm=True):
             gdf_final['tipo_entidad'] = gdf_final['tipo_entidad'].apply(lambda t: f"{t}_upm")
         else:
             gdf_final = gdf_u
-            
         return utm_to_wgs84(gdf_final)
-
-    # Caso 2: Dos capas (Formato anterior)
     else:
         man   = gpd.read_file(path,layer=capas[0][0])
         disp  = gpd.read_file(path,layer=capas[1][0])
@@ -201,7 +187,6 @@ def cargar_gpkg(path, dissolve_upm=True):
         disp  = disp[disp['zonal']=='LITORAL']
         man_u = man.to_crs(epsg=32717)
         dis_u = disp.to_crs(epsg=32717)
-
         if dissolve_upm:
             def _d(gdf,tipo):
                 d=gdf.dissolve(by='upm',aggfunc={'mes':'first','viv':'sum'})
@@ -210,6 +195,7 @@ def cargar_gpkg(path, dissolve_upm=True):
                 o['id_entidad']=d.index; o['upm']=d.index
                 o['tipo_entidad']=tipo
                 o['x']=d.geometry.x; o['y']=d.geometry.y
+                if 'mes' in o.columns: o['mes'] = pd.to_numeric(o['mes'], errors='coerce')
                 return o[['id_entidad','upm','mes','viv','x','y','tipo_entidad']]
             ms=_d(man_u,'man_upm'); ds=_d(dis_u,'sec_upm')
         else:
@@ -224,10 +210,10 @@ def cargar_gpkg(path, dissolve_upm=True):
             ms['can_x']=ms['id_entidad'].astype(str).str[2:4]
             ds['pro_x']=ds['id_entidad'].astype(str).str[:2]
             ds['can_x']=ds['id_entidad'].astype(str).str[2:4]
-
+            for df_t in [ms, ds]:
+                if 'mes' in df_t.columns: df_t['mes'] = pd.to_numeric(df_t['mes'], errors='coerce')
         data=pd.concat([ms,ds],ignore_index=True)
-        if not dissolve_upm:
-            data=data.drop_duplicates(subset=['id_entidad','upm'],keep='first')
+        if not dissolve_upm: data=data.drop_duplicates(subset=['id_entidad','upm'],keep='first')
         return utm_to_wgs84(data)
 
 
