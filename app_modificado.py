@@ -40,7 +40,9 @@ import pyogrio
 from streamlit_folium import st_folium
 import plotly.express as px
 import plotly.graph_objects as go
-import tempfile, os, warnings, io
+import plotly.io as pio
+import tempfile, os, warnings, io, json
+from pathlib import Path
 from datetime import date, timedelta
 import osmnx as ox
 import networkx as nx
@@ -52,6 +54,7 @@ import openpyxl
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 warnings.filterwarnings('ignore')
+pio.templates.default = 'plotly_white'
 
 # ── PAGE CONFIG ───────────────────────────────
 st.set_page_config(page_title="ENDI · Planificación",
@@ -61,149 +64,68 @@ st.set_page_config(page_title="ENDI · Planificación",
 # ── CSS ───────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-html, body, [class*="css"] {
-    font-family: 'Inter', sans-serif;
-    color: #1f2937;
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap');
+html, body, [class*="css"] {font-family:'IBM Plex Sans',sans-serif; color:#172033;}
+.stApp {background:linear-gradient(180deg,#f7f9fc 0%, #eef3f8 100%); color:#172033;}
+[data-testid="stSidebar"] {background:#ffffff; border-right:1px solid #d8e2ee;}
+[data-testid="stSidebar"] * {color:#1d2a3a !important;}
+[data-testid="stHeader"] {background:rgba(255,255,255,.88); backdrop-filter:blur(8px);}
+[data-testid="stToolbar"] button {color:#36506b !important;}
+div[data-baseweb="select"] > div,
+div[data-baseweb="input"] > div,
+[data-testid="stDateInput"] > div,
+[data-testid="stNumberInput"] > div {background:#ffffff !important; border:1px solid #cfd8e3 !important; color:#172033 !important;}
+.stButton > button, .stDownloadButton > button {
+    background:linear-gradient(135deg,#ffffff,#f3f7fb) !important;
+    color:#18324a !important; border:1px solid #c8d6e5 !important;
+    border-radius:10px !important; font-weight:600 !important;
+    box-shadow:0 2px 8px rgba(17,39,63,.06) !important;
 }
-
-.stApp { background: #f8fafc; }
-
-[data-testid="stSidebar"] {
-    background: #ffffff;
-    border-right: 1px solid #e5e7eb;
+.stButton > button[kind="primary"], .stDownloadButton > button[kind="primary"] {
+    background:linear-gradient(135deg,#2563eb,#1d4ed8) !important;
+    color:#fff !important; border:1px solid #1d4ed8 !important;
 }
-
-[data-testid="stSidebar"] * { color: #1f2937 !important; }
-
-.hdr {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 18px;
-    padding: 24px 28px;
-    margin-bottom: 20px;
-    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
-    position: relative;
-    overflow: hidden;
-}
-
-.hdr::after {
-    content: "INEC";
-    position: absolute;
-    right: 22px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 64px;
-    font-weight: 700;
-    color: rgba(37, 99, 235, 0.05);
-    letter-spacing: 4px;
-}
-
-.hdr h1 {
-    color: #0f172a !important;
-    font-size: 24px !important;
-    font-weight: 700 !important;
-    margin: 0 0 6px !important;
-}
-
-.hdr p {
-    color: #64748b !important;
-    font-size: 13px !important;
-    margin: 0 !important;
-}
-
-.kcard, .eq-card, .pi-form {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 16px;
-    padding: 16px;
-    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
-}
-
-.kcard:hover, .eq-card:hover { border-color: #cbd5e1; }
-
-.kcard .v {
-    font-size: 26px;
-    font-weight: 700;
-    color: #2563eb;
-    line-height: 1;
-}
-
-.kcard .l {
-    font-size: 11px;
-    color: #475569;
-    margin-top: 6px;
-    text-transform: uppercase;
-    letter-spacing: .6px;
-}
-
-.kcard .s {
-    font-size: 11px;
-    color: #94a3b8;
-    margin-top: 4px;
-}
-
-.step {
-    display: inline-block;
-    background: #eff6ff;
-    color: #2563eb;
-    border: 1px solid #bfdbfe;
-    border-radius: 999px;
-    padding: 4px 10px;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: .6px;
-    margin-bottom: 8px;
-}
-
-.stitle {
-    font-size: 12px;
-    font-weight: 700;
-    color: #334155;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    border-bottom: 1px solid #e5e7eb;
-    padding-bottom: 8px;
-    margin: 20px 0 12px;
-}
-
-.ibox, .wbox, .bcard {
-    border-radius: 14px;
-    padding: 12px 16px;
-    margin: 10px 0;
-    font-size: 13px;
-    border: 1px solid #e5e7eb;
-    background: #ffffff;
-    color: #334155;
-}
-
-.ibox { border-left: 4px solid #2563eb; }
-.wbox { border-left: 4px solid #f59e0b; }
-.bcard { border-left: 4px solid #8b5cf6; }
-
-.pill-ok {
-    display: inline-block;
-    background: #ecfdf5;
-    color: #16a34a;
-    border: 1px solid #bbf7d0;
-    border-radius: 999px;
-    padding: 3px 10px;
-    font-size: 11px;
-    font-weight: 600;
-}
-
-.pill-w {
-    display: inline-block;
-    background: #fffbeb;
-    color: #d97706;
-    border: 1px solid #fde68a;
-    border-radius: 999px;
-    padding: 3px 10px;
-    font-size: 11px;
-    font-weight: 600;
-}
-
-.stDataFrame, .stTable { background: #ffffff; }
+.hdr{background:linear-gradient(135deg,#ffffff,#f3f8fd 60%,#edf4fb);
+     border-radius:16px;padding:24px 32px;margin-bottom:20px;
+     border:1px solid #d8e5f2;border-left:6px solid #2563eb;position:relative;overflow:hidden;
+     box-shadow:0 10px 30px rgba(15,23,42,.06)}
+.hdr::after{content:"INEC";position:absolute;right:24px;top:50%;
+            transform:translateY(-50%);font-family:'IBM Plex Mono',monospace;
+            font-size:76px;font-weight:600;color:rgba(37,99,235,.05);letter-spacing:6px}
+.hdr h1{color:#14243a!important;font-size:18px!important;font-weight:600!important;
+        margin:0 0 3px!important;font-family:'IBM Plex Mono',monospace!important}
+.hdr p{color:#4b6480!important;font-size:12px!important;margin:0!important}
+.kcard,.eq-card,.pi-form{background:#ffffff;border:1px solid #d8e2ee;border-radius:14px;
+       padding:14px 16px;text-align:center;box-shadow:0 6px 18px rgba(15,23,42,.04)}
+.kcard:hover,.eq-card:hover{border-color:#93b7df}
+.kcard .v{font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600;color:#1d4ed8;line-height:1}
+.kcard .l{font-size:10px;color:#50657d;margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
+.kcard .s{font-size:10px;color:#6d8299;margin-top:2px}
+.step{display:inline-block;background:#eef5ff;color:#1d4ed8;border:1px solid #c9dcfb;
+      border-radius:6px;padding:2px 7px;font-family:'IBM Plex Mono',monospace;
+      font-size:10px;font-weight:600;letter-spacing:1px;margin-bottom:6px}
+.stitle{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;color:#173b63;
+        text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #d9e4ef;
+        padding-bottom:7px;margin:18px 0 12px}
+.ibox{background:#ffffff;border:1px solid #d8e5f2;border-left:4px solid #2563eb;
+      border-radius:10px;padding:11px 15px;margin:9px 0;font-size:13px;color:#28425c;
+      box-shadow:0 3px 12px rgba(15,23,42,.03)}
+.wbox{background:#fff9ef;border:1px solid #f6d7a8;border-left:4px solid #d97706;
+      border-radius:10px;padding:11px 15px;margin:9px 0;font-size:13px;color:#8a5207}
+.bcard{background:#faf5ff;border:1px solid #e6d5ff;border-left:4px solid #7c3aed;
+       border-radius:10px;padding:13px 16px;margin:9px 0;color:#4b267b}
+.pill-ok{display:inline-block;background:#ecfdf3;color:#15803d;border:1px solid #bbf7d0;
+         border-radius:20px;padding:2px 9px;font-size:11px;
+         font-family:'IBM Plex Mono',monospace;font-weight:600}
+.pill-w{display:inline-block;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;
+        border-radius:20px;padding:2px 9px;font-size:11px;
+        font-family:'IBM Plex Mono',monospace;font-weight:600}
+.stTabs [data-baseweb="tab-list"]{gap:8px;border-bottom:1px solid #d8e2ee}
+.stTabs [data-baseweb="tab"]{background:#ffffff;border:1px solid #d8e2ee;border-bottom:none;
+    border-radius:10px 10px 0 0;color:#27415e;padding:10px 16px}
+.stTabs [aria-selected="true"]{background:#eef5ff !important;color:#1d4ed8 !important;border-color:#bfd7f6 !important}
+[data-testid="stMetric"] {background:#fff}
+.stCheckbox label,.stRadio label,.stSelectbox label,.stSlider label{color:#1d2a3a !important}
 </style>
 """, unsafe_allow_html=True)
 
@@ -232,16 +154,9 @@ def utm_to_wgs84(df):
 
 def parse_codigo(codigo):
     """
-    Parsea un código territorial/INEC en sus componentes jerárquicos.
-
-    Formato esperado (12 o 15 caracteres):
-    PP CC ZZ ZZZ SSS [MMM]
-      - PP  : provincia
-      - CC  : cantón
-      - ZZ  : ciudad o parroquia
-      - ZZZ : zona
-      - SSS : sector
-      - MMM : manzana (opcional)
+    Parsea código INEC (12 o 15 chars) en componentes geográficos.
+    Formato: PP CC ZZ ZZZ SSS [MMM]
+      PP=provincia, CC=cantón, ZZ=zona_tipo, ZZZ=zona, SSS=sector, MMM=manzana (opcional)
     """
     c = str(codigo).strip()
     r = {'prov':'','canton':'','ciudad_parroq':'','zona':'','sector':'','man':''}
@@ -251,248 +166,122 @@ def parse_codigo(codigo):
     if len(c)>=15: r['man']=c[12:15]
     return r
 
+def cargar_catalogo_territorial_repo():
+    """Carga el diccionario territorial desde el repositorio (GitHub/Streamlit Cloud)."""
+    posibles = [
+        Path(__file__).with_name('organizacion_territorial.txt'),
+        Path.cwd() / 'organizacion_territorial.txt',
+    ]
+    path = next((p for p in posibles if p.exists()), None)
+    if path is None:
+        return {}, None
 
-def normalizar_codigo(valor, ancho=None):
-    """Normaliza códigos y preserva ceros a la izquierda."""
-    if pd.isna(valor):
-        return ''
-    s = str(valor).strip()
-    if s.endswith('.0'):
-        s = s[:-2]
-    s = ''.join(ch for ch in s if ch.isdigit())
-    if not s:
-        return ''
-    if ancho:
-        s = s.zfill(ancho)[-ancho:]
-    return s
+    data = json.loads(path.read_text(encoding='utf-8'))
+    lookup = {}
+    for prov_code, prov_info in data.items():
+        prov = str(prov_code).zfill(2)
+        prov_name = str(prov_info.get('DPA_DESPRO', '')).strip()
+        lookup[prov] = {'provincia': prov_name, 'canton': '', 'parroquia': ''}
+        for can_code, can_info in (prov_info.get('cantones') or {}).items():
+            canton = str(can_code).zfill(4)
+            canton_name = str(can_info.get('DPA_DESCAN', '')).strip()
+            lookup[canton] = {'provincia': prov_name, 'canton': canton_name, 'parroquia': ''}
+            for par_code, par_info in (can_info.get('parroquias') or {}).items():
+                parroquia = str(par_code).zfill(6)
+                parroquia_name = str(par_info.get('DPA_DESPAR', '')).strip()
+                lookup[parroquia] = {
+                    'provincia': prov_name,
+                    'canton': canton_name,
+                    'parroquia': parroquia_name,
+                }
+    return lookup, path
+
+TERRITORIAL_LOOKUP, TERRITORIAL_PATH = cargar_catalogo_territorial_repo()
 
 
-def detectar_columnas_catalogo(df_cat):
-    """Detecta columnas relevantes del catálogo territorial."""
-    cols = {str(c).strip().upper(): c for c in df_cat.columns}
-
-    def pick(*candidatas):
-        for cand in candidatas:
-            if cand in cols:
-                return cols[cand]
-        return None
-
+def completar_info_territorial(codigo):
+    """Devuelve provincia, cantón y parroquia a partir del código INEC."""
+    partes = parse_codigo(codigo)
+    prov = TERRITORIAL_LOOKUP.get(partes['prov'], {})
+    cant = TERRITORIAL_LOOKUP.get(f"{partes['prov']}{partes['canton']}", {})
+    parr = TERRITORIAL_LOOKUP.get(f"{partes['prov']}{partes['canton']}{partes['ciudad_parroq']}", {})
     return {
-        'parroquia_cod': pick('DPA_PARROQ', 'COD_PARROQUIA', 'PARROQUIA_CODIGO'),
-        'parroquia_nom': pick('DPA_DESPAR', 'DESC_PARROQUIA', 'PARROQUIA'),
-        'canton_cod'   : pick('DPA_CANTON', 'COD_CANTON', 'CANTON_CODIGO'),
-        'canton_nom'   : pick('DPA_DESCAN', 'DESC_CANTON', 'CANTON'),
-        'prov_cod'     : pick('DPA_PROVIN', 'COD_PROVINCIA', 'PROVINCIA_CODIGO'),
-        'prov_nom'     : pick('DPA_DESPRO', 'DESC_PROVINCIA', 'PROVINCIA'),
-        'tipo_txt'     : pick('TXT', 'TIPO', 'TIPO_SECTOR', 'CLASE'),
-        'fcode'        : pick('FCODE', 'COD_FCODE', 'CODIGO_FCODE')
+        'provincia': parr.get('provincia') or cant.get('provincia') or prov.get('provincia', ''),
+        'canton': parr.get('canton') or cant.get('canton', ''),
+        'parroquia': parr.get('parroquia', ''),
     }
 
 
-def cargar_catalogo_territorial(file_obj):
-    """Carga el Excel/CSV territorial usado para completar el reporte."""
-    nombre = getattr(file_obj, 'name', '').lower()
-    if nombre.endswith('.csv'):
-        df_cat = pd.read_csv(file_obj)
-    else:
-        df_cat = pd.read_excel(file_obj)
-    df_cat.columns = [str(c).strip() for c in df_cat.columns]
-    return df_cat
-
-
-def preparar_lookup_territorial(df_cat):
-    """Construye un índice por código parroquial para enriquecer el Excel."""
-    if df_cat is None or len(df_cat) == 0:
-        return {}, {}
-
-    cols = detectar_columnas_catalogo(df_cat)
-    cod_col = cols.get('parroquia_cod')
-    if not cod_col:
-        return {}, cols
-
-    work = df_cat.copy()
-    work['__parroq_cod__'] = work[cod_col].apply(lambda v: normalizar_codigo(v, 6))
-    work = work[work['__parroq_cod__'] != ''].drop_duplicates('__parroq_cod__', keep='first')
-
-    lookup = {}
-    for _, row in work.iterrows():
-        cod = row['__parroq_cod__']
-        lookup[cod] = {
-            'provincia_codigo' : normalizar_codigo(row[cols['prov_cod']], 2) if cols.get('prov_cod') else cod[:2],
-            'provincia_nombre' : str(row[cols['prov_nom']]).strip() if cols.get('prov_nom') and pd.notna(row[cols['prov_nom']]) else '',
-            'canton_codigo'    : normalizar_codigo(row[cols['canton_cod']], 4) if cols.get('canton_cod') else cod[:4],
-            'canton_nombre'    : str(row[cols['canton_nom']]).strip() if cols.get('canton_nom') and pd.notna(row[cols['canton_nom']]) else '',
-            'parroquia_codigo' : cod,
-            'parroquia_nombre' : str(row[cols['parroquia_nom']]).strip() if cols.get('parroquia_nom') and pd.notna(row[cols['parroquia_nom']]) else '',
-            'tipo_txt'         : str(row[cols['tipo_txt']]).strip() if cols.get('tipo_txt') and pd.notna(row[cols['tipo_txt']]) else '',
-            'fcode'            : str(row[cols['fcode']]).strip() if cols.get('fcode') and pd.notna(row[cols['fcode']]) else ''
-        }
-    return lookup, cols
-
-
-def enriquecer_plan_con_catalogo(df_plan, catalogo_lookup):
-    """Añade nombres territoriales al plan para vista previa y exportación."""
-    if df_plan is None or len(df_plan) == 0:
-        return df_plan
-    if not catalogo_lookup:
-        return df_plan.copy()
-
-    df_out = df_plan.copy()
-    provs, cants, parroqs, tipos = [], [], [], []
-    for _, row in df_out.iterrows():
-        partes = parse_codigo(row.get('id_entidad', ''))
-        cod_parr = f"{partes['prov']}{partes['canton']}{partes['ciudad_parroq']}"
-        geo = catalogo_lookup.get(cod_parr, {})
-        provs.append(geo.get('provincia_nombre', ''))
-        cants.append(geo.get('canton_nombre', ''))
-        parroqs.append(geo.get('parroquia_nombre', ''))
-        tipos.append(geo.get('tipo_txt', ''))
-    df_out['provincia_nombre'] = provs
-    df_out['canton_nombre'] = cants
-    df_out['parroquia_nombre'] = parroqs
-    df_out['tipo_asentamiento'] = tipos
-    return df_out
-
-
-def resumen_clusters_carga(df_cluster, n_clusters):
-    """Resume viviendas y carga ponderada por cluster."""
-    if len(df_cluster) == 0:
-        return pd.DataFrame(columns=['cluster_geo', 'viv_total', 'carga_total'])
-    base = df_cluster.groupby('cluster_geo').agg(
-        viv_total=('viv', 'sum'),
-        carga_total=('carga_pond', 'sum'),
-        n=('id_entidad', 'count'),
-        x=('x', 'mean'),
-        y=('y', 'mean')
-    ).reset_index()
-    faltantes = [c for c in range(n_clusters) if c not in base['cluster_geo'].tolist()]
-    if faltantes:
-        base = pd.concat([
-            base,
-            pd.DataFrame({'cluster_geo': faltantes, 'viv_total': 0.0, 'carga_total': 0.0, 'n': 0, 'x': np.nan, 'y': np.nan})
-        ], ignore_index=True)
-    return base.sort_values('cluster_geo').reset_index(drop=True)
-
-
-def objetivo_desbalance(stats, target_viv, target_carga, peso_viv):
-    """Mide el desbalance global entre viviendas reales y carga ponderada."""
-    if len(stats) == 0:
-        return 0.0
-    dv = np.abs(stats['viv_total'] - target_viv) / max(target_viv, 1e-9)
-    dc = np.abs(stats['carga_total'] - target_carga) / max(target_carga, 1e-9)
-    return float((peso_viv * dv + (1 - peso_viv) * dc).mean())
-
-
-def rebalancear_clusters_por_proximidad(df_cluster, n_clusters, tolerancia_pct=18,
-                                        peso_viv=0.65, max_iter=250):
+def rebalancear_clusters_por_cercania(df_asig, centroides, asig, tolerancia=0.18, peso_viv=0.72, max_iter=80):
     """
-    Rebalancea clusters tras KMeans tomando puntos cercanos de clusters vecinos
-    cuando la carga queda demasiado dispar.
+    Ajuste fino posterior al KMeans original.
+    No toca cluster_geo: solo mueve UPMs frontera entre equipos de la MISMA jornada
+    cuando el desbalance es alto y el cambio mejora tanto la carga ponderada como
+    el número de viviendas reales.
     """
-    if df_cluster is None or len(df_cluster) == 0 or n_clusters <= 1:
-        return df_cluster
+    if len(df_asig) == 0:
+        return df_asig
 
-    work = df_cluster.copy().reset_index(drop=True)
-    target_viv = work['viv'].sum() / n_clusters
-    target_carga = work['carga_pond'].sum() / n_clusters
-    tolerancia = tolerancia_pct / 100.0
+    out = df_asig.copy()
+    out['balance_obj'] = peso_viv * out['viv'] + (1.0 - peso_viv) * out['carga_pond']
 
-    for _ in range(max_iter):
-        stats = resumen_clusters_carga(work, n_clusters)
-        dv = ((stats['viv_total'] - target_viv).abs() / max(target_viv, 1e-9)).max()
-        dc = ((stats['carga_total'] - target_carga).abs() / max(target_carga, 1e-9)).max()
-        if max(dv, dc) <= tolerancia:
-            break
+    for jornada in ['Jornada 1', 'Jornada 2']:
+        map_team_cluster = {v[0]: k for k, v in asig.items() if v[1] == jornada}
+        equipos_j = list(map_team_cluster.keys())
+        if len(equipos_j) < 2:
+            continue
 
-        cent = stats[['cluster_geo', 'x', 'y']].dropna(subset=['x', 'y']).copy()
-        if len(cent) < 2:
-            break
-
-        moved = False
-        over = stats[((stats['viv_total'] > target_viv * (1 + tolerancia/2)) |
-                      (stats['carga_total'] > target_carga * (1 + tolerancia/2)))]
-        under = stats[((stats['viv_total'] < target_viv * (1 - tolerancia/2)) |
-                       (stats['carga_total'] < target_carga * (1 - tolerancia/2)))]
-        if len(over) == 0 or len(under) == 0:
-            break
-
-        over = over.assign(score_over=(over['viv_total'] / max(target_viv, 1e-9)) +
-                                      (over['carga_total'] / max(target_carga, 1e-9)))                    .sort_values('score_over', ascending=False)
-
-        for _, row_over in over.iterrows():
-            c_over = int(row_over['cluster_geo'])
-            pts_over = work[work['cluster_geo'] == c_over].copy()
-            if len(pts_over) <= 1:
-                continue
-
-            cx, cy = row_over['x'], row_over['y']
-            under_aux = under.copy()
-            under_aux['dist_centroides'] = np.sqrt((under_aux['x'] - cx) ** 2 + (under_aux['y'] - cy) ** 2)
-            under_aux = under_aux.sort_values('dist_centroides')
-
-            for _, row_under in under_aux.head(3).iterrows():
-                c_under = int(row_under['cluster_geo'])
-                ux, uy = row_under['x'], row_under['y']
-
-                cand = pts_over.copy()
-                cand['dist_own'] = np.sqrt((cand['x'] - cx) ** 2 + (cand['y'] - cy) ** 2)
-                cand['dist_new'] = np.sqrt((cand['x'] - ux) ** 2 + (cand['y'] - uy) ** 2)
-                cand['delta_geo'] = cand['dist_new'] - cand['dist_own']
-                cand = cand.sort_values(['delta_geo', 'carga_pond', 'viv'])
-
-                best_idx = None
-                best_gain = 0.0
-                current_obj = objetivo_desbalance(stats, target_viv, target_carga, peso_viv)
-
-                for idx_cand, _ in cand.head(30).iterrows():
-                    test = work.copy()
-                    test.loc[idx_cand, 'cluster_geo'] = c_under
-                    test_stats = resumen_clusters_carga(test, n_clusters)
-                    new_obj = objetivo_desbalance(test_stats, target_viv, target_carga, peso_viv)
-                    gain = current_obj - new_obj
-                    if gain > best_gain:
-                        best_gain = gain
-                        best_idx = idx_cand
-
-                if best_idx is not None and best_gain > 1e-6:
-                    work.loc[best_idx, 'cluster_geo'] = c_under
-                    moved = True
-                    break
-            if moved:
+        for _ in range(max_iter):
+            sub = out[out['jornada'] == jornada].copy()
+            cargas = sub.groupby('equipo')['balance_obj'].sum().reindex(equipos_j, fill_value=0.0)
+            vivs = sub.groupby('equipo')['viv'].sum().reindex(equipos_j, fill_value=0.0)
+            if cargas.mean() <= 0:
                 break
-        if not moved:
-            break
-    return work
 
+            donor = cargas.idxmax()
+            recv = cargas.idxmin()
+            exceso = (cargas[donor] - cargas.mean()) / cargas.mean()
+            deficit = (cargas.mean() - cargas[recv]) / cargas.mean()
+            if exceso <= tolerancia or deficit <= tolerancia:
+                break
 
-def seleccionar_encuestador_balanceado(cargas, viviendas, carga_nueva, viv_nueva,
-                                       target_carga, target_viv, peso_viv=0.65):
-    """Selecciona el encuestador que deja el reparto más parejo."""
-    mejor_idx = 0
-    mejor_score = None
-    for i in range(len(cargas)):
-        cargas_test = cargas.copy()
-        viv_test = viviendas.copy()
-        cargas_test[i] += carga_nueva
-        viv_test[i] += viv_nueva
-        score = (
-            peso_viv * np.mean(np.abs(viv_test - target_viv) / max(target_viv, 1e-9)) +
-            (1 - peso_viv) * np.mean(np.abs(cargas_test - target_carga) / max(target_carga, 1e-9))
-        )
-        if mejor_score is None or score < mejor_score:
-            mejor_score = score
-            mejor_idx = i
-    return mejor_idx
+            donor_pts = out[(out['jornada'] == jornada) & (out['equipo'] == donor)].copy()
+            if len(donor_pts) <= 1:
+                break
+
+            cx_d, cy_d = centroides[map_team_cluster[donor]]
+            cx_r, cy_r = centroides[map_team_cluster[recv]]
+            donor_pts['dist_donor'] = np.sqrt((donor_pts['x'] - cx_d)**2 + (donor_pts['y'] - cy_d)**2)
+            donor_pts['dist_recv'] = np.sqrt((donor_pts['x'] - cx_r)**2 + (donor_pts['y'] - cy_r)**2)
+            donor_pts['delta_dist'] = donor_pts['dist_recv'] - donor_pts['dist_donor']
+
+            # Solo consideramos puntos de borde: cercanos al cluster receptor,
+            # o al menos no demasiado más lejos que de su cluster original.
+            candidatos = donor_pts[
+                (donor_pts['dist_recv'] <= donor_pts['dist_donor'] * 1.35)
+                | (donor_pts['delta_dist'] <= 12000)
+            ].copy()
+            if len(candidatos) == 0:
+                break
+
+            candidatos = candidatos.sort_values(['delta_dist', 'balance_obj', 'viv'])
+            movio = False
+            for idx, cand in candidatos.iterrows():
+                gap_carga_antes = abs(cargas[donor] - cargas[recv])
+                gap_viv_antes = abs(vivs[donor] - vivs[recv])
+                gap_carga_desp = abs((cargas[donor] - cand['balance_obj']) - (cargas[recv] + cand['balance_obj']))
+                gap_viv_desp = abs((vivs[donor] - cand['viv']) - (vivs[recv] + cand['viv']))
+                if gap_carga_desp < gap_carga_antes and gap_viv_desp <= gap_viv_antes * 1.10:
+                    out.loc[idx, 'equipo'] = recv
+                    movio = True
+                    break
+            if not movio:
+                break
+
+    return out.drop(columns=['balance_obj'], errors='ignore')
 
 
 def cargar_gpkg(path, dissolve_upm=True):
-    """
-    Lee el GeoPackage base y lo transforma al formato que usa la app.
-
-    - Si dissolve_upm=True, agrupa geometrías por UPM.
-    - Si dissolve_upm=False, conserva manzanas/sectores individuales.
-    - Devuelve puntos representativos en WGS84 para mapa y ruteo.
-    """
     capas = pyogrio.list_layers(path)
     man   = gpd.read_file(path,layer=capas[0][0])
     disp  = gpd.read_file(path,layer=capas[1][0])
@@ -530,38 +319,44 @@ def cargar_gpkg(path, dissolve_upm=True):
     return utm_to_wgs84(data)
 
 
-def asignar_encuestadores_y_dias(df_grp, n_enc, dias_tot, viv_min, viv_max,
-                                  inicio_dia=1, peso_viv_equilibrio=0.65):
+def asignar_encuestadores_y_dias(df_grp, n_enc, dias_tot, viv_min, viv_max, inicio_dia=1,
+                                  peso_viv_equilibrio=0.72):
     """
-    Asigna encuestadores y días operativos equilibrando tanto viviendas reales
-    como carga ponderada.
+    Asignación greedy de encuestadores + distribución por target diario.
+
+    Mejora aplicada:
+    - Mantiene la lógica original por carga ponderada.
+    - Añade balance de viviendas reales para que los encuestadores queden más parejos.
     """
     target = (viv_min + viv_max) / 2.0
     ultimo = inicio_dia + dias_tot - 1
 
-    df_g = df_grp.sort_values(['carga_pond', 'viv'], ascending=[False, False]).copy()
-    cargas = np.zeros(n_enc)
-    viviendas = np.zeros(n_enc)
-    target_carga_eq = max(df_g['carga_pond'].sum() / max(n_enc, 1), 1e-9)
-    target_viv_eq = max(df_g['viv'].sum() / max(n_enc, 1), 1e-9)
+    df_g = df_grp.copy()
+    tot_carga = max(float(df_g['carga_pond'].sum()), 1.0)
+    tot_viv = max(float(df_g['viv'].sum()), 1.0)
+    meta_carga = tot_carga / max(n_enc, 1)
+    meta_viv = tot_viv / max(n_enc, 1)
 
+    # Priorizamos primero las UPMs pesadas, pero el criterio de asignación del
+    # encuestador ya no mira solo carga_pond: también considera viviendas reales.
+    orden_score = df_g['carga_pond'] + peso_viv_equilibrio * df_g['viv']
+    df_g = df_g.loc[orden_score.sort_values(ascending=False).index].copy()
+
+    cargas = np.zeros(n_enc, dtype=float)
+    vivs = np.zeros(n_enc, dtype=float)
     enc_asig = []
     for _, row in df_g.iterrows():
-        em = seleccionar_encuestador_balanceado(
-            cargas=cargas,
-            viviendas=viviendas,
-            carga_nueva=float(row['carga_pond']),
-            viv_nueva=float(row['viv']),
-            target_carga=target_carga_eq,
-            target_viv=target_viv_eq,
-            peso_viv=peso_viv_equilibrio
-        )
+        costos = []
+        for i in range(n_enc):
+            score = ((cargas[i] + float(row['carga_pond'])) / meta_carga) +                     (peso_viv_equilibrio * (vivs[i] + float(row['viv'])) / meta_viv)
+            costos.append(score)
+        em = int(np.argmin(costos))
         enc_asig.append(em + 1)
         cargas[em] += float(row['carga_pond'])
-        viviendas[em] += float(row['viv'])
+        vivs[em] += float(row['viv'])
     df_g['encuestador'] = enc_asig
 
-    n_rows = len(df_g)
+    n_rows      = len(df_g)
     dia_ini_col = [inicio_dia] * n_rows
     dia_fin_col = [inicio_dia] * n_rows
 
@@ -571,52 +366,51 @@ def asignar_encuestadores_y_dias(df_grp, n_enc, dias_tot, viv_min, viv_max,
             continue
 
         dia_cursor = inicio_dia
-        viv_acum = 0.0
+        viv_acum   = 0.0
 
         for idx in idx_enc:
-            loc = df_g.index.get_loc(idx)
+            loc   = df_g.index.get_loc(idx)
             viv_m = max(0.0, float(df_g.iloc[loc]['viv']))
 
             if viv_m > viv_max:
-                dias_m = max(1, int(np.ceil(viv_m / target)))
-                dias_m = min(dias_m, ultimo - dia_cursor + 1)
-                d_ini = dia_cursor
-                d_fin = min(d_ini + dias_m - 1, ultimo)
+                dias_m    = max(1, int(np.ceil(viv_m / target)))
+                dias_m    = min(dias_m, ultimo - dia_cursor + 1)
+                d_ini     = dia_cursor
+                d_fin     = min(d_ini + dias_m - 1, ultimo)
                 dia_cursor = d_fin + 1
-                viv_acum = 0.0
+                viv_acum  = 0.0
             else:
-                d_ini = min(dia_cursor, ultimo)
-                d_fin = d_ini
+                d_ini    = min(dia_cursor, ultimo)
+                d_fin    = d_ini
                 viv_acum += viv_m
                 if viv_acum >= target and dia_cursor < ultimo:
                     dia_cursor += 1
-                    viv_acum = 0.0
+                    viv_acum   = 0.0
 
             d_ini = max(inicio_dia, min(d_ini, ultimo))
-            d_fin = max(d_ini, min(d_fin, ultimo))
+            d_fin = max(d_ini,      min(d_fin, ultimo))
             dia_ini_col[loc] = d_ini
             dia_fin_col[loc] = d_fin
 
-    df_g['dia_inicio'] = dia_ini_col
-    df_g['dia_fin'] = dia_fin_col
+    df_g['dia_inicio']    = dia_ini_col
+    df_g['dia_fin']       = dia_fin_col
     df_g['dia_operativo'] = dia_ini_col
     return df_g
 
 
+
 def generar_excel(df_plan, eq_cfg, personal_info,
-                  fecha_j1, fecha_j2, dias_op, j1_num, j2_num, mes_nombre,
-                  catalogo_lookup=None):
+                  fecha_j1, fecha_j2, dias_op, j1_num, j2_num, mes_nombre):
     """
     Genera Excel con dos hojas (una por jornada), cada una con su número
     de jornada correcto (j1_num, j2_num) y su fecha de inicio independiente.
     """
-    catalogo_lookup = catalogo_lookup or {}
     wb = openpyxl.Workbook()
     wb.remove(wb.active)
 
     # ── Estilos ──
-    AZ_OSCURO = "E2E8F0"; AZ_MEDIO="F8FAFC"; AZ_CLARO="FFFFFF"
-    VRD_CHECK  = "DCFCE7"; GRIS="F8FAFC"; BLANCO="0F172A"
+    AZ_OSCURO = "0D3B6E"; AZ_MEDIO="1A5276"; AZ_CLARO="D6EAF8"
+    VRD_CHECK  = "D5F5E3"; GRIS="F2F3F4"; BLANCO="FFFFFF"
     # Paletas de color por encuestador (rotativas)
     # Cada encuestador tiene su propia familia de colores para identificarlo visualmente
     ENC_PALETAS = [
@@ -829,12 +623,11 @@ def generar_excel(df_plan, eq_cfg, personal_info,
                 viv_enc_acum += int(rd.get('viv', 0))
 
                 p_cod    = parse_codigo(str(rd['id_entidad']))
+                terr     = completar_info_territorial(str(rd['id_entidad']))
                 enc_i    = enc_list[enc_id-1] if 0 < enc_id <= len(enc_list) else {}
                 ct_str   = f"CT{ct_counter[0]:03d}"
                 ct_counter[0] += 1
 
-                cod_parr = f"{p_cod['prov']}{p_cod['canton']}{p_cod['ciudad_parroq']}"
-                geo = catalogo_lookup.get(cod_parr, {})
                 row_vals = [
                     pi.get('supervisor_cedula', ''),
                     enc_i.get('cedula', ''),
@@ -843,10 +636,7 @@ def generar_excel(df_plan, eq_cfg, personal_info,
                     p_cod['ciudad_parroq'],
                     p_cod['zona'], p_cod['sector'], p_cod['man'],
                     str(rd['id_entidad']),
-                    geo.get('provincia_nombre', ''),
-                    geo.get('canton_nombre', ''),
-                    geo.get('parroquia_nombre', ''),
-                    geo.get('fcode', ''),
+                    terr['provincia'], terr['canton'], terr['parroquia'], '',
                 ]
                 for ci, val in enumerate(row_vals, 1):
                     c = ws.cell(cur, ci, val)
@@ -905,11 +695,11 @@ _defs = {
     "sil_score": None, "n_bombero": 0,
     "personal_info": {},
     "fecha_j1": None, "fecha_j2": None,
+    "catalogo_repo_ok": bool(TERRITORIAL_LOOKUP),
     "j1_num": 1, "j2_num": 2,
-    "catalogo_df": None, "catalogo_lookup": {}, "catalogo_cols": {},
     "params": {"dias_op":12,"viv_min":50,"viv_max":80,"factor_r":1.5,
-               "peso_viv_equilibrio":0.65,"tol_balance":18,
-               "usar_bomb":True,"usar_gye":True,"dias_gye":3,"umbral_gye":10},
+               "usar_bomb":True,"usar_gye":True,"dias_gye":3,"umbral_gye":10,
+               "tol_balance":18,"peso_viv_equilibrio":0.72},
     "equipos_cfg": [
         {"id":1,"nombre":"Equipo 1","enc":3},
         {"id":2,"nombre":"Equipo 2","enc":3},
@@ -922,7 +712,7 @@ for k,v in _defs.items():
 # ── SIDEBAR ───────────────────────────────────
 with st.sidebar:
     st.markdown("### 🗺️ Encuesta Nacional")
-    st.markdown("<p style='font-size:10px;color:#445566;margin-top:-8px'>INEC · Zonal Litoral</p>",
+    st.markdown("<p style='font-size:10px;color:#5b7088;margin-top:-8px'>INEC · Zonal Litoral</p>",
                 unsafe_allow_html=True)
     st.divider()
 
@@ -1018,16 +808,10 @@ with st.sidebar:
         p["factor_r"] = st.slider("Factor rural (×)",1.0,2.5,p["factor_r"],0.1,
             help="Viviendas dispersas pesan X veces más para el balance. "
                  "No cambia la cantidad real a visitar, solo la asignación interna.")
-        p["peso_viv_equilibrio"] = st.slider(
-            "Peso para igualar viviendas", 0.30, 0.90,
-            float(p.get("peso_viv_equilibrio", 0.65)), 0.05,
-            help="Mientras más alto, más intenta igualar el número real de casas entre equipos y encuestadores."
-        )
-        p["tol_balance"] = st.slider(
-            "Tolerancia de desbalance (%)", 5, 35,
-            int(p.get("tol_balance", 18)),
-            help="Después del clustering, mueve UPMs cercanas entre clusters hasta acercarse a esta tolerancia."
-        )
+        p["tol_balance"] = st.slider("Tolerancia balance equipos (%)",5,35,int(p.get("tol_balance",18)),
+            help="Si el desbalance supera este porcentaje, se hace un ajuste fino moviendo UPMs frontera entre clusters vecinos.")
+        p["peso_viv_equilibrio"] = st.slider("Peso viviendas reales",50,90,int(round(p.get("peso_viv_equilibrio",0.72)*100)),
+            help="Entre más alto, más prioriza igualar número de viviendas por equipo y por encuestador.") / 100.0
         p["usar_bomb"] = st.toggle("Equipo Bombero",value=p["usar_bomb"],
             help="Detecta UPMs outliers DENTRO de cada cluster y las asigna a un equipo especial.")
         if p["usar_bomb"]:
@@ -1050,21 +834,21 @@ with st.sidebar:
         st.session_state.j2_num = j2_num
         st.divider()
         st.markdown(f"""
-        <div style='font-size:11px;background:#0d2035;border-radius:6px;
-                    padding:8px 12px;border-left:3px solid #2e86de'>
+        <div style='font-size:11px;background:#ffffff;border-radius:8px;
+                    padding:8px 12px;border:1px solid #d8e5f2;border-left:3px solid #2563eb'>
         📅 Mes {int(mes_sel)} →
-        <b style='color:#2e86de'>Jornada {j1_num}</b> +
-        <b style='color:#27ae60'>Jornada {j2_num}</b>
+        <b style='color:#2563eb'>Jornada {j1_num}</b> +
+        <b style='color:#16a34a'>Jornada {j2_num}</b>
         </div>""", unsafe_allow_html=True)
 
         tot_enc = sum(e["enc"] for e in st.session_state.equipos_cfg)
         tot_viv = int(df_mes["viv"].sum()) if len(df_mes)>0 else 0
         st.markdown(f"""
-        <div style='font-size:11px;color:#445566;line-height:2;margin-top:8px'>
-        📍 <b style='color:#7eb3d8'>{len(df_mes):,}</b> UPMs · mes {int(mes_sel)}<br>
-        🏠 <b style='color:#7eb3d8'>{tot_viv:,}</b> viviendas<br>
-        👥 <b style='color:#7eb3d8'>{len(st.session_state.equipos_cfg)}</b> equipos ·
-           <b style='color:#7eb3d8'>{tot_enc}</b> enc.
+        <div style='font-size:11px;color:#51667d;line-height:2;margin-top:8px'>
+        📍 <b style='color:#2563eb'>{len(df_mes):,}</b> UPMs · mes {int(mes_sel)}<br>
+        🏠 <b style='color:#2563eb'>{tot_viv:,}</b> viviendas<br>
+        👥 <b style='color:#2563eb'>{len(st.session_state.equipos_cfg)}</b> equipos ·
+           <b style='color:#2563eb'>{tot_enc}</b> enc.
         </div>""", unsafe_allow_html=True)
 
 # ── HEADER ────────────────────────────────────
@@ -1116,11 +900,6 @@ with cb2:
 
 # ═══════════════════════════════════════════════
 #  ALGORITMO PRINCIPAL
-#  1) carga datos y calcula pesos
-#  2) genera clusters geográficos
-#  3) rebalancea clusters vecinos si quedaron muy desparejos
-#  4) reparte trabajo a encuestadores y días
-#  5) optimiza rutas y prepara reporte
 # ═══════════════════════════════════════════════
 if btn:
     G         = st.session_state.graph_G
@@ -1173,22 +952,11 @@ if btn:
         df_no_gye = df_no_gye.copy()
         df_no_gye['cluster_geo'] = km.fit_predict(coords)
 
-        # KMeans arma el esqueleto geográfico; luego hacemos un ajuste fino para
-        # evitar equipos con cargas demasiado disparejas.
-        df_no_gye = rebalancear_clusters_por_proximidad(
-            df_no_gye,
-            n_clusters=n_clust,
-            tolerancia_pct=p.get("tol_balance", 18),
-            peso_viv=p.get("peso_viv_equilibrio", 0.65),
-            max_iter=250
-        )
-
-        centroides = df_no_gye.groupby('cluster_geo')[['x','y']].mean()                              .reindex(range(n_clust)).values
-
         if len(df_no_gye) > n_clust:
             try: st.session_state.sil_score = silhouette_score(coords,df_no_gye['cluster_geo'])
             except: st.session_state.sil_score = None
 
+        centroides = km.cluster_centers_
         dist_c = np.sqrt((centroides[:,0]-bx)**2+(centroides[:,1]-by)**2)
         orden  = np.argsort(dist_c)[::-1]
         asig   = {}
@@ -1198,6 +966,15 @@ if btn:
 
         df_no_gye['equipo']  = df_no_gye['cluster_geo'].map(lambda c: asig[c][0])
         df_no_gye['jornada'] = df_no_gye['cluster_geo'].map(lambda c: asig[c][1])
+
+        # Ajuste fino posterior al clustering original.
+        # Conserva KMeans como base y solo mueve UPMs frontera cuando el
+        # desbalance entre equipos es claramente alto.
+        df_no_gye = rebalancear_clusters_por_cercania(
+            df_no_gye, centroides, asig,
+            tolerancia=p.get("tol_balance", 18) / 100.0,
+            peso_viv=p.get("peso_viv_equilibrio", 0.72),
+        )
 
         # EQUIPO BOMBERO POR CLUSTER (v5 — menos agresivo):
         # Usamos 3×IQR en vez de 1.5×IQR, Y añadimos un umbral mínimo
@@ -1231,7 +1008,8 @@ if btn:
                 if len(bomb_idx) > 0:
                     df_no_gye.loc[bomb_idx, 'equipo']  = 'Equipo Bombero'
                     df_no_gye.loc[bomb_idx, 'jornada'] = 'Jornada Especial'
-                    mask_bomb_global.loc[bomb_idx] = True
+                    bomb_idx_validos = pd.Index(bomb_idx).intersection(mask_bomb_global.index)
+                    mask_bomb_global.loc[bomb_idx_validos] = True
 
         df_w.update(df_no_gye[['equipo','jornada','cluster_geo']])
 
@@ -1272,7 +1050,7 @@ if btn:
             ga = asignar_encuestadores_y_dias(
                 grp, n_enc, dias_disp,
                 p["viv_min"], p["viv_max"], inicio,
-                peso_viv_equilibrio=p.get("peso_viv_equilibrio", 0.65)
+                peso_viv_equilibrio=p.get("peso_viv_equilibrio", 0.72)
             )
             df_w.update(ga[['encuestador','dia_operativo','dia_inicio','dia_fin']])
 
@@ -1538,8 +1316,8 @@ with tab_analisis:
               <div style='width:10px;height:10px;background:{ce};border-radius:50%;margin:0 auto 7px'></div>
               <div style='font-family:"IBM Plex Mono",monospace;font-size:12px;
                           color:{ce};font-weight:600'>{nombre_eq}</div>
-              <div style='font-size:17px;font-weight:600;color:#d0d8e8;margin:4px 0'>{vt:,}</div>
-              <div style='font-size:10px;color:#7a8fa6'>viviendas reales</div>
+              <div style='font-size:17px;font-weight:600;color:#16324c;margin:4px 0'>{vt:,}</div>
+              <div style='font-size:10px;color:#5c7087'>viviendas reales</div>
               <div style='font-size:11px;color:{ccv};margin-top:4px'>CV {cv_e:.1f}%</div>
             </div>""",unsafe_allow_html=True)
 
@@ -1559,14 +1337,14 @@ with tab_analisis:
                    title=f'Viviendas reales — {eq_sel}',
                    labels={'viv_reales':'Viv. reales','encuestador':'Encuestador','jornada':'Jornada'},
                    template='plotly_white',color_discrete_sequence=['#2e86de','#27ae60'])
-        fig.update_layout(paper_bgcolor="#FFFFFF",plot_bgcolor="#FFFFFF",title_font_size=12)
+        fig.update_layout(paper_bgcolor="#ffffff",plot_bgcolor="#f8fbff",title_font_size=12,font=dict(color="#17324d"))
         st.plotly_chart(fig,use_container_width=True)
     with cd2:
         fig2=px.bar(df_enc,x='encuestador',y='carga_pond',color='jornada',barmode='group',
                     title=f'Carga ponderada — {eq_sel}',
                     labels={'carga_pond':'Carga pond.','encuestador':'Encuestador','jornada':'Jornada'},
                     template='plotly_white',color_discrete_sequence=['#e74c3c','#f39c12'])
-        fig2.update_layout(paper_bgcolor="#FFFFFF",plot_bgcolor="#FFFFFF",title_font_size=12)
+        fig2.update_layout(paper_bgcolor="#ffffff",plot_bgcolor="#f8fbff",title_font_size=12,font=dict(color="#17324d"))
         st.plotly_chart(fig2,use_container_width=True)
 
     # Distribución por días — FILTRABLE POR JORNADA
@@ -1647,9 +1425,10 @@ with tab_analisis:
                         line_color="#e74c3c",
                         annotation_text=f"Máx referencia ({p['viv_max']} viv/enc)")
         fig_d.update_layout(
-            paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
-            xaxis=dict(dtick=1, title="Día de la jornada"),
-            yaxis_title="Viviendas"
+            paper_bgcolor="#ffffff", plot_bgcolor="#f8fbff",
+            font=dict(color="#17324d"),
+            xaxis=dict(dtick=1, title="Día de la jornada", gridcolor="#dbe7f3"),
+            yaxis=dict(title="Viviendas", gridcolor="#dbe7f3")
         )
         st.plotly_chart(fig_d, use_container_width=True)
 
@@ -1668,8 +1447,10 @@ with tab_analisis:
                               annotation_text=f"Mín {p['viv_min']}")
             fig_enc.add_hline(y=p["viv_max"], line_dash="dot", line_color="#e74c3c",
                               annotation_text=f"Máx {p['viv_max']}")
-            fig_enc.update_layout(paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
-                                  xaxis=dict(dtick=1))
+            fig_enc.update_layout(paper_bgcolor="#ffffff", plot_bgcolor="#f8fbff",
+                                  font=dict(color="#17324d"),
+                                  xaxis=dict(dtick=1, gridcolor="#dbe7f3"),
+                                  yaxis=dict(gridcolor="#dbe7f3"))
             st.plotly_chart(fig_enc, use_container_width=True)
 
     # Equipo Bombero
@@ -1725,34 +1506,20 @@ with tab_reporte:
             fin_j2 = fj2 + timedelta(days=p["dias_op"]-1)
             st.caption(f"Fin: {fin_j2.strftime('%d/%m/%Y')} ({p['dias_op']} días)")
 
-    # ── Catálogo territorial ──────────────────
-    st.markdown("<div class='stitle'>Catálogo territorial para completar el Excel</div>",
-                unsafe_allow_html=True)
-    st.markdown("""<div class='ibox'>
-    Sube el Excel o CSV con la organización territorial del Ecuador. La app usa
-    ese catálogo para completar provincia, cantón, parroquia y códigos auxiliares
-    en el reporte final.
-    </div>""", unsafe_allow_html=True)
-
-    cat_file = st.file_uploader(
-        "Catálogo territorial (.xlsx, .xls o .csv)",
-        type=["xlsx", "xls", "csv"],
-        key="catalogo_territorial_up"
-    )
-    if cat_file is not None:
-        try:
-            df_cat = cargar_catalogo_territorial(cat_file)
-            lookup_cat, cols_cat = preparar_lookup_territorial(df_cat)
-            st.session_state.catalogo_df = df_cat
-            st.session_state.catalogo_lookup = lookup_cat
-            st.session_state.catalogo_cols = cols_cat
-            st.success(f"✓ Catálogo cargado: {len(df_cat):,} filas")
-        except Exception as e:
-            st.error(f"No se pudo leer el catálogo territorial: {e}")
-
-    if st.session_state.catalogo_df is not None:
-        cols_detectadas = {k: v for k, v in st.session_state.catalogo_cols.items() if v}
-        st.caption(f"Columnas detectadas: {cols_detectadas}")
+    st.markdown("<div class='stitle'>Catálogo territorial</div>", unsafe_allow_html=True)
+    if TERRITORIAL_LOOKUP:
+        fuente_txt = TERRITORIAL_PATH.name if TERRITORIAL_PATH else 'organizacion_territorial.txt'
+        st.markdown(f"""<div class='ibox'>
+        ✓ El reporte completará <b>provincia</b>, <b>cantón</b> y <b>parroquia</b>
+        automáticamente usando el diccionario territorial del repositorio:
+        <code>{fuente_txt}</code>.
+        </div>""", unsafe_allow_html=True)
+    else:
+        st.markdown("""<div class='wbox'>
+        No se encontró <code>organizacion_territorial.txt</code> junto al código.
+        El Excel se generará, pero las columnas de provincia, cantón y parroquia
+        podrían quedar vacías.
+        </div>""", unsafe_allow_html=True)
 
     # ── Información de personal ───────────────
     st.markdown("<div class='stitle'>Personal por equipo</div>",unsafe_allow_html=True)
@@ -1839,16 +1606,10 @@ with tab_reporte:
             'dist_km':'Dist. (km)'}),use_container_width=True)
 
     # Vista previa de la tabla de asignación
-    df_plan_rep = enriquecer_plan_con_catalogo(
-        df_plan,
-        st.session_state.get('catalogo_lookup', {})
-    )
     cols_ok=[c for c in ['id_entidad','upm','tipo_entidad','viv','carga_pond',
-                          'equipo','jornada','encuestador','dia_inicio','dia_fin',
-                          'provincia_nombre','canton_nombre','parroquia_nombre',
-                          'tipo_asentamiento','lat','lon']
-             if c in df_plan_rep.columns]
-    df_exp_pre=df_plan_rep[cols_ok].sort_values(
+                          'equipo','jornada','encuestador','dia_inicio','dia_fin','lat','lon']
+             if c in df_plan.columns]
+    df_exp_pre=df_plan[cols_ok].sort_values(
         ['equipo','jornada','encuestador','dia_inicio']).reset_index(drop=True)
     st.dataframe(df_exp_pre,use_container_width=True,height=300)
 
@@ -1872,8 +1633,7 @@ with tab_reporte:
                     dias_op       = p["dias_op"],
                     j1_num        = st.session_state.get("j1_num", 1),
                     j2_num        = st.session_state.get("j2_num", 2),
-                    mes_nombre    = MESES_N.get(int(df['mes'].iloc[0]),''),
-                    catalogo_lookup = st.session_state.get('catalogo_lookup', {})
+                    mes_nombre    = MESES_N.get(int(df['mes'].iloc[0]),'')
                 )
                 j1n = st.session_state.get("j1_num", 1)
                 j2n = st.session_state.get("j2_num", 2)
