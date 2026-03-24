@@ -151,8 +151,6 @@ def cargar_gpkg(path, dissolve_upm=True):
             'ManSec': 'id_entidad'
         }
         gdf = gdf.rename(columns={k: v for k, v in col_map.items() if k in gdf.columns})
-        if 'zonal' in gdf.columns:
-            gdf = gdf[gdf['zonal'].str.contains('LITORAL', na=False, case=False)]
         if 'id_entidad' in gdf.columns:
             gdf['tipo_entidad'] = gdf['id_entidad'].astype(str).apply(
                 lambda x: 'sec' if '999' in x else 'man'
