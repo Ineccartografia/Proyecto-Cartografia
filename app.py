@@ -127,15 +127,10 @@ def cv_pct(s):
 def utm_to_wgs84(df):
     t = Transformer.from_crs("epsg:32717","epsg:4326",always_xy=True)
     lons,lats = t.transform(df["x"].values,df["y"].values)
-    df=df.copy(); df["lon"]=lons; df["lat"]=lats
+    df=df.copy(); df["lon" ]=lons; df["lat"]=lats
     return df
 
 def parse_codigo(codigo):
-    """
-    Parsea código INEC (12 o 15 chars) en componentes geográficos.
-    Formato: PP CC ZZ ZZZ SSS [MMM]
-      PP=provincia, CC=cantón, ZZ=zona_tipo, ZZZ=zona, SSS=sector, MMM=manzana (opcional)
-    """
     c = str(codigo).strip()
     r = {'prov':'','canton':'','ciudad_parroq':'','zona':'','sector':'','man':''}
     if len(c)>=6:  r['prov']=c[:2]; r['canton']=c[2:4]; r['ciudad_parroq']=c[4:6]
@@ -143,7 +138,7 @@ def parse_codigo(codigo):
     if len(c)>=12: r['sector']=c[9:12]
     if len(c)>=15: r['man']=c[12:15]
     return r
-
+  
 def cargar_gpkg(path, dissolve_upm=True):
     capas = pyogrio.list_layers(path)
     if len(capas) == 1:
