@@ -1116,7 +1116,7 @@ if btn:
             D=np.zeros((n,n))
             for i in range(n):
                 for j in range(i+1,n):
-                    try: d=nx.shortest_path_length(G,nu[i],nu[j],weight='length');D[i,j]=D[j,i]=d
+                    try: d=nx.shortest_path_length(G_u,nu[i],nu[j],weight='length');D[i,j]=D[j,i]=d
                     except: D[i,j]=D[j,i]=1e9
             Gt=nx.Graph()
             for i in range(n):
@@ -1131,7 +1131,7 @@ if btn:
             ruta=[]; ng=[nu[idx] for idx in ciclo]
             for k in range(len(ng)-1):
                 try:
-                    seg=nx.shortest_path(G,ng[k],ng[k+1],weight='length')
+                    seg=nx.shortest_path(G_u,ng[k],ng[k+1],weight='length')
                     ruta.extend((G.nodes[nd]['y'],G.nodes[nd]['x']) for nd in seg[:-1])
                 except: continue
             if ng: ruta.append((G.nodes[ng[-1]]['y'],G.nodes[ng[-1]]['x']))
