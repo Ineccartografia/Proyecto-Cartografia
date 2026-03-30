@@ -247,14 +247,28 @@ def utm_to_wgs84(df):
     df = df.copy(); df["lon"]=lons; df["lat"]=lats
     return df
 
-def parse_codigo(codigo):
+def parse_codigo(codigo, org_territorial=None):
     c = str(codigo).strip()
-    r = {'prov':'','canton':'','ciudad_parroq':'','zona':'','sector':'','man':''}
+    r = {'prov':'','canton':'','ciudad_parroq':'','zona':'','sector':'','man':'',
+         'prov_nombre':'','canton_nombre':'','parroq_nombre':''}
     if len(c)>=6:  r['prov']=c[:2]; r['canton']=c[2:4]; r['ciudad_parroq']=c[4:6]
     if len(c)>=9:  r['zona']=c[6:9]
     if len(c)>=12: r['sector']=c[9:12]
     if len(c)>=15: r['man']=c[12:15]
+    if org_territorial and len(c)>=6:
+        pp=c[:2]; ppcc=c[:4]; ppccaa=c[:6]
+        prov_data=org_territorial.get(pp,{})
+        r['prov_nombre']=prov_data.get('DPA_DESPRO','')
+        cant_data=prov_data.get('cantones',{}).get(ppcc,{})
+        r['canton_nombre']=cant_data.get('DPA_DESCAN','')
+        parr_data=cant_data.get('parroquias',{}).get(ppccaa,{})
+        r['parroq_nombre']=parr_data.get('DPA_DESPAR','')
     return r
+
+def cargar_org_territorial(contenido_txt):
+    import json
+    try: return json.loads(contenido_txt)
+    except: return {}
 
 def jornada_num_desde_mes(mes_operativo, mes_inicio_cal):
     """
@@ -488,119 +502,74 @@ def nearest_neighbor_order(points_xy, start_xy=None):
 def asignar_encuestadores_y_dias(df_grp, n_enc, dias_tot, viv_min, viv_max,
                                   inicio_dia=1):
     """
-    Asigna encuestadores y distribuye manzanas en días.
-
-    FIX v5 — índices originales preservados:
-      La función ya NO hace reset_index(drop=True). Trabaja directamente con
-      los índices del DataFrame original (que son los índices de df_w).
-      Esto garantiza que df_w.update(resultado) actualice las filas correctas.
-
-      Internamente usa:
-        - iloc para acceso por posición dentro de los arrays NumPy
-        - loc para escritura de vuelta al DataFrame con índice original
-
-    PASO 1 — Bin-packing balanceado:
-      Ordena UPMs por carga DESC y usa greedy (argmin de carga acumulada)
-      para distribuir entre n_enc encuestadores.
-
-    PASO 2 — Reordenamiento geográfico:
-      Dentro de cada encuestador, ordena las UPMs por nearest-neighbor
-      partiendo del centroide del sub-grupo. Días consecutivos = manzanas
-      físicamente adyacentes.
-
-    PASO 3 — Calendario de bloqueo:
-      calendario[enc][dia] = viv acumuladas ese día.
-      Manzana normal: primer día con espacio libre.
-      Manzana grande (viv > viv_max): bloque de D días consecutivos.
+    Asigna encuestadores y distribuye manzanas en días de forma UNIFORME.
+    v5.3: target_dia = total_viv_enc / dias_tot por encuestador.
     """
     target = (viv_min + viv_max) / 2.0
     ultimo = inicio_dia + dias_tot - 1
 
-    # Trabajamos con el índice ORIGINAL del DataFrame de entrada
-    # (no hacemos reset_index)
-    df_g   = df_grp.copy()                    # conserva índice original
-    idx_orig = df_g.index.tolist()            # lista de índices reales
+    df_g = df_grp.copy()
     n_rows = len(df_g)
-
-    # Arrays de trabajo indexados por posición (0..n_rows-1)
     cargas = df_g['carga_pond'].values.astype(float)
     viviendas = df_g['viv'].values.astype(float)
     coords = df_g[['x','y']].values.astype(float)
 
-    # ── PASO 1: bin-packing ──────────────────────────────────────────────────
+    # PASO 1: bin-packing
     orden_bp = np.argsort(cargas)[::-1]
     enc_acum = np.zeros(n_enc)
-    enc_asig = np.zeros(n_rows, dtype=int)    # indexado por posición
-
+    enc_asig = np.zeros(n_rows, dtype=int)
     for pos in orden_bp:
         em = int(np.argmin(enc_acum))
         enc_asig[pos] = em + 1
         enc_acum[em] += cargas[pos]
 
-    # ── PASO 2: reordenamiento geográfico ───────────────────────────────────
-    # geo_order: lista de posiciones (0..n_rows-1) en orden de visita por enc
-    geo_order = []
+    # PASO 2: reordenamiento geográfico
+    enc_geo_order = {}
     for enc_id in range(1, n_enc+1):
         pos_enc = np.where(enc_asig == enc_id)[0]
         if len(pos_enc)==0: continue
         sub_coords = coords[pos_enc]
-        centroide  = sub_coords.mean(axis=0)
-        nn         = nearest_neighbor_order(sub_coords, start_xy=centroide)
-        for nn_pos in nn:
-            geo_order.append((pos_enc[nn_pos], enc_id))
+        centroide = sub_coords.mean(axis=0)
+        nn = nearest_neighbor_order(sub_coords, start_xy=centroide)
+        enc_geo_order[enc_id] = [pos_enc[nn_i] for nn_i in nn]
 
-    # ── PASO 3: calendario de bloqueo ───────────────────────────────────────
-    dias_range = list(range(inicio_dia, ultimo+1))
-    calendario = {e:{d:0.0 for d in dias_range} for e in range(1,n_enc+1)}
-    cursor     = {e:inicio_dia for e in range(1,n_enc+1)}
-
+    # PASO 3: distribución diaria UNIFORME
     dia_ini_arr = np.full(n_rows, inicio_dia, dtype=int)
     dia_fin_arr = np.full(n_rows, inicio_dia, dtype=int)
 
-    for pos, enc_id in geo_order:
-        viv_m = max(0.0, viviendas[pos])
-        cal   = calendario[enc_id]
-        cur   = cursor[enc_id]
+    for enc_id, positions in enc_geo_order.items():
+        if not positions: continue
+        total_viv_enc = sum(viviendas[p] for p in positions)
+        target_dia = total_viv_enc / max(1, dias_tot)
+        if target_dia < 1: target_dia = max(1, total_viv_enc)
 
-        if viv_m > viv_max:
-            # Manzana grande: buscar bloque de D días consecutivos libres
-            dias_m = max(1, int(np.ceil(viv_m / target)))
-            dias_m = min(dias_m, dias_tot)
-            bloque = None
-            for d_s in range(cur, ultimo - dias_m + 2):
-                if all(cal.get(d, target) < target for d in range(d_s, d_s+dias_m)):
-                    bloque = d_s; break
-            if bloque is None:
-                bloque = max(inicio_dia, min(cur, ultimo - dias_m + 1))
-            d_ini = bloque
-            d_fin = min(d_ini + dias_m - 1, ultimo)
-            vpd   = viv_m / max(1, d_fin - d_ini + 1)
-            for dd in range(d_ini, d_fin+1):
-                cal[dd] = cal.get(dd, 0.0) + vpd
-            cursor[enc_id] = d_fin + 1
-        else:
-            # Manzana normal: primer día con espacio
-            dia_asig = None
-            for d in range(cur, ultimo+1):
-                if cal.get(d, 0.0) < target:
-                    dia_asig = d; break
-            if dia_asig is None: dia_asig = ultimo
-            cal[dia_asig] = cal.get(dia_asig, 0.0) + viv_m
-            d_ini = dia_asig; d_fin = dia_asig
-            if cal[dia_asig] >= target and cursor[enc_id] == dia_asig:
-                cursor[enc_id] = min(dia_asig+1, ultimo)
+        dia_actual = inicio_dia
+        acum_dia = 0.0
 
-        d_ini = max(inicio_dia, min(d_ini, ultimo))
-        d_fin = max(d_ini,      min(d_fin, ultimo))
-        dia_ini_arr[pos] = d_ini
-        dia_fin_arr[pos] = d_fin
+        for pos in positions:
+            viv_m = max(0.0, viviendas[pos])
+            if viv_m > viv_max:
+                dias_necesarios = max(1, int(np.ceil(viv_m / target_dia)))
+                dias_necesarios = min(dias_necesarios, ultimo - dia_actual + 1)
+                d_ini = dia_actual
+                d_fin = min(dia_actual + dias_necesarios - 1, ultimo)
+                dia_ini_arr[pos] = d_ini
+                dia_fin_arr[pos] = d_fin
+                dia_actual = min(d_fin + 1, ultimo)
+                acum_dia = 0.0
+            else:
+                dia_ini_arr[pos] = dia_actual
+                dia_fin_arr[pos] = dia_actual
+                acum_dia += viv_m
+                if acum_dia >= target_dia and dia_actual < ultimo:
+                    dia_actual += 1
+                    acum_dia = 0.0
 
-    # Escribir resultados de vuelta al DataFrame con índice original
-    df_g['encuestador']   = enc_asig
-    df_g['dia_inicio']    = dia_ini_arr
-    df_g['dia_fin']       = dia_fin_arr
+    df_g['encuestador'] = enc_asig
+    df_g['dia_inicio'] = dia_ini_arr
+    df_g['dia_fin'] = dia_fin_arr
     df_g['dia_operativo'] = dia_ini_arr
-    return df_g   # índice original intacto → df_w.update() funcionará correctamente
+    return df_g
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -644,7 +613,7 @@ def construir_calendario_jornadas(total_meses, mes_inicio_cal, config_jornadas):
 # ══════════════════════════════════════════════════════════════════════════════
 
 def generar_excel(df_plan, eq_cfg, personal_info,
-                  jornadas_activas, dias_op):
+                  jornadas_activas, dias_op, org_territorial=None):
     """
     Genera Excel con una hoja por jornada activa.
     jornadas_activas: lista de dicts {'jornada_num', 'jornada_nombre', 'fecha'}
@@ -798,14 +767,14 @@ def generar_excel(df_plan, eq_cfg, personal_info,
                 bg_row=pal["par"] if fila_enc%2==0 else pal["impar"]
                 fila_enc+=1; viv_enc_acum+=int(rd.get('viv',0))
 
-                p_cod=parse_codigo(str(rd['id_entidad']))
+                p_cod=parse_codigo(str(rd['id_entidad']), org_territorial)
                 enc_i=enc_list[enc_id-1] if 0<enc_id<=len(enc_list) else {}
                 ct_str=f"CT{ct_counter[0]:03d}"; ct_counter[0]+=1
 
                 vals=[pi.get('supervisor_cedula',''),enc_i.get('cedula',''),ct_str,
                       p_cod['prov'],p_cod['canton'],p_cod['ciudad_parroq'],
                       p_cod['zona'],p_cod['sector'],p_cod['man'],
-                      str(rd['id_entidad']),'','','','']
+                      str(rd['id_entidad']),p_cod.get('prov_nombre',''),p_cod.get('canton_nombre',''),p_cod.get('parroq_nombre',''),'']
                 for ci,val in enumerate(vals,1):
                     sc(ws.cell(cur,ci,val),bg=AZ_CLARO if ci==10 else bg_row,
                        ha="center",sz=8,brd=True)
@@ -851,8 +820,10 @@ _defs = {
     "balance_log":[],"cv_ini_bal":None,"cv_fin_bal":None,
     "viv_por_cluster_antes":None,"viv_por_cluster_despues":None,
     # Nuevo v5
-    "mes_inicio_cal": 7,            # Julio por defecto
-    "config_jornadas": {},          # {jornada_num: {estado, fecha, trasladada_a}}
+    "mes_inicio_cal": 7,
+    "config_jornadas": {},
+    "org_territorial": None,
+    "alcance_plan": "mes",          # {jornada_num: {estado, fecha, trasladada_a}}
     "params":{
         "dias_op":12,"viv_min":50,"viv_max":80,"factor_r":1.5,
         "usar_bomb":True,"usar_gye":True,"dias_gye":3,"umbral_gye":10,
@@ -922,6 +893,23 @@ with st.sidebar:
             st.markdown("<span class='pill-ok'>✓ Red lista</span>",unsafe_allow_html=True)
     else:
         st.markdown("<span class='pill-w'>⏳ Sin grafo</span>",unsafe_allow_html=True)
+
+    st.divider()
+
+    # Org. territorial (opcional)
+    st.markdown("<div class='step'>OPCIONAL</div>",unsafe_allow_html=True)
+    st.markdown("**Org. Territorial (.txt)**")
+    org_f=st.file_uploader("organizacion_territorial",type=["txt","json"],key="org_up")
+    if org_f:
+        try:
+            contenido=org_f.read().decode('utf-8')
+            st.session_state.org_territorial=cargar_org_territorial(contenido)
+            st.markdown("<span class='pill-ok'>✓ Territorial</span>",unsafe_allow_html=True)
+        except Exception as e: st.error(str(e))
+    elif st.session_state.org_territorial is not None:
+        st.markdown("<span class='pill-ok'>✓ Territorial</span>",unsafe_allow_html=True)
+    else:
+        st.markdown("<span class='pill-w'>⏳ Opcional</span>",unsafe_allow_html=True)
 
     st.divider()
 
@@ -1048,6 +1036,52 @@ for col,(val,lbl,sub,c) in zip([k1,k2,k3,k4,k5],[
 
 st.markdown("<br>",unsafe_allow_html=True)
 
+# ── ALCANCE Y CALENDARIO ─────────────────────
+st.markdown("<div class='stitle'>Configuración de planificación</div>",unsafe_allow_html=True)
+meses_disp_all=sorted(st.session_state.data_raw["mes"].dropna().unique().tolist())
+mes_ini_cal_pre=st.session_state.mes_inicio_cal
+
+scope_col, cascade_col = st.columns([1,2])
+with scope_col:
+    alcance=st.radio("Alcance",["Solo mes seleccionado","Planificación completa"],
+                     index=0 if st.session_state.get("alcance_plan","mes")=="mes" else 1,
+                     key="radio_alcance")
+    st.session_state.alcance_plan="mes" if "Solo" in alcance else "completa"
+    if st.session_state.alcance_plan=="completa":
+        st.markdown("<div class='wbox'>⚠️ La planificación completa puede tardar varios minutos.</div>",
+                    unsafe_allow_html=True)
+
+with cascade_col:
+    st.markdown("**Jornadas canceladas** (se desplazan automáticamente)")
+    all_jornadas_pre=[]
+    for m_pre in meses_disp_all:
+        j1_pre,j2_pre,mn_pre=jornada_num_desde_mes(int(m_pre),mes_ini_cal_pre)
+        all_jornadas_pre.append({'jn':j1_pre,'mes':m_pre,'mes_nombre':mn_pre,'mitad':1})
+        all_jornadas_pre.append({'jn':j2_pre,'mes':m_pre,'mes_nombre':mn_pre,'mitad':2})
+    cfg_j_pre=st.session_state.config_jornadas
+    canceladas_pre=[]
+    n_jcols=min(6,len(all_jornadas_pre))
+    if n_jcols>0:
+        jcols=st.columns(n_jcols)
+        for ij,jinfo_p in enumerate(all_jornadas_pre):
+            jn_p=jinfo_p['jn']
+            with jcols[ij%n_jcols]:
+                cancel_p=st.checkbox(f"J{jn_p}",value=cfg_j_pre.get(jn_p,{}).get('estado',ESTADO_OK)==ESTADO_CAN,
+                                     key=f"can_pre_{jn_p}",help=f"Mes {int(jinfo_p['mes'])} {jinfo_p['mes_nombre']}")
+                if cancel_p:
+                    canceladas_pre.append(jn_p)
+                    cfg_j_pre[jn_p]={'estado':ESTADO_CAN,'fecha':None,'trasladada_a':None}
+                else:
+                    if jn_p not in cfg_j_pre or cfg_j_pre[jn_p].get('estado')==ESTADO_CAN:
+                        cfg_j_pre[jn_p]={'estado':ESTADO_OK,'fecha':cfg_j_pre.get(jn_p,{}).get('fecha',None),'trasladada_a':None}
+    st.session_state.config_jornadas=cfg_j_pre
+    if canceladas_pre:
+        n_extra=len(canceladas_pre)
+        st.markdown(f"<div class='ibox'>🔀 <b>{n_extra} jornada(s) cancelada(s)</b> → "
+                    f"el cronograma se desplaza en {n_extra} slot(s).</div>",unsafe_allow_html=True)
+
+st.markdown("<br>",unsafe_allow_html=True)
+
 cb1,cb2=st.columns([1,3])
 with cb1:
     btn=st.button("⚡ Generar Planificación",use_container_width=True,
@@ -1067,254 +1101,249 @@ if btn:
     G=st.session_state.graph_G
     eq_cfg=st.session_state.equipos_cfg
     n_eq=len(eq_cfg); nombres=[e["nombre"] for e in eq_cfg]
-    n_clust=n_eq*2; p=st.session_state.params
+    p=st.session_state.params
+    canceladas_run=[jn_p for jn_p in canceladas_pre] if 'canceladas_pre' in dir() else []
 
-    df_w=df.copy()
-    df_w['equipo']='sin_asignar'; df_w['jornada']='sin_asignar'
-    df_w['cluster_geo']=-1
-    df_w['carga_pond']=df_w.apply(
-        lambda r: r['viv']*p["factor_r"]
-        if str(r.get('tipo_entidad','')).startswith('sec') else r['viv'],axis=1)
-    df_w['encuestador']=0; df_w['dia_operativo']=0
-    df_w['dia_inicio']=0;  df_w['dia_fin']=0; df_w['dist_base_m']=0.0
-
-    prog=st.progress(0,"Iniciando...")
-
-    # 1. Distancias a la base
-    prog.progress(5,"Distancias a base...")
-    t_utm=Transformer.from_crs("EPSG:4326","EPSG:32717",always_xy=True)
-    bx,by=t_utm.transform(BASE_LON,BASE_LAT)
-    df_w['dist_base_m']=np.sqrt((df_w['x']-bx)**2+(df_w['y']-by)**2)
-
-    # 2. Restricción GYE
-    prog.progress(8,"Verificando restricción Guayaquil...")
-    upms_gye=pd.Series(False,index=df_w.index)
-    if p["usar_gye"] and 'pro_x' in df_w.columns and 'can_x' in df_w.columns:
-        upms_gye=(df_w['pro_x']==PRO_GYE)&(df_w['can_x']==CAN_GYE)
-    pct_gye=upms_gye.sum()/len(df_w) if len(df_w)>0 else 0
-    act_gye=p["usar_gye"] and (pct_gye>=p["umbral_gye"]/100) and upms_gye.sum()>0
-
-    df_gye   =df_w[upms_gye].copy()  if act_gye else pd.DataFrame()
-    df_no_gye=df_w[~upms_gye].copy()
-
-    # 3. Clustering balanceado
-    prog.progress(12,f"KMeans + rebalanceo ({n_clust} clusters)...")
-    mask_bomb=pd.Series(False,index=df_w.index)
-
-    if len(df_no_gye)>=n_clust:
-        # CV antes (solo KMeans)
-        km_init=KMeans(n_clusters=n_clust,init='k-means++',n_init=20,
-                       max_iter=500,random_state=42)
-        lab_init=km_init.fit_predict(df_no_gye[['x','y']].values.astype(float))
-        carg_arr=df_no_gye['carga_pond'].values
-        vib_antes={c:float(carg_arr[lab_init==c].sum()) for c in range(n_clust)}
-        st.session_state.viv_por_cluster_antes=vib_antes
-
-        prog.progress(22,f"Rebalanceo (CV objetivo {p['cv_objetivo']}%)...")
-        labels,bal_log,cv_ini,cv_fin=clustering_balanceado(
-            df_no_gye,n_clusters=n_clust,
-            cv_objetivo=p["cv_objetivo"]/100.0,
-            max_iter=p["max_iter_bal"],k_vecinos=p["k_vecinos"])
-
-        df_no_gye=df_no_gye.copy()
-        df_no_gye['cluster_geo']=labels
-        st.session_state.balance_log=bal_log
-        st.session_state.cv_ini_bal=cv_ini
-        st.session_state.cv_fin_bal=cv_fin
-
-        try: st.session_state.sil_score=silhouette_score(df_no_gye[['x','y']].values,labels)
-        except: st.session_state.sil_score=None
-
-        vib_despues={c:float(carg_arr[labels==c].sum()) for c in range(n_clust)}
-        st.session_state.viv_por_cluster_despues=vib_despues
-
-        # Centroides y asignación equipo+jornada
-        centroides=np.array([
-            df_no_gye[['x','y']].values[labels==c].mean(axis=0)
-            if (labels==c).sum()>0 else np.array([bx,by])
-            for c in range(n_clust)])
-        dist_c=np.sqrt((centroides[:,0]-bx)**2+(centroides[:,1]-by)**2)
-        orden=np.argsort(dist_c)[::-1]
-        asig={}
-        for i,(cj1,cj2) in enumerate(zip(orden[:n_eq],orden[n_eq:])):
-            asig[cj1]=(nombres[i],'Jornada 1')
-            asig[cj2]=(nombres[i],'Jornada 2')
-
-        df_no_gye['equipo'] =df_no_gye['cluster_geo'].map(lambda c: asig[c][0])
-        df_no_gye['jornada']=df_no_gye['cluster_geo'].map(lambda c: asig[c][1])
-
-        # Equipo Bombero
-        if p["usar_bomb"]:
-            prog.progress(32,"Detectando outliers (Equipo Bombero)...")
-            MIN_D=p.get("min_dist_bomb_m",40000)
-            for c_id in range(n_clust):
-                if c_id not in asig: continue
-                mask_c=df_no_gye['cluster_geo']==c_id
-                pts=df_no_gye[mask_c]
-                if len(pts)<8: continue
-                cx,cy=centroides[c_id]
-                dists=np.sqrt((pts['x']-cx)**2+(pts['y']-cy)**2)
-                Q1c,Q3c=dists.quantile(.25),dists.quantile(.75)
-                iqrc=Q3c-Q1c
-                if iqrc==0: continue
-                bomb_idx=dists[(dists>Q3c+3*iqrc)&(dists>MIN_D)].index
-                if len(bomb_idx)>0:
-                    df_no_gye.loc[bomb_idx,'equipo']='Equipo Bombero'
-                    df_no_gye.loc[bomb_idx,'jornada']='Jornada Especial'
-                    mask_bomb.loc[bomb_idx]=True
-
-        # ── FIX v5: update con índice original intacto ───────────────────────
-        # df_no_gye conserva el índice de df_w → update mapea correctamente
-        df_w.update(df_no_gye[['equipo','jornada','cluster_geo']])
-
-    st.session_state.n_bombero=int((df_w['equipo']=='Equipo Bombero').sum())
-
-    # 4. Encuestadores + días (FIX índices v5)
-    prog.progress(42,"Asignando encuestadores y días...")
-    enc_dict={e["nombre"]:e["enc"] for e in eq_cfg}
-
-    for nombre_eq in nombres:
-        for jornada in ['Jornada 1','Jornada 2']:
-            mask_g=(df_w['equipo']==nombre_eq)&(df_w['jornada']==jornada)
-            grp=df_w[mask_g].copy()   # índice original de df_w conservado
-            if len(grp)==0: continue
-            n_enc=enc_dict.get(nombre_eq,3)
-
-            if jornada=='Jornada 1' and act_gye:
-                inicio=p["dias_gye"]+1; dias_disp=p["dias_op"]-p["dias_gye"]
-            else:
-                inicio=1; dias_disp=p["dias_op"]
-
-            if dias_disp<=0: continue
-
-            ga=asignar_encuestadores_y_dias(grp,n_enc,dias_disp,
-                                            p["viv_min"],p["viv_max"],inicio)
-            # ga.index == grp.index == índices originales de df_w → update correcto
-            df_w.update(ga[['encuestador','dia_operativo','dia_inicio','dia_fin']])
-
-    # Fase GYE — clustering geográfico puro (v5.2)
-    # Usa KMeans SOLO en coordenadas para agrupar por barrio/sector.
-    # NO usa clustering_balanceado porque su fase de rebalanceo por carga
-    # mueve UPMs entre clusters y destruye la coherencia geográfica,
-    # especialmente con pocas UPMs.
-    if act_gye and len(df_gye)>0:
-        n_gye_clusters = min(n_eq, len(df_gye))
-        prog.progress(38,f"Clustering GYE: {len(df_gye)} UPMs → {n_gye_clusters} clusters...")
-        if n_gye_clusters >= 2:
-            # KMeans puramente geográfico — sin rebalanceo
-            km_gye = KMeans(n_clusters=n_gye_clusters, init='k-means++',
-                            n_init=30, max_iter=500, random_state=42)
-            labels_gye = km_gye.fit_predict(
-                df_gye[['x','y']].values.astype(float))
-            df_gye = df_gye.copy()
-            df_gye['cluster_gye'] = labels_gye
-
-            # Asignar cada cluster geográfico a un equipo diferente
-            for c_id in range(n_gye_clusters):
-                eq_a = nombres[c_id % n_eq]
-                mask_c = df_gye['cluster_gye'] == c_id
-                grp_gye = df_gye[mask_c].copy()
-                if len(grp_gye) == 0:
-                    continue
-
-                n_enc_eq = enc_dict.get(eq_a, 3)
-                dias_gye = p["dias_gye"]
-
-                grp_gye['equipo'] = eq_a
-                grp_gye['jornada'] = 'Jornada 1'
-
-                # Asignar encuestadores y días dentro de los días GYE
-                if len(grp_gye) > 0:
-                    ga_gye = asignar_encuestadores_y_dias(
-                        grp_gye, n_enc_eq, dias_gye,
-                        p["viv_min"], p["viv_max"], inicio_dia=1)
-                    df_w.update(ga_gye[['equipo', 'jornada', 'encuestador',
-                                         'dia_operativo', 'dia_inicio', 'dia_fin']])
-        else:
-            # Solo 1 UPM en GYE → asignar al primer equipo
-            eq_a = nombres[0]
-            for idx in df_gye.index:
-                df_w.loc[idx, ['equipo','jornada','encuestador',
-                               'dia_operativo','dia_inicio','dia_fin']] = \
-                    [eq_a, 'Jornada 1', 1, 1, 1, 1]
-
-        # Diagnóstico GYE
-        gye_asig = df_w.loc[df_gye.index]
-        _gye_info = gye_asig.groupby('equipo').agg(
-            n_upms=('id_entidad','count'),
-            viv=('viv','sum')).reset_index()
-        st.info(f"🏙️ GYE: {len(df_gye)} UPMs en {n_gye_clusters} clusters → "
-                + ", ".join(f"{r['equipo']}: {r['n_upms']} UPMs ({int(r['viv'])} viv)"
-                            for _,r in _gye_info.iterrows()))
+    if st.session_state.alcance_plan=="completa":
+        meses_a_plan=meses_disp_all
     else:
-        if upms_gye.sum()>0:
-            st.warning(f"⚠️ GYE: {upms_gye.sum()} UPMs detectadas pero act_gye=False "
-                       f"(pct={pct_gye:.1%}, umbral={p['umbral_gye']}%). "
-                       f"Estas UPMs NO se asignarán a ningún equipo.")
+        meses_a_plan=[df['mes'].iloc[0]]
 
-    # 5. TSP
-    prog.progress(52,"Optimizando rutas TSP...")
-    base_nd=ox.nearest_nodes(G,BASE_LON,BASE_LAT)
-    G_u=G.to_undirected(); comp_base=nx.node_connected_component(G_u,base_nd)
-    tsp_r,road_p={},{}
+    all_df_plan=[]; all_tsp_r={}; all_road_p={}
+    total_meses_plan=len(meses_a_plan)
+    prog=st.progress(0,f"Planificando {total_meses_plan} mes(es)...")
 
-    for ri,nombre_eq in enumerate(nombres):
-        for jornada in ['Jornada 1','Jornada 2']:
-            pct=52+int((ri*2+['Jornada 1','Jornada 2'].index(jornada)+1)/(n_eq*2)*42)
-            prog.progress(pct,f"TSP: {nombre_eq} | {jornada}...")
-            mask_g=(df_w['equipo']==nombre_eq)&(df_w['jornada']==jornada)
-            grp=df_w[mask_g]
-            if len(grp)==0: continue
-            nr=ox.nearest_nodes(G,grp['lon'].values,grp['lat'].values)
-            nk=[n for n in nr if n in comp_base]
-            if not nk: continue
-            nu=[base_nd]+list(dict.fromkeys(nk)); n=len(nu)
-            if n<=2: continue
-            D=np.zeros((n,n))
-            for i in range(n):
-                for j in range(i+1,n):
-                    try: d=nx.shortest_path_length(G_u,nu[i],nu[j],weight='length');D[i,j]=D[j,i]=d
-                    except: D[i,j]=D[j,i]=1e9
-            Gt=nx.Graph()
-            for i in range(n):
-                for j in range(i+1,n):
-                    if D[i,j]<1e8: Gt.add_edge(i,j,weight=D[i,j])
-            if not nx.is_connected(Gt): continue
-            try: ciclo=approximation.traveling_salesman_problem(Gt,weight='weight',cycle=True)
-            except: continue
-            if 0 in ciclo:
-                i0=ciclo.index(0); ciclo=ciclo[i0:]+ciclo[1:i0+1]
-            dist=sum(D[ciclo[i],ciclo[i+1]] for i in range(len(ciclo)-1))
-            ruta=[]; ng=[nu[idx] for idx in ciclo]
-            for k in range(len(ng)-1):
-                try:
-                    seg=nx.shortest_path(G_u,ng[k],ng[k+1],weight='length')
-                    ruta.extend((G.nodes[nd]['y'],G.nodes[nd]['x']) for nd in seg[:-1])
+    for mi,mes_plan in enumerate(meses_a_plan):
+        pct_base=int(mi/total_meses_plan*100)
+        prog.progress(pct_base,f"Mes {int(mes_plan)} ({mi+1}/{total_meses_plan})...")
+
+        df_mes_plan=st.session_state.data_raw[st.session_state.data_raw["mes"]==mes_plan].copy()
+        if len(df_mes_plan)==0: continue
+
+        j1_n_m,j2_n_m,_=jornada_num_desde_mes(int(mes_plan),st.session_state.mes_inicio_cal)
+        j1_cancelada=j1_n_m in canceladas_run
+        j2_cancelada=j2_n_m in canceladas_run
+        if j1_cancelada and j2_cancelada: continue
+
+        df_w=df_mes_plan.copy()
+        df_w['mes_plan']=int(mes_plan)
+        df_w['equipo']='sin_asignar'; df_w['jornada']='sin_asignar'
+        df_w['cluster_geo']=-1
+        df_w['carga_pond']=df_w.apply(
+            lambda r: r['viv']*p["factor_r"]
+            if str(r.get('tipo_entidad','')).startswith('sec') else r['viv'],axis=1)
+        df_w['encuestador']=0; df_w['dia_operativo']=0
+        df_w['dia_inicio']=0; df_w['dia_fin']=0; df_w['dist_base_m']=0.0
+
+        pct_mes=lambda p_local: min(99,int(pct_base + p_local/total_meses_plan))
+
+        t_utm=Transformer.from_crs("EPSG:4326","EPSG:32717",always_xy=True)
+        bx,by=t_utm.transform(BASE_LON,BASE_LAT)
+        df_w['dist_base_m']=np.sqrt((df_w['x']-bx)**2+(df_w['y']-by)**2)
+
+        # 2. Restricción GYE
+        prog.progress(pct_mes(8),f"Mes {int(mes_plan)}: restricción GYE...")
+        upms_gye=pd.Series(False,index=df_w.index)
+        if p["usar_gye"] and 'pro_x' in df_w.columns and 'can_x' in df_w.columns:
+            upms_gye=(df_w['pro_x']==PRO_GYE)&(df_w['can_x']==CAN_GYE)
+        pct_gye=upms_gye.sum()/len(df_w) if len(df_w)>0 else 0
+        act_gye=p["usar_gye"] and (pct_gye>=p["umbral_gye"]/100) and upms_gye.sum()>0
+
+        df_gye   =df_w[upms_gye].copy()  if act_gye else pd.DataFrame()
+        df_no_gye=df_w[~upms_gye].copy()
+
+        # Determinar jornadas activas para este mes
+        jornadas_mes=[]
+        if not j1_cancelada: jornadas_mes.append('Jornada 1')
+        if not j2_cancelada: jornadas_mes.append('Jornada 2')
+        n_clust_mes = n_eq * len(jornadas_mes)
+
+        # 3. Clustering balanceado
+        prog.progress(pct_mes(12),f"Mes {int(mes_plan)}: clustering ({n_clust_mes} clusters)...")
+        mask_bomb=pd.Series(False,index=df_w.index)
+
+        if len(df_no_gye)>=n_clust_mes and n_clust_mes>0:
+            km_init=KMeans(n_clusters=n_clust_mes,init='k-means++',n_init=20,
+                           max_iter=500,random_state=42)
+            lab_init=km_init.fit_predict(df_no_gye[['x','y']].values.astype(float))
+            carg_arr=df_no_gye['carga_pond'].values
+            vib_antes={c:float(carg_arr[lab_init==c].sum()) for c in range(n_clust_mes)}
+            if mi==0: st.session_state.viv_por_cluster_antes=vib_antes
+
+            prog.progress(pct_mes(22),f"Mes {int(mes_plan)}: rebalanceo...")
+            labels,bal_log,cv_ini,cv_fin=clustering_balanceado(
+                df_no_gye,n_clusters=n_clust_mes,
+                cv_objetivo=p["cv_objetivo"]/100.0,
+                max_iter=p["max_iter_bal"],k_vecinos=p["k_vecinos"])
+
+            df_no_gye=df_no_gye.copy()
+            df_no_gye['cluster_geo']=labels
+            if mi==0:
+                st.session_state.balance_log=bal_log
+                st.session_state.cv_ini_bal=cv_ini
+                st.session_state.cv_fin_bal=cv_fin
+                try: st.session_state.sil_score=silhouette_score(df_no_gye[['x','y']].values,labels)
+                except: st.session_state.sil_score=None
+                vib_despues={c:float(carg_arr[labels==c].sum()) for c in range(n_clust_mes)}
+                st.session_state.viv_por_cluster_despues=vib_despues
+
+            centroides=np.array([
+                df_no_gye[['x','y']].values[labels==c].mean(axis=0)
+                if (labels==c).sum()>0 else np.array([bx,by])
+                for c in range(n_clust_mes)])
+            dist_c=np.sqrt((centroides[:,0]-bx)**2+(centroides[:,1]-by)**2)
+            orden=np.argsort(dist_c)[::-1]
+
+            asig={}
+            if len(jornadas_mes)==2:
+                for i,(cj1,cj2) in enumerate(zip(orden[:n_eq],orden[n_eq:])):
+                    asig[cj1]=(nombres[i],'Jornada 1')
+                    asig[cj2]=(nombres[i],'Jornada 2')
+            else:
+                jornada_activa=jornadas_mes[0]
+                for i in range(min(n_eq,len(orden))):
+                    asig[orden[i]]=(nombres[i],jornada_activa)
+
+            df_no_gye['equipo'] =df_no_gye['cluster_geo'].map(lambda c: asig.get(c,('sin_asignar','sin_asignar'))[0])
+            df_no_gye['jornada']=df_no_gye['cluster_geo'].map(lambda c: asig.get(c,('sin_asignar','sin_asignar'))[1])
+
+            if p["usar_bomb"]:
+                prog.progress(pct_mes(32),f"Mes {int(mes_plan)}: outliers...")
+                MIN_D=p.get("min_dist_bomb_m",40000)
+                for c_id in range(n_clust_mes):
+                    if c_id not in asig: continue
+                    mask_c=df_no_gye['cluster_geo']==c_id
+                    pts=df_no_gye[mask_c]
+                    if len(pts)<8: continue
+                    cx,cy=centroides[c_id]
+                    dists_b=np.sqrt((pts['x']-cx)**2+(pts['y']-cy)**2)
+                    Q1c,Q3c=dists_b.quantile(.25),dists_b.quantile(.75)
+                    iqrc=Q3c-Q1c
+                    if iqrc==0: continue
+                    bomb_idx=dists_b[(dists_b>Q3c+3*iqrc)&(dists_b>MIN_D)].index
+                    if len(bomb_idx)>0:
+                        df_no_gye.loc[bomb_idx,'equipo']='Equipo Bombero'
+                        df_no_gye.loc[bomb_idx,'jornada']='Jornada Especial'
+
+            df_w.update(df_no_gye[['equipo','jornada','cluster_geo']])
+
+        # 4. Encuestadores + días
+        prog.progress(pct_mes(42),f"Mes {int(mes_plan)}: encuestadores...")
+        enc_dict={e["nombre"]:e["enc"] for e in eq_cfg}
+
+        for nombre_eq in nombres:
+            for jornada in jornadas_mes:
+                mask_g=(df_w['equipo']==nombre_eq)&(df_w['jornada']==jornada)
+                grp=df_w[mask_g].copy()
+                if len(grp)==0: continue
+                n_enc=enc_dict.get(nombre_eq,3)
+                if jornada=='Jornada 1' and act_gye:
+                    inicio=p["dias_gye"]+1; dias_disp=p["dias_op"]-p["dias_gye"]
+                else:
+                    inicio=1; dias_disp=p["dias_op"]
+                if dias_disp<=0: continue
+                ga=asignar_encuestadores_y_dias(grp,n_enc,dias_disp,
+                                                p["viv_min"],p["viv_max"],inicio)
+                df_w.update(ga[['encuestador','dia_operativo','dia_inicio','dia_fin']])
+
+        # Fase GYE
+        if act_gye and len(df_gye)>0:
+            n_gye_clusters = min(n_eq, len(df_gye))
+            if n_gye_clusters >= 2:
+                km_gye = KMeans(n_clusters=n_gye_clusters, init='k-means++',
+                                n_init=30, max_iter=500, random_state=42)
+                labels_gye = km_gye.fit_predict(df_gye[['x','y']].values.astype(float))
+                df_gye = df_gye.copy()
+                df_gye['cluster_gye'] = labels_gye
+                for c_id in range(n_gye_clusters):
+                    eq_a = nombres[c_id % n_eq]
+                    grp_gye = df_gye[df_gye['cluster_gye']==c_id].copy()
+                    if len(grp_gye)==0: continue
+                    grp_gye['equipo']=eq_a; grp_gye['jornada']='Jornada 1'
+                    ga_gye=asignar_encuestadores_y_dias(
+                        grp_gye,enc_dict.get(eq_a,3),p["dias_gye"],
+                        p["viv_min"],p["viv_max"],inicio_dia=1)
+                    df_w.update(ga_gye[['equipo','jornada','encuestador',
+                                        'dia_operativo','dia_inicio','dia_fin']])
+            else:
+                for idx in df_gye.index:
+                    df_w.loc[idx,['equipo','jornada','encuestador',
+                                  'dia_operativo','dia_inicio','dia_fin']]=[nombres[0],'Jornada 1',1,1,1,1]
+
+        # 5. TSP
+        prog.progress(pct_mes(52),f"Mes {int(mes_plan)}: TSP...")
+        base_nd=ox.nearest_nodes(G,BASE_LON,BASE_LAT)
+        G_u=G.to_undirected(); comp_base=nx.node_connected_component(G_u,base_nd)
+        tsp_r,road_p={},{}
+
+        for ri,nombre_eq in enumerate(nombres):
+            for jornada in jornadas_mes:
+                ji=jornadas_mes.index(jornada)
+                pct_tsp=52+int((ri*len(jornadas_mes)+ji+1)/(n_eq*len(jornadas_mes))*42)
+                prog.progress(pct_mes(pct_tsp),f"Mes {int(mes_plan)}: TSP {nombre_eq}|{jornada}...")
+                mask_g=(df_w['equipo']==nombre_eq)&(df_w['jornada']==jornada)
+                grp=df_w[mask_g]
+                if len(grp)==0: continue
+                nr=ox.nearest_nodes(G,grp['lon'].values,grp['lat'].values)
+                nk=[n for n in nr if n in comp_base]
+                if not nk: continue
+                nu=[base_nd]+list(dict.fromkeys(nk)); n_nd=len(nu)
+                if n_nd<=2: continue
+                D=np.zeros((n_nd,n_nd))
+                for i in range(n_nd):
+                    for j in range(i+1,n_nd):
+                        try: d=nx.shortest_path_length(G_u,nu[i],nu[j],weight='length');D[i,j]=D[j,i]=d
+                        except: D[i,j]=D[j,i]=1e9
+                Gt=nx.Graph()
+                for i in range(n_nd):
+                    for j in range(i+1,n_nd):
+                        if D[i,j]<1e8: Gt.add_edge(i,j,weight=D[i,j])
+                if not nx.is_connected(Gt): continue
+                try: ciclo=approximation.traveling_salesman_problem(Gt,weight='weight',cycle=True)
                 except: continue
-            if ng: ruta.append((G.nodes[ng[-1]]['y'],G.nodes[ng[-1]]['x']))
-            clave=f"{nombre_eq}||{jornada}"
-            tsp_r[clave]={'equipo':nombre_eq,'jornada':jornada,
-                          'n_puntos':len(grp),'dist_km':dist/1000}
-            road_p[clave]=ruta
+                if 0 in ciclo:
+                    i0=ciclo.index(0); ciclo=ciclo[i0:]+ciclo[1:i0+1]
+                dist=sum(D[ciclo[i],ciclo[i+1]] for i in range(len(ciclo)-1))
+                ruta=[]; ng=[nu[idx] for idx in ciclo]
+                for k in range(len(ng)-1):
+                    try:
+                        seg=nx.shortest_path(G_u,ng[k],ng[k+1],weight='length')
+                        ruta.extend((G.nodes[nd]['y'],G.nodes[nd]['x']) for nd in seg[:-1])
+                    except: continue
+                if ng: ruta.append((G.nodes[ng[-1]]['y'],G.nodes[ng[-1]]['x']))
+                clave=f"M{int(mes_plan)}||{nombre_eq}||{jornada}"
+                tsp_r[clave]={'equipo':nombre_eq,'jornada':jornada,'mes':int(mes_plan),
+                              'n_puntos':len(grp),'dist_km':dist/1000}
+                road_p[clave]=ruta
 
-    prog.progress(98,"Métricas finales...")
-    resumen=df_w[~df_w['equipo'].isin(['Equipo Bombero','sin_asignar'])].groupby(
+        # Acumular
+        all_df_plan.append(df_w)
+        all_tsp_r.update(tsp_r)
+        all_road_p.update(road_p)
+
+    # ── Combinar resultados ──────────────────────────────────────────────────
+    prog.progress(98,"Combinando resultados...")
+    df_plan_final=pd.concat(all_df_plan,ignore_index=True) if all_df_plan else pd.DataFrame()
+    st.session_state.n_bombero=int((df_plan_final['equipo']=='Equipo Bombero').sum()) if len(df_plan_final)>0 else 0
+
+    resumen=df_plan_final[~df_plan_final['equipo'].isin(['Equipo Bombero','sin_asignar'])].groupby(
         ['equipo','jornada']).agg(
-        n_upms=('id_entidad','count'),
-        viv_reales=('viv','sum'),
-        carga_ponderada=('carga_pond','sum')).reset_index()
+        n_upms=('id_entidad','count'),viv_reales=('viv','sum'),
+        carga_ponderada=('carga_pond','sum')).reset_index() if len(df_plan_final)>0 else pd.DataFrame()
     dist_df=pd.DataFrame([
         {'equipo':v['equipo'],'jornada':v['jornada'],'dist_km':round(v['dist_km'],1)}
-        for v in tsp_r.values()
-    ]) if tsp_r else pd.DataFrame(columns=['equipo','jornada','dist_km'])
-    resumen_bal=pd.merge(resumen,dist_df,on=['equipo','jornada'],how='left').fillna(0)
+        for v in all_tsp_r.values()
+    ]) if all_tsp_r else pd.DataFrame(columns=['equipo','jornada','dist_km'])
+    resumen_bal=pd.merge(resumen,dist_df,on=['equipo','jornada'],how='left').fillna(0) if len(resumen)>0 else pd.DataFrame()
 
     prog.progress(100,"¡Listo!"); prog.empty()
-    st.session_state.df_plan=df_w
-    st.session_state.tsp_results=tsp_r; st.session_state.road_paths=road_p
+    st.session_state.df_plan=df_plan_final
+    st.session_state.tsp_results=all_tsp_r; st.session_state.road_paths=all_road_p
     st.session_state.resumen_bal=resumen_bal
     st.session_state.resultados_generados=True
-    st.success("✓ Planificación v5 generada.")
+    st.success(f"✓ Planificación generada: {len(meses_a_planificar)} mes(es), {len(df_plan_final)} UPMs.")
+
+
 
 # ── RESULTADOS ────────────────────────────────
 if not st.session_state.resultados_generados:
@@ -1326,8 +1355,26 @@ df_plan=st.session_state.df_plan
 tsp_r=st.session_state.tsp_results; road_p=st.session_state.road_paths
 res_bal=st.session_state.resumen_bal; eq_cfg=st.session_state.equipos_cfg
 nombres=[e["nombre"] for e in eq_cfg]; p=st.session_state.params
-j1_n,j2_n,mes_nom=jornada_num_desde_mes(
-    int(df['mes'].iloc[0]), st.session_state.mes_inicio_cal)
+mes_ini_cal=st.session_state.mes_inicio_cal
+
+# ── Filtro de mes para resultados ─────────────
+if 'mes_plan' in df_plan.columns:
+    meses_plan_disp=sorted(df_plan['mes_plan'].dropna().unique().tolist())
+else:
+    meses_plan_disp=[int(df['mes'].iloc[0])]
+
+if len(meses_plan_disp)>1:
+    mes_ver=st.selectbox("📅 Ver resultados del mes:",meses_plan_disp,
+        format_func=lambda x: f"Mes {int(x)} — {jornada_num_desde_mes(int(x),mes_ini_cal)[2]}",
+        key="filtro_mes_ver")
+    df_plan_view=df_plan[df_plan['mes_plan']==mes_ver].copy()
+    road_p_view={k:v for k,v in road_p.items() if k.startswith(f"M{int(mes_ver)}||")}
+else:
+    mes_ver=meses_plan_disp[0] if meses_plan_disp else int(df['mes'].iloc[0])
+    df_plan_view=df_plan.copy()
+    road_p_view=road_p
+
+j1_n,j2_n,mes_nom=jornada_num_desde_mes(int(mes_ver), mes_ini_cal)
 
 color_map={n:COLORES[i%len(COLORES)] for i,n in enumerate(nombres)}
 color_map['Equipo Bombero']='#7c3aed'
@@ -1344,7 +1391,7 @@ with tab_mapa:
     with cc1:
         mj1=st.checkbox("Jornada 1",value=True)
         mj2=st.checkbox("Jornada 2",value=True)
-        n_b=int((df_plan['equipo']=='Equipo Bombero').sum())
+        n_b=int((df_plan_view['equipo']=='Equipo Bombero').sum())
         mbm=st.checkbox(f"Equipo Bombero ({n_b})",value=True)
         mrts=st.checkbox("Mostrar rutas",value=True)
         fnd=st.selectbox("Fondo",["CartoDB positron","OpenStreetMap","CartoDB dark_matter"])
@@ -1360,7 +1407,7 @@ with tab_mapa:
         m=folium.Map(location=[BASE_LAT,BASE_LON],zoom_start=8,tiles=fnd)
         folium.Marker([BASE_LAT,BASE_LON],popup="<b>Base INEC GYE</b>",
             icon=folium.Icon(color='white',icon='home',prefix='fa')).add_to(m)
-        for _,row in df_plan.iterrows():
+        for _,row in df_plan_view.iterrows():
             eq,jor=row.get('equipo',''),row.get('jornada','')
             if jor=='Jornada 1' and not mj1: continue
             if jor=='Jornada 2' and not mj2: continue
@@ -1380,7 +1427,7 @@ with tab_mapa:
                 tooltip=f"{eq}·Enc{int(row.get('encuestador',0))}·{int(row['viv'])}viv"
             ).add_to(m)
         if mrts:
-            for clave,coords in road_p.items():
+            for clave,coords in road_p_view.items():
                 eq,jor=clave.split('||')
                 if jor=='Jornada 1' and not mj1: continue
                 if jor=='Jornada 2' and not mj2: continue
@@ -1442,7 +1489,7 @@ with tab_analisis:
 
     st.divider()
     st.markdown("<div class='stitle'>Equidad entre equipos</div>",unsafe_allow_html=True)
-    df_main=df_plan[~df_plan['equipo'].isin(['Equipo Bombero','sin_asignar'])].copy()
+    df_main=df_plan_view[~df_plan_view['equipo'].isin(['Equipo Bombero','sin_asignar'])].copy()
     res_cv=df_main.groupby(['equipo','jornada']).agg(
         viv_reales=('viv','sum'),carga_ponderada=('carga_pond','sum')).reset_index()
     for jornada in ['Jornada 1','Jornada 2']:
@@ -1465,10 +1512,10 @@ with tab_analisis:
 
     # Tarjetas por equipo
     st.markdown("<div class='stitle'>Carga por equipo</div>",unsafe_allow_html=True)
-    eq_act=[n for n in nombres if n in df_plan['equipo'].values]
+    eq_act=[n for n in nombres if n in df_plan_view['equipo'].values]
     cols_e=st.columns(len(eq_act))
     for col_e,nombre_eq in zip(cols_e,eq_act):
-        sub_e=df_plan[df_plan['equipo']==nombre_eq]
+        sub_e=df_plan_view[df_plan_view['equipo']==nombre_eq]
         vt=int(sub_e['viv'].sum()); cv_e=cv_pct(sub_e['carga_pond'])
         ce=color_map.get(nombre_eq,'#003B71')
         ccv="#059669" if cv_e<20 else ("#d97706" if cv_e<40 else "#dc2626")
@@ -1485,7 +1532,7 @@ with tab_analisis:
     # Drilldown
     st.markdown("<br>",unsafe_allow_html=True)
     eq_sel=st.selectbox("Detalle:",eq_act)
-    df_sel=df_plan[df_plan['equipo']==eq_sel].copy()
+    df_sel=df_plan_view[df_plan_view['equipo']==eq_sel].copy()
     df_enc=df_sel.groupby(['jornada','encuestador']).agg(
         upms=('id_entidad','count'),viv_reales=('viv','sum'),
         carga_pond=('carga_pond','sum')).reset_index()
@@ -1507,7 +1554,7 @@ with tab_analisis:
     st.markdown("<div class='stitle'>Distribución diaria</div>",unsafe_allow_html=True)
     jor_opts=["Jornada 1","Jornada 2","Ambas"]
     jor_filtro=st.radio("Filtrar:",jor_opts,horizontal=True,key="radio_jor_v5",index=0)
-    pivot_all=df_plan[df_plan['equipo'].isin(eq_act)].copy()
+    pivot_all=df_plan_view[df_plan_view['equipo'].isin(eq_act)].copy()
     if jor_filtro!="Ambas": pivot_all=pivot_all[pivot_all['jornada']==jor_filtro]
     rows_exp=[]
     for _,row in pivot_all.iterrows():
@@ -1552,7 +1599,7 @@ with tab_analisis:
             st.plotly_chart(fig_enc,use_container_width=True)
 
     # Bombero
-    df_bm=df_plan[df_plan['equipo']=='Equipo Bombero']
+    df_bm=df_plan_view[df_plan_view['equipo']=='Equipo Bombero']
     n_bm=st.session_state.n_bombero
     st.markdown("<div class='stitle'>Equipo Bombero</div>",unsafe_allow_html=True)
     if n_bm==0:
@@ -1782,7 +1829,8 @@ with tab_reporte:
                     df_plan=df_plan,eq_cfg=eq_cfg,
                     personal_info=st.session_state.personal_info,
                     jornadas_activas=jornadas_excel,
-                    dias_op=p["dias_op"]
+                    dias_op=p["dias_op"],
+                    org_territorial=st.session_state.org_territorial
                 )
                 nums=[str(ji['jornada_num']) for ji in jornadas_excel]
                 fname=f"planificacion_J{'_'.join(nums)}_{mes_n_excel}.xlsx"
