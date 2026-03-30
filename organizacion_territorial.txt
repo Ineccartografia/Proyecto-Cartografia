@@ -1,0 +1,4399 @@
+{
+    "01": {
+        "DPA_DESPRO": "AZUAY",
+        "cantones": {
+            "0101": {
+                "DPA_DESCAN": "CUENCA",
+                "parroquias": {
+                    "010150": {
+                        "DPA_DESPAR": "CUENCA"
+                    },
+                    "010151": {
+                        "DPA_DESPAR": "BAÑOS"
+                    },
+                    "010152": {
+                        "DPA_DESPAR": "CUMBE"
+                    },
+                    "010153": {
+                        "DPA_DESPAR": "CHAUCHA"
+                    },
+                    "010154": {
+                        "DPA_DESPAR": "CHECA"
+                    },
+                    "010155": {
+                        "DPA_DESPAR": "CHIQUINTAD"
+                    },
+                    "010156": {
+                        "DPA_DESPAR": "LLACAO"
+                    },
+                    "010157": {
+                        "DPA_DESPAR": "MOLLETURO"
+                    },
+                    "010158": {
+                        "DPA_DESPAR": "NULTI"
+                    },
+                    "010159": {
+                        "DPA_DESPAR": "OCTAVIO CORDERO PALACIOS"
+                    },
+                    "010160": {
+                        "DPA_DESPAR": "PACCHA"
+                    },
+                    "010161": {
+                        "DPA_DESPAR": "QUINGEO"
+                    },
+                    "010162": {
+                        "DPA_DESPAR": "RICAURTE"
+                    },
+                    "010163": {
+                        "DPA_DESPAR": "SAN JOAQUÍN"
+                    },
+                    "010164": {
+                        "DPA_DESPAR": "SANTA ANA"
+                    },
+                    "010165": {
+                        "DPA_DESPAR": "SAYAUSÍ"
+                    },
+                    "010166": {
+                        "DPA_DESPAR": "SIDCAY"
+                    },
+                    "010167": {
+                        "DPA_DESPAR": "SININCAY"
+                    },
+                    "010168": {
+                        "DPA_DESPAR": "TARQUI"
+                    },
+                    "010169": {
+                        "DPA_DESPAR": "TURI"
+                    },
+                    "010170": {
+                        "DPA_DESPAR": "VALLE"
+                    },
+                    "010171": {
+                        "DPA_DESPAR": "VICTORIA DEL PORTETE"
+                    }
+                }
+            },
+            "0102": {
+                "DPA_DESCAN": "GIRÓN",
+                "parroquias": {
+                    "010250": {
+                        "DPA_DESPAR": "GIRÓN"
+                    },
+                    "010251": {
+                        "DPA_DESPAR": "LA ASUNCIÓN"
+                    },
+                    "010252": {
+                        "DPA_DESPAR": "SAN GERARDO"
+                    }
+                }
+            },
+            "0103": {
+                "DPA_DESCAN": "GUALACEO",
+                "parroquias": {
+                    "010350": {
+                        "DPA_DESPAR": "GUALACEO"
+                    },
+                    "010352": {
+                        "DPA_DESPAR": "DANIEL CÓRDOVA TORAL"
+                    },
+                    "010353": {
+                        "DPA_DESPAR": "JADÁN"
+                    },
+                    "010354": {
+                        "DPA_DESPAR": "MARIANO MORENO"
+                    },
+                    "010356": {
+                        "DPA_DESPAR": "REMIGIO CRESPO TORAL"
+                    },
+                    "010357": {
+                        "DPA_DESPAR": "SAN JUAN"
+                    },
+                    "010358": {
+                        "DPA_DESPAR": "ZHIDMAD"
+                    },
+                    "010359": {
+                        "DPA_DESPAR": "LUIS CORDERO VEGA"
+                    },
+                    "010360": {
+                        "DPA_DESPAR": "SIMÓN BOLÍVAR"
+                    }
+                }
+            },
+            "0104": {
+                "DPA_DESCAN": "NABÓN",
+                "parroquias": {
+                    "010450": {
+                        "DPA_DESPAR": "NABÓN"
+                    },
+                    "010451": {
+                        "DPA_DESPAR": "COCHAPATA"
+                    },
+                    "010452": {
+                        "DPA_DESPAR": "EL PROGRESO"
+                    },
+                    "010453": {
+                        "DPA_DESPAR": "LAS NIEVES"
+                    }
+                }
+            },
+            "0105": {
+                "DPA_DESCAN": "PAUTE",
+                "parroquias": {
+                    "010550": {
+                        "DPA_DESPAR": "PAUTE"
+                    },
+                    "010552": {
+                        "DPA_DESPAR": "BULÁN"
+                    },
+                    "010553": {
+                        "DPA_DESPAR": "CHICÁN"
+                    },
+                    "010554": {
+                        "DPA_DESPAR": "EL CABO"
+                    },
+                    "010556": {
+                        "DPA_DESPAR": "GUARAINAG"
+                    },
+                    "010559": {
+                        "DPA_DESPAR": "SAN CRISTÓBAL"
+                    },
+                    "010561": {
+                        "DPA_DESPAR": "TOMEBAMBA"
+                    },
+                    "010562": {
+                        "DPA_DESPAR": "DUG DUG"
+                    }
+                }
+            },
+            "0106": {
+                "DPA_DESCAN": "PUCARÁ",
+                "parroquias": {
+                    "010650": {
+                        "DPA_DESPAR": "PUCARÁ"
+                    },
+                    "010652": {
+                        "DPA_DESPAR": "SAN RAFAEL DE SHARUG"
+                    }
+                }
+            },
+            "0107": {
+                "DPA_DESCAN": "SAN FERNANDO",
+                "parroquias": {
+                    "010750": {
+                        "DPA_DESPAR": "SAN FERNANDO"
+                    },
+                    "010751": {
+                        "DPA_DESPAR": "CHUMBLÍN"
+                    }
+                }
+            },
+            "0108": {
+                "DPA_DESCAN": "SANTA ISABEL",
+                "parroquias": {
+                    "010850": {
+                        "DPA_DESPAR": "SANTA ISABEL"
+                    },
+                    "010851": {
+                        "DPA_DESPAR": "ABDÓN CALDERÓN"
+                    },
+                    "010852": {
+                        "DPA_DESPAR": "EL CARMEN DE PIJILÍ"
+                    },
+                    "010853": {
+                        "DPA_DESPAR": "SHAGLLI"
+                    },
+                    "010854": {
+                        "DPA_DESPAR": "SAN SALVADOR DE CAÑARIBAMBA"
+                    }
+                }
+            },
+            "0109": {
+                "DPA_DESCAN": "SÍGSIG",
+                "parroquias": {
+                    "010950": {
+                        "DPA_DESPAR": "SÍGSIG"
+                    },
+                    "010951": {
+                        "DPA_DESPAR": "CUCHIL"
+                    },
+                    "010952": {
+                        "DPA_DESPAR": "JIMA"
+                    },
+                    "010953": {
+                        "DPA_DESPAR": "GÜEL"
+                    },
+                    "010954": {
+                        "DPA_DESPAR": "LUDO"
+                    },
+                    "010955": {
+                        "DPA_DESPAR": "SAN BARTOLOMÉ"
+                    },
+                    "010956": {
+                        "DPA_DESPAR": "SAN JOSÉ DE RARANGA"
+                    }
+                }
+            },
+            "0110": {
+                "DPA_DESCAN": "OÑA",
+                "parroquias": {
+                    "011050": {
+                        "DPA_DESPAR": "SAN FELIPE DE OÑA"
+                    },
+                    "011051": {
+                        "DPA_DESPAR": "SUSUDEL"
+                    }
+                }
+            },
+            "0111": {
+                "DPA_DESCAN": "CHORDELEG",
+                "parroquias": {
+                    "011150": {
+                        "DPA_DESPAR": "CHORDELEG"
+                    },
+                    "011151": {
+                        "DPA_DESPAR": "PRINCIPAL"
+                    },
+                    "011152": {
+                        "DPA_DESPAR": "LA UNIÓN"
+                    },
+                    "011153": {
+                        "DPA_DESPAR": "LUIS GALARZA ORELLANA"
+                    },
+                    "011154": {
+                        "DPA_DESPAR": "SAN MARTÍN DE PUZHIO"
+                    }
+                }
+            },
+            "0112": {
+                "DPA_DESCAN": "EL PAN",
+                "parroquias": {
+                    "011250": {
+                        "DPA_DESPAR": "EL PAN"
+                    },
+                    "011253": {
+                        "DPA_DESPAR": "SAN VICENTE"
+                    }
+                }
+            },
+            "0113": {
+                "DPA_DESCAN": "SEVILLA DE ORO",
+                "parroquias": {
+                    "011350": {
+                        "DPA_DESPAR": "SEVILLA DE ORO"
+                    },
+                    "011351": {
+                        "DPA_DESPAR": "AMALUZA"
+                    },
+                    "011352": {
+                        "DPA_DESPAR": "PALMAS"
+                    }
+                }
+            },
+            "0114": {
+                "DPA_DESCAN": "GUACHAPALA",
+                "parroquias": {
+                    "011450": {
+                        "DPA_DESPAR": "GUACHAPALA"
+                    }
+                }
+            },
+            "0115": {
+                "DPA_DESCAN": "CAMILO PONCE ENRÍQUEZ",
+                "parroquias": {
+                    "011550": {
+                        "DPA_DESPAR": "CAMILO PONCE ENRÍQUEZ"
+                    }
+                }
+            }
+        }
+    },
+    "02": {
+        "DPA_DESPRO": "BOLÍVAR",
+        "cantones": {
+            "0201": {
+                "DPA_DESCAN": "GUARANDA",
+                "parroquias": {
+                    "020150": {
+                        "DPA_DESPAR": "GUARANDA"
+                    },
+                    "020151": {
+                        "DPA_DESPAR": "FACUNDO VELA"
+                    },
+                    "020153": {
+                        "DPA_DESPAR": "JULIO E. MORENO"
+                    },
+                    "020155": {
+                        "DPA_DESPAR": "SALINAS"
+                    },
+                    "020156": {
+                        "DPA_DESPAR": "SAN LORENZO"
+                    },
+                    "020157": {
+                        "DPA_DESPAR": "SAN SIMÓN"
+                    },
+                    "020158": {
+                        "DPA_DESPAR": "SANTA FE"
+                    },
+                    "020159": {
+                        "DPA_DESPAR": "SIMIÁTUG"
+                    },
+                    "020160": {
+                        "DPA_DESPAR": "SAN LUIS DE PAMBIL"
+                    }
+                }
+            },
+            "0202": {
+                "DPA_DESCAN": "CHILLANES",
+                "parroquias": {
+                    "020250": {
+                        "DPA_DESPAR": "CHILLANES"
+                    },
+                    "020251": {
+                        "DPA_DESPAR": "SAN JOSÉ DEL TAMBO"
+                    }
+                }
+            },
+            "0203": {
+                "DPA_DESCAN": "CHIMBO",
+                "parroquias": {
+                    "020350": {
+                        "DPA_DESPAR": "SAN JOSÉ DE CHIMBO"
+                    },
+                    "020351": {
+                        "DPA_DESPAR": "ASUNCIÓN"
+                    },
+                    "020353": {
+                        "DPA_DESPAR": "LA MAGDALENA"
+                    },
+                    "020354": {
+                        "DPA_DESPAR": "SAN SEBASTIÁN"
+                    },
+                    "020355": {
+                        "DPA_DESPAR": "TELIMBELA"
+                    }
+                }
+            },
+            "0204": {
+                "DPA_DESCAN": "ECHEANDÍA",
+                "parroquias": {
+                    "020450": {
+                        "DPA_DESPAR": "ECHEANDÍA"
+                    }
+                }
+            },
+            "0205": {
+                "DPA_DESCAN": "SAN MIGUEL",
+                "parroquias": {
+                    "020550": {
+                        "DPA_DESPAR": "SAN MIGUEL"
+                    },
+                    "020551": {
+                        "DPA_DESPAR": "BALSAPAMBA"
+                    },
+                    "020552": {
+                        "DPA_DESPAR": "BILOVÁN"
+                    },
+                    "020553": {
+                        "DPA_DESPAR": "RÉGULO DE MORA"
+                    },
+                    "020554": {
+                        "DPA_DESPAR": "SAN PABLO"
+                    },
+                    "020555": {
+                        "DPA_DESPAR": "SANTIAGO"
+                    },
+                    "020556": {
+                        "DPA_DESPAR": "SAN VICENTE"
+                    }
+                }
+            },
+            "0206": {
+                "DPA_DESCAN": "CALUMA",
+                "parroquias": {
+                    "020650": {
+                        "DPA_DESPAR": "CALUMA"
+                    }
+                }
+            },
+            "0207": {
+                "DPA_DESCAN": "LAS NAVES",
+                "parroquias": {
+                    "020750": {
+                        "DPA_DESPAR": "LAS NAVES"
+                    }
+                }
+            }
+        }
+    },
+    "03": {
+        "DPA_DESPRO": "CAÑAR",
+        "cantones": {
+            "0301": {
+                "DPA_DESCAN": "AZOGUES",
+                "parroquias": {
+                    "030150": {
+                        "DPA_DESPAR": "AZOGUES"
+                    },
+                    "030151": {
+                        "DPA_DESPAR": "COJITAMBO"
+                    },
+                    "030153": {
+                        "DPA_DESPAR": "GUAPÁN"
+                    },
+                    "030154": {
+                        "DPA_DESPAR": "JAVIER LOYOLA"
+                    },
+                    "030155": {
+                        "DPA_DESPAR": "LUIS CORDERO"
+                    },
+                    "030156": {
+                        "DPA_DESPAR": "PINDILIG"
+                    },
+                    "030157": {
+                        "DPA_DESPAR": "RIVERA"
+                    },
+                    "030158": {
+                        "DPA_DESPAR": "SAN MIGUEL"
+                    },
+                    "030160": {
+                        "DPA_DESPAR": "TADAY"
+                    }
+                }
+            },
+            "0302": {
+                "DPA_DESCAN": "BIBLIÁN",
+                "parroquias": {
+                    "030250": {
+                        "DPA_DESPAR": "BIBLIÁN"
+                    },
+                    "030251": {
+                        "DPA_DESPAR": "NAZÓN"
+                    },
+                    "030252": {
+                        "DPA_DESPAR": "SAN FRANCISCO DE SAGEO"
+                    },
+                    "030253": {
+                        "DPA_DESPAR": "TURUPAMBA"
+                    },
+                    "030254": {
+                        "DPA_DESPAR": "JERUSALÉN"
+                    }
+                }
+            },
+            "0303": {
+                "DPA_DESCAN": "CAÑAR",
+                "parroquias": {
+                    "030350": {
+                        "DPA_DESPAR": "CAÑAR"
+                    },
+                    "030351": {
+                        "DPA_DESPAR": "CHONTAMARCA"
+                    },
+                    "030352": {
+                        "DPA_DESPAR": "CHOROCOPTE"
+                    },
+                    "030353": {
+                        "DPA_DESPAR": "GENERAL MORALES"
+                    },
+                    "030354": {
+                        "DPA_DESPAR": "GUALLETURO"
+                    },
+                    "030355": {
+                        "DPA_DESPAR": "HONORATO VÁSQUEZ"
+                    },
+                    "030356": {
+                        "DPA_DESPAR": "INGAPIRCA"
+                    },
+                    "030357": {
+                        "DPA_DESPAR": "JUNCAL"
+                    },
+                    "030358": {
+                        "DPA_DESPAR": "SAN ANTONIO"
+                    },
+                    "030361": {
+                        "DPA_DESPAR": "ZHUD"
+                    },
+                    "030362": {
+                        "DPA_DESPAR": "VENTURA"
+                    },
+                    "030363": {
+                        "DPA_DESPAR": "DUCUR"
+                    }
+                }
+            },
+            "0304": {
+                "DPA_DESCAN": "LA TRONCAL",
+                "parroquias": {
+                    "030450": {
+                        "DPA_DESPAR": "LA TRONCAL"
+                    },
+                    "030451": {
+                        "DPA_DESPAR": "MANUEL J. CALLE"
+                    },
+                    "030452": {
+                        "DPA_DESPAR": "PANCHO NEGRO"
+                    }
+                }
+            },
+            "0305": {
+                "DPA_DESCAN": "EL TAMBO",
+                "parroquias": {
+                    "030550": {
+                        "DPA_DESPAR": "EL TAMBO"
+                    }
+                }
+            },
+            "0306": {
+                "DPA_DESCAN": "DÉLEG",
+                "parroquias": {
+                    "030650": {
+                        "DPA_DESPAR": "DÉLEG"
+                    },
+                    "030651": {
+                        "DPA_DESPAR": "SOLANO"
+                    }
+                }
+            },
+            "0307": {
+                "DPA_DESCAN": "SUSCAL",
+                "parroquias": {
+                    "030750": {
+                        "DPA_DESPAR": "SUSCAL"
+                    }
+                }
+            }
+        }
+    },
+    "04": {
+        "DPA_DESPRO": "CARCHI",
+        "cantones": {
+            "0401": {
+                "DPA_DESCAN": "TULCÁN",
+                "parroquias": {
+                    "040150": {
+                        "DPA_DESPAR": "TULCÁN"
+                    },
+                    "040151": {
+                        "DPA_DESPAR": "EL CARMELO"
+                    },
+                    "040153": {
+                        "DPA_DESPAR": "JULIO ANDRADE"
+                    },
+                    "040154": {
+                        "DPA_DESPAR": "MALDONADO"
+                    },
+                    "040155": {
+                        "DPA_DESPAR": "PIOTER"
+                    },
+                    "040156": {
+                        "DPA_DESPAR": "TOBAR DONOSO"
+                    },
+                    "040157": {
+                        "DPA_DESPAR": "TUFIÑO"
+                    },
+                    "040158": {
+                        "DPA_DESPAR": "URBINA"
+                    },
+                    "040159": {
+                        "DPA_DESPAR": "EL CHICAL"
+                    },
+                    "040161": {
+                        "DPA_DESPAR": "SANTA MARTHA DE CUBA"
+                    }
+                }
+            },
+            "0402": {
+                "DPA_DESCAN": "BOLÍVAR",
+                "parroquias": {
+                    "040250": {
+                        "DPA_DESPAR": "BOLÍVAR"
+                    },
+                    "040251": {
+                        "DPA_DESPAR": "GARCÍA MORENO"
+                    },
+                    "040252": {
+                        "DPA_DESPAR": "LOS ANDES"
+                    },
+                    "040253": {
+                        "DPA_DESPAR": "MONTE OLIVO"
+                    },
+                    "040254": {
+                        "DPA_DESPAR": "SAN VICENTE DE PUSIR"
+                    },
+                    "040255": {
+                        "DPA_DESPAR": "SAN RAFAEL"
+                    }
+                }
+            },
+            "0403": {
+                "DPA_DESCAN": "ESPEJO",
+                "parroquias": {
+                    "040350": {
+                        "DPA_DESPAR": "EL ÁNGEL"
+                    },
+                    "040351": {
+                        "DPA_DESPAR": "EL GOALTAL"
+                    },
+                    "040352": {
+                        "DPA_DESPAR": "LA LIBERTAD"
+                    },
+                    "040353": {
+                        "DPA_DESPAR": "SAN ISIDRO"
+                    }
+                }
+            },
+            "0404": {
+                "DPA_DESCAN": "MIRA",
+                "parroquias": {
+                    "040450": {
+                        "DPA_DESPAR": "MIRA"
+                    },
+                    "040451": {
+                        "DPA_DESPAR": "CONCEPCIÓN"
+                    },
+                    "040452": {
+                        "DPA_DESPAR": "JIJÓN Y CAAMAÑO"
+                    },
+                    "040453": {
+                        "DPA_DESPAR": "JUAN MONTALVO"
+                    }
+                }
+            },
+            "0405": {
+                "DPA_DESCAN": "MONTÚFAR",
+                "parroquias": {
+                    "040550": {
+                        "DPA_DESPAR": "SAN GABRIEL"
+                    },
+                    "040551": {
+                        "DPA_DESPAR": "CRISTÓBAL COLÓN"
+                    },
+                    "040552": {
+                        "DPA_DESPAR": "CHITÁN DE NAVARRETE"
+                    },
+                    "040553": {
+                        "DPA_DESPAR": "FERNÁNDEZ SALVADOR"
+                    },
+                    "040554": {
+                        "DPA_DESPAR": "LA PAZ"
+                    },
+                    "040555": {
+                        "DPA_DESPAR": "PIARTAL"
+                    }
+                }
+            },
+            "0406": {
+                "DPA_DESCAN": "SAN PEDRO DE HUACA",
+                "parroquias": {
+                    "040650": {
+                        "DPA_DESPAR": "HUACA"
+                    },
+                    "040651": {
+                        "DPA_DESPAR": "MARISCAL SUCRE"
+                    }
+                }
+            }
+        }
+    },
+    "05": {
+        "DPA_DESPRO": "COTOPAXI",
+        "cantones": {
+            "0501": {
+                "DPA_DESCAN": "LATACUNGA",
+                "parroquias": {
+                    "050150": {
+                        "DPA_DESPAR": "LATACUNGA"
+                    },
+                    "050151": {
+                        "DPA_DESPAR": "ALÁQUEZ"
+                    },
+                    "050152": {
+                        "DPA_DESPAR": "BELISARIO QUEVEDO"
+                    },
+                    "050153": {
+                        "DPA_DESPAR": "GUAYTACAMA"
+                    },
+                    "050154": {
+                        "DPA_DESPAR": "JOSEGUANGO BAJO"
+                    },
+                    "050156": {
+                        "DPA_DESPAR": "MULALÓ"
+                    },
+                    "050157": {
+                        "DPA_DESPAR": "ONCE DE NOVIEMBRE"
+                    },
+                    "050158": {
+                        "DPA_DESPAR": "POALÓ"
+                    },
+                    "050159": {
+                        "DPA_DESPAR": "SAN JUAN DE PASTOCALLE"
+                    },
+                    "050161": {
+                        "DPA_DESPAR": "TANICUCHI"
+                    },
+                    "050162": {
+                        "DPA_DESPAR": "TOACASO"
+                    }
+                }
+            },
+            "0502": {
+                "DPA_DESCAN": "LA MANÁ",
+                "parroquias": {
+                    "050250": {
+                        "DPA_DESPAR": "LA MANÁ"
+                    },
+                    "050251": {
+                        "DPA_DESPAR": "GUASAGANDA"
+                    },
+                    "050252": {
+                        "DPA_DESPAR": "PUCAYACU"
+                    }
+                }
+            },
+            "0503": {
+                "DPA_DESCAN": "PANGUA",
+                "parroquias": {
+                    "050350": {
+                        "DPA_DESPAR": "EL CORAZÓN"
+                    },
+                    "050351": {
+                        "DPA_DESPAR": "MORASPUNGO"
+                    },
+                    "050352": {
+                        "DPA_DESPAR": "PINLLOPATA"
+                    },
+                    "050353": {
+                        "DPA_DESPAR": "RAMÓN CAMPAÑA"
+                    }
+                }
+            },
+            "0504": {
+                "DPA_DESCAN": "PUJILÍ",
+                "parroquias": {
+                    "050450": {
+                        "DPA_DESPAR": "PUJILÍ"
+                    },
+                    "050451": {
+                        "DPA_DESPAR": "ANGAMARCA"
+                    },
+                    "050453": {
+                        "DPA_DESPAR": "GUANGAJE"
+                    },
+                    "050455": {
+                        "DPA_DESPAR": "LA VICTORIA"
+                    },
+                    "050456": {
+                        "DPA_DESPAR": "PILALÓ"
+                    },
+                    "050457": {
+                        "DPA_DESPAR": "TINGO"
+                    },
+                    "050458": {
+                        "DPA_DESPAR": "ZUMBAHUA"
+                    }
+                }
+            },
+            "0505": {
+                "DPA_DESCAN": "SALCEDO",
+                "parroquias": {
+                    "050550": {
+                        "DPA_DESPAR": "SAN MIGUEL"
+                    },
+                    "050551": {
+                        "DPA_DESPAR": "ANTONIO JOSÉ HOLGUÍN"
+                    },
+                    "050552": {
+                        "DPA_DESPAR": "CUSUBAMBA"
+                    },
+                    "050553": {
+                        "DPA_DESPAR": "MULALILLO"
+                    },
+                    "050554": {
+                        "DPA_DESPAR": "MULLIQUINDIL"
+                    },
+                    "050555": {
+                        "DPA_DESPAR": "PANSALEO"
+                    }
+                }
+            },
+            "0506": {
+                "DPA_DESCAN": "SAQUISILÍ",
+                "parroquias": {
+                    "050650": {
+                        "DPA_DESPAR": "SAQUISILÍ"
+                    },
+                    "050651": {
+                        "DPA_DESPAR": "CANCHAGUA"
+                    },
+                    "050652": {
+                        "DPA_DESPAR": "CHANTILÍN"
+                    },
+                    "050653": {
+                        "DPA_DESPAR": "COCHAPAMBA"
+                    }
+                }
+            },
+            "0507": {
+                "DPA_DESCAN": "SIGCHOS",
+                "parroquias": {
+                    "050750": {
+                        "DPA_DESPAR": "SIGCHOS"
+                    },
+                    "050751": {
+                        "DPA_DESPAR": "CHUGCHILLÁN"
+                    },
+                    "050752": {
+                        "DPA_DESPAR": "ISINLIVI"
+                    },
+                    "050753": {
+                        "DPA_DESPAR": "LAS PAMPAS"
+                    },
+                    "050754": {
+                        "DPA_DESPAR": "PALO QUEMADO"
+                    }
+                }
+            }
+        }
+    },
+    "06": {
+        "DPA_DESPRO": "CHIMBORAZO",
+        "cantones": {
+            "0601": {
+                "DPA_DESCAN": "RIOBAMBA",
+                "parroquias": {
+                    "060150": {
+                        "DPA_DESPAR": "RIOBAMBA"
+                    },
+                    "060151": {
+                        "DPA_DESPAR": "CACHA"
+                    },
+                    "060152": {
+                        "DPA_DESPAR": "CALPI"
+                    },
+                    "060153": {
+                        "DPA_DESPAR": "CUBIJÍES"
+                    },
+                    "060154": {
+                        "DPA_DESPAR": "FLORES"
+                    },
+                    "060155": {
+                        "DPA_DESPAR": "LICÁN"
+                    },
+                    "060156": {
+                        "DPA_DESPAR": "LICTO"
+                    },
+                    "060157": {
+                        "DPA_DESPAR": "PUNGALÁ"
+                    },
+                    "060158": {
+                        "DPA_DESPAR": "PUNÍN"
+                    },
+                    "060159": {
+                        "DPA_DESPAR": "QUIMIAG"
+                    },
+                    "060160": {
+                        "DPA_DESPAR": "SAN JUAN"
+                    },
+                    "060161": {
+                        "DPA_DESPAR": "SAN LUIS"
+                    }
+                }
+            },
+            "0602": {
+                "DPA_DESCAN": "ALAUSÍ",
+                "parroquias": {
+                    "060250": {
+                        "DPA_DESPAR": "ALAUSÍ"
+                    },
+                    "060251": {
+                        "DPA_DESPAR": "ACHUPALLAS"
+                    },
+                    "060253": {
+                        "DPA_DESPAR": "GUASUNTOS"
+                    },
+                    "060254": {
+                        "DPA_DESPAR": "HUIGRA"
+                    },
+                    "060255": {
+                        "DPA_DESPAR": "MULTITUD"
+                    },
+                    "060256": {
+                        "DPA_DESPAR": "PISTISHI"
+                    },
+                    "060257": {
+                        "DPA_DESPAR": "PUMALLACTA"
+                    },
+                    "060258": {
+                        "DPA_DESPAR": "SEVILLA"
+                    },
+                    "060259": {
+                        "DPA_DESPAR": "SIBAMBE"
+                    },
+                    "060260": {
+                        "DPA_DESPAR": "TIXÁN"
+                    }
+                }
+            },
+            "0603": {
+                "DPA_DESCAN": "COLTA",
+                "parroquias": {
+                    "060350": {
+                        "DPA_DESPAR": "VILLA LA UNIÓN"
+                    },
+                    "060351": {
+                        "DPA_DESPAR": "CAÑI"
+                    },
+                    "060352": {
+                        "DPA_DESPAR": "COLUMBE"
+                    },
+                    "060353": {
+                        "DPA_DESPAR": "JUAN DE VELASCO"
+                    },
+                    "060354": {
+                        "DPA_DESPAR": "SANTIAGO DE QUITO"
+                    }
+                }
+            },
+            "0604": {
+                "DPA_DESCAN": "CHAMBO",
+                "parroquias": {
+                    "060450": {
+                        "DPA_DESPAR": "CHAMBO"
+                    }
+                }
+            },
+            "0605": {
+                "DPA_DESCAN": "CHUNCHI",
+                "parroquias": {
+                    "060550": {
+                        "DPA_DESPAR": "CHUNCHI"
+                    },
+                    "060551": {
+                        "DPA_DESPAR": "CAPZOL"
+                    },
+                    "060552": {
+                        "DPA_DESPAR": "COMPUD"
+                    },
+                    "060553": {
+                        "DPA_DESPAR": "GONZOL"
+                    },
+                    "060554": {
+                        "DPA_DESPAR": "LLAGOS"
+                    }
+                }
+            },
+            "0606": {
+                "DPA_DESCAN": "GUAMOTE",
+                "parroquias": {
+                    "060650": {
+                        "DPA_DESPAR": "GUAMOTE"
+                    },
+                    "060651": {
+                        "DPA_DESPAR": "CEBADAS"
+                    },
+                    "060652": {
+                        "DPA_DESPAR": "PALMIRA"
+                    }
+                }
+            },
+            "0607": {
+                "DPA_DESCAN": "GUANO",
+                "parroquias": {
+                    "060750": {
+                        "DPA_DESPAR": "GUANO"
+                    },
+                    "060751": {
+                        "DPA_DESPAR": "GUANANDO"
+                    },
+                    "060752": {
+                        "DPA_DESPAR": "ILAPO"
+                    },
+                    "060753": {
+                        "DPA_DESPAR": "LA PROVIDENCIA"
+                    },
+                    "060754": {
+                        "DPA_DESPAR": "SAN ANDRÉS"
+                    },
+                    "060755": {
+                        "DPA_DESPAR": "SAN GERARDO"
+                    },
+                    "060756": {
+                        "DPA_DESPAR": "SAN ISIDRO DE PATULÚ"
+                    },
+                    "060757": {
+                        "DPA_DESPAR": "SAN JOSÉ DEL CHAZO"
+                    },
+                    "060758": {
+                        "DPA_DESPAR": "SANTA FÉ DE GALÁN"
+                    },
+                    "060759": {
+                        "DPA_DESPAR": "VALPARAISO"
+                    }
+                }
+            },
+            "0608": {
+                "DPA_DESCAN": "PALLATANGA",
+                "parroquias": {
+                    "060850": {
+                        "DPA_DESPAR": "PALLATANGA"
+                    }
+                }
+            },
+            "0609": {
+                "DPA_DESCAN": "PENIPE",
+                "parroquias": {
+                    "060950": {
+                        "DPA_DESPAR": "PENIPE"
+                    },
+                    "060951": {
+                        "DPA_DESPAR": "EL ALTAR"
+                    },
+                    "060952": {
+                        "DPA_DESPAR": "MATUS"
+                    },
+                    "060953": {
+                        "DPA_DESPAR": "PUELA"
+                    },
+                    "060954": {
+                        "DPA_DESPAR": "SAN ANTONIO DE BAYUSHIG"
+                    },
+                    "060955": {
+                        "DPA_DESPAR": "LA CANDELARIA"
+                    },
+                    "060956": {
+                        "DPA_DESPAR": "BILBAO"
+                    }
+                }
+            },
+            "0610": {
+                "DPA_DESCAN": "CUMANDÁ",
+                "parroquias": {
+                    "061050": {
+                        "DPA_DESPAR": "CUMANDÁ"
+                    }
+                }
+            }
+        }
+    },
+    "07": {
+        "DPA_DESPRO": "EL ORO",
+        "cantones": {
+            "0701": {
+                "DPA_DESCAN": "MACHALA",
+                "parroquias": {
+                    "070150": {
+                        "DPA_DESPAR": "MACHALA"
+                    },
+                    "070152": {
+                        "DPA_DESPAR": "EL RETIRO"
+                    }
+                }
+            },
+            "0702": {
+                "DPA_DESCAN": "ARENILLAS",
+                "parroquias": {
+                    "070250": {
+                        "DPA_DESPAR": "ARENILLAS"
+                    },
+                    "070251": {
+                        "DPA_DESPAR": "CHACRAS"
+                    },
+                    "070254": {
+                        "DPA_DESPAR": "PALMALES"
+                    },
+                    "070255": {
+                        "DPA_DESPAR": "CARCABÓN"
+                    },
+                    "070256": {
+                        "DPA_DESPAR": "LA CUCA"
+                    }
+                }
+            },
+            "0703": {
+                "DPA_DESCAN": "ATAHUALPA",
+                "parroquias": {
+                    "070350": {
+                        "DPA_DESPAR": "PACCHA"
+                    },
+                    "070351": {
+                        "DPA_DESPAR": "AYAPAMBA"
+                    },
+                    "070352": {
+                        "DPA_DESPAR": "CORDONCILLO"
+                    },
+                    "070353": {
+                        "DPA_DESPAR": "MILAGRO"
+                    },
+                    "070354": {
+                        "DPA_DESPAR": "SAN JOSÉ"
+                    },
+                    "070355": {
+                        "DPA_DESPAR": "SAN JUAN DE CERRO AZUL"
+                    }
+                }
+            },
+            "0704": {
+                "DPA_DESCAN": "BALSAS",
+                "parroquias": {
+                    "070450": {
+                        "DPA_DESPAR": "BALSAS"
+                    },
+                    "070451": {
+                        "DPA_DESPAR": "BELLAMARÍA"
+                    }
+                }
+            },
+            "0705": {
+                "DPA_DESCAN": "CHILLA",
+                "parroquias": {
+                    "070550": {
+                        "DPA_DESPAR": "CHILLA"
+                    }
+                }
+            },
+            "0706": {
+                "DPA_DESCAN": "EL GUABO",
+                "parroquias": {
+                    "070650": {
+                        "DPA_DESPAR": "EL GUABO"
+                    },
+                    "070651": {
+                        "DPA_DESPAR": "BARBONES"
+                    },
+                    "070652": {
+                        "DPA_DESPAR": "LA IBERIA"
+                    },
+                    "070653": {
+                        "DPA_DESPAR": "TENDALES"
+                    },
+                    "070654": {
+                        "DPA_DESPAR": "RÍO BONITO"
+                    }
+                }
+            },
+            "0707": {
+                "DPA_DESCAN": "HUAQUILLAS",
+                "parroquias": {
+                    "070750": {
+                        "DPA_DESPAR": "HUAQUILLAS"
+                    }
+                }
+            },
+            "0708": {
+                "DPA_DESCAN": "MARCABELÍ",
+                "parroquias": {
+                    "070850": {
+                        "DPA_DESPAR": "MARCABELÍ"
+                    },
+                    "070851": {
+                        "DPA_DESPAR": "EL INGENIO"
+                    }
+                }
+            },
+            "0709": {
+                "DPA_DESCAN": "PASAJE",
+                "parroquias": {
+                    "070950": {
+                        "DPA_DESPAR": "PASAJE"
+                    },
+                    "070951": {
+                        "DPA_DESPAR": "BUENAVISTA"
+                    },
+                    "070952": {
+                        "DPA_DESPAR": "CASACAY"
+                    },
+                    "070953": {
+                        "DPA_DESPAR": "LA PEAÑA"
+                    },
+                    "070954": {
+                        "DPA_DESPAR": "PROGRESO"
+                    },
+                    "070955": {
+                        "DPA_DESPAR": "UZHCURRUMI"
+                    },
+                    "070956": {
+                        "DPA_DESPAR": "CAÑAQUEMADA"
+                    }
+                }
+            },
+            "0710": {
+                "DPA_DESCAN": "PIÑAS",
+                "parroquias": {
+                    "071050": {
+                        "DPA_DESPAR": "PIÑAS"
+                    },
+                    "071051": {
+                        "DPA_DESPAR": "CAPIRO"
+                    },
+                    "071052": {
+                        "DPA_DESPAR": "LA BOCANA"
+                    },
+                    "071053": {
+                        "DPA_DESPAR": "MOROMORO"
+                    },
+                    "071054": {
+                        "DPA_DESPAR": "PIEDRAS"
+                    },
+                    "071055": {
+                        "DPA_DESPAR": "SAN ROQUE"
+                    },
+                    "071056": {
+                        "DPA_DESPAR": "SARACAY"
+                    }
+                }
+            },
+            "0711": {
+                "DPA_DESCAN": "PORTOVELO",
+                "parroquias": {
+                    "071150": {
+                        "DPA_DESPAR": "PORTOVELO"
+                    },
+                    "071151": {
+                        "DPA_DESPAR": "CURTINCAPA"
+                    },
+                    "071152": {
+                        "DPA_DESPAR": "MORALES"
+                    },
+                    "071153": {
+                        "DPA_DESPAR": "SALATÍ"
+                    }
+                }
+            },
+            "0712": {
+                "DPA_DESCAN": "SANTA ROSA",
+                "parroquias": {
+                    "071250": {
+                        "DPA_DESPAR": "SANTA ROSA"
+                    },
+                    "071251": {
+                        "DPA_DESPAR": "BELLAVISTA"
+                    },
+                    "071252": {
+                        "DPA_DESPAR": "JAMBELÍ"
+                    },
+                    "071253": {
+                        "DPA_DESPAR": "LA AVANZADA"
+                    },
+                    "071254": {
+                        "DPA_DESPAR": "SAN ANTONIO"
+                    },
+                    "071255": {
+                        "DPA_DESPAR": "TORATA"
+                    },
+                    "071256": {
+                        "DPA_DESPAR": "VICTORIA"
+                    },
+                    "071257": {
+                        "DPA_DESPAR": "BELLAMARÍA"
+                    }
+                }
+            },
+            "0713": {
+                "DPA_DESCAN": "ZARUMA",
+                "parroquias": {
+                    "071350": {
+                        "DPA_DESPAR": "ZARUMA"
+                    },
+                    "071351": {
+                        "DPA_DESPAR": "ABAÑÍN"
+                    },
+                    "071352": {
+                        "DPA_DESPAR": "ARCAPAMBA"
+                    },
+                    "071353": {
+                        "DPA_DESPAR": "GUANAZÁN"
+                    },
+                    "071354": {
+                        "DPA_DESPAR": "GUIZHAGUIÑA"
+                    },
+                    "071355": {
+                        "DPA_DESPAR": "HUERTAS"
+                    },
+                    "071356": {
+                        "DPA_DESPAR": "MALVAS"
+                    },
+                    "071357": {
+                        "DPA_DESPAR": "MULUNCAY GRANDE"
+                    },
+                    "071358": {
+                        "DPA_DESPAR": "SINSAO"
+                    },
+                    "071359": {
+                        "DPA_DESPAR": "SALVIAS"
+                    }
+                }
+            },
+            "0714": {
+                "DPA_DESCAN": "LAS LAJAS",
+                "parroquias": {
+                    "071450": {
+                        "DPA_DESPAR": "LA VICTORIA"
+                    },
+                    "071451": {
+                        "DPA_DESPAR": "LA LIBERTAD"
+                    },
+                    "071452": {
+                        "DPA_DESPAR": "EL PARAÍSO"
+                    },
+                    "071453": {
+                        "DPA_DESPAR": "SAN ISIDRO"
+                    }
+                }
+            }
+        }
+    },
+    "08": {
+        "DPA_DESPRO": "ESMERALDAS",
+        "cantones": {
+            "0801": {
+                "DPA_DESCAN": "ESMERALDAS",
+                "parroquias": {
+                    "080150": {
+                        "DPA_DESPAR": "ESMERALDAS"
+                    },
+                    "080152": {
+                        "DPA_DESPAR": "CAMARONES"
+                    },
+                    "080153": {
+                        "DPA_DESPAR": "CORONEL CARLOS CONCHA TORRES"
+                    },
+                    "080154": {
+                        "DPA_DESPAR": "CHINCA"
+                    },
+                    "080159": {
+                        "DPA_DESPAR": "MAJUA"
+                    },
+                    "080163": {
+                        "DPA_DESPAR": "SAN MATEO"
+                    },
+                    "080165": {
+                        "DPA_DESPAR": "TABIAZO"
+                    },
+                    "080166": {
+                        "DPA_DESPAR": "TACHINA"
+                    },
+                    "080168": {
+                        "DPA_DESPAR": "VUELTA LARGA"
+                    }
+                }
+            },
+            "0802": {
+                "DPA_DESCAN": "ELOY ALFARO",
+                "parroquias": {
+                    "080250": {
+                        "DPA_DESPAR": "VALDEZ"
+                    },
+                    "080251": {
+                        "DPA_DESPAR": "ANCHAYACU"
+                    },
+                    "080252": {
+                        "DPA_DESPAR": "ATAHUALPA"
+                    },
+                    "080253": {
+                        "DPA_DESPAR": "BORBÓN"
+                    },
+                    "080254": {
+                        "DPA_DESPAR": "LA TOLA"
+                    },
+                    "080255": {
+                        "DPA_DESPAR": "LUIS VARGAS TORRES"
+                    },
+                    "080256": {
+                        "DPA_DESPAR": "MALDONADO"
+                    },
+                    "080257": {
+                        "DPA_DESPAR": "PAMPANAL DE BOLÍVAR"
+                    },
+                    "080258": {
+                        "DPA_DESPAR": "SAN FRANCISCO DE ONZOLE"
+                    },
+                    "080259": {
+                        "DPA_DESPAR": "SANTO DOMINGO DE ONZOLE"
+                    },
+                    "080260": {
+                        "DPA_DESPAR": "SELVA ALEGRE"
+                    },
+                    "080261": {
+                        "DPA_DESPAR": "TELEMBÍ"
+                    },
+                    "080262": {
+                        "DPA_DESPAR": "COLÓN ELOY DEL MARÍA"
+                    },
+                    "080263": {
+                        "DPA_DESPAR": "SAN JOSÉ DE CAYAPAS"
+                    },
+                    "080264": {
+                        "DPA_DESPAR": "TIMBIRÉ"
+                    },
+                    "080265": {
+                        "DPA_DESPAR": "SANTA LUCÍA DE LAS PEÑAS"
+                    }
+                }
+            },
+            "0803": {
+                "DPA_DESCAN": "MUISNE",
+                "parroquias": {
+                    "080350": {
+                        "DPA_DESPAR": "MUISNE"
+                    },
+                    "080351": {
+                        "DPA_DESPAR": "BOLÍVAR"
+                    },
+                    "080352": {
+                        "DPA_DESPAR": "DAULE"
+                    },
+                    "080353": {
+                        "DPA_DESPAR": "GALERA"
+                    },
+                    "080354": {
+                        "DPA_DESPAR": "QUINGUE"
+                    },
+                    "080355": {
+                        "DPA_DESPAR": "SÁLIMA"
+                    },
+                    "080356": {
+                        "DPA_DESPAR": "SAN FRANCISCO"
+                    },
+                    "080357": {
+                        "DPA_DESPAR": "SAN GREGORIO"
+                    },
+                    "080358": {
+                        "DPA_DESPAR": "SAN JOSÉ DE CHAMANGA"
+                    }
+                }
+            },
+            "0804": {
+                "DPA_DESCAN": "QUININDÉ",
+                "parroquias": {
+                    "080450": {
+                        "DPA_DESPAR": "ROSA ZÁRATE"
+                    },
+                    "080451": {
+                        "DPA_DESPAR": "CUBE"
+                    },
+                    "080452": {
+                        "DPA_DESPAR": "CHURA"
+                    },
+                    "080453": {
+                        "DPA_DESPAR": "MALIMPIA"
+                    },
+                    "080454": {
+                        "DPA_DESPAR": "VICHE"
+                    },
+                    "080455": {
+                        "DPA_DESPAR": "LA UNIÓN"
+                    }
+                }
+            },
+            "0805": {
+                "DPA_DESCAN": "SAN LORENZO",
+                "parroquias": {
+                    "080550": {
+                        "DPA_DESPAR": "SAN LORENZO"
+                    },
+                    "080551": {
+                        "DPA_DESPAR": "ALTO TAMBO"
+                    },
+                    "080552": {
+                        "DPA_DESPAR": "ANCÓN"
+                    },
+                    "080553": {
+                        "DPA_DESPAR": "CALDERÓN"
+                    },
+                    "080554": {
+                        "DPA_DESPAR": "CARONDELET"
+                    },
+                    "080555": {
+                        "DPA_DESPAR": "5 DE JUNIO"
+                    },
+                    "080556": {
+                        "DPA_DESPAR": "CONCEPCIÓN"
+                    },
+                    "080557": {
+                        "DPA_DESPAR": "MATAJE"
+                    },
+                    "080558": {
+                        "DPA_DESPAR": "SAN JAVIER DE CACHAVÍ"
+                    },
+                    "080559": {
+                        "DPA_DESPAR": "SANTA RITA"
+                    },
+                    "080560": {
+                        "DPA_DESPAR": "TAMBILLO"
+                    },
+                    "080561": {
+                        "DPA_DESPAR": "TULULBÍ"
+                    },
+                    "080562": {
+                        "DPA_DESPAR": "URBINA"
+                    }
+                }
+            },
+            "0806": {
+                "DPA_DESCAN": "ATACAMES",
+                "parroquias": {
+                    "080650": {
+                        "DPA_DESPAR": "ATACAMES"
+                    },
+                    "080651": {
+                        "DPA_DESPAR": "LA UNIÓN"
+                    },
+                    "080652": {
+                        "DPA_DESPAR": "SÚA"
+                    },
+                    "080653": {
+                        "DPA_DESPAR": "TONCHIGÜE"
+                    },
+                    "080654": {
+                        "DPA_DESPAR": "TONSUPA"
+                    }
+                }
+            },
+            "0807": {
+                "DPA_DESCAN": "RIOVERDE",
+                "parroquias": {
+                    "080750": {
+                        "DPA_DESPAR": "RIOVERDE"
+                    },
+                    "080751": {
+                        "DPA_DESPAR": "CHONTADURO"
+                    },
+                    "080752": {
+                        "DPA_DESPAR": "CHUMUNDÉ"
+                    },
+                    "080753": {
+                        "DPA_DESPAR": "LAGARTO"
+                    },
+                    "080754": {
+                        "DPA_DESPAR": "MONTALVO"
+                    },
+                    "080755": {
+                        "DPA_DESPAR": "ROCAFUERTE"
+                    }
+                }
+            }
+        }
+    },
+    "09": {
+        "DPA_DESPRO": "GUAYAS",
+        "cantones": {
+            "0901": {
+                "DPA_DESCAN": "GUAYAQUIL",
+                "parroquias": {
+                    "090150": {
+                        "DPA_DESPAR": "GUAYAQUIL"
+                    },
+                    "090152": {
+                        "DPA_DESPAR": "JUAN GÓMEZ RENDÓN"
+                    },
+                    "090153": {
+                        "DPA_DESPAR": "MORRO"
+                    },
+                    "090156": {
+                        "DPA_DESPAR": "POSORJA"
+                    },
+                    "090157": {
+                        "DPA_DESPAR": "PUNÁ"
+                    },
+                    "090158": {
+                        "DPA_DESPAR": "TENGUEL"
+                    }
+                }
+            },
+            "0902": {
+                "DPA_DESCAN": "ALFREDO BAQUERIZO MORENO (JUJÁN)",
+                "parroquias": {
+                    "090250": {
+                        "DPA_DESPAR": "ALFREDO BAQUERIZO MORENO (JUJÁN)"
+                    }
+                }
+            },
+            "0903": {
+                "DPA_DESCAN": "BALAO",
+                "parroquias": {
+                    "090350": {
+                        "DPA_DESPAR": "BALAO"
+                    }
+                }
+            },
+            "0904": {
+                "DPA_DESCAN": "BALZAR",
+                "parroquias": {
+                    "090450": {
+                        "DPA_DESPAR": "BALZAR"
+                    }
+                }
+            },
+            "0905": {
+                "DPA_DESCAN": "COLIMES",
+                "parroquias": {
+                    "090550": {
+                        "DPA_DESPAR": "COLIMES"
+                    },
+                    "090551": {
+                        "DPA_DESPAR": "SAN JACINTO"
+                    }
+                }
+            },
+            "0906": {
+                "DPA_DESCAN": "DAULE",
+                "parroquias": {
+                    "090650": {
+                        "DPA_DESPAR": "DAULE"
+                    },
+                    "090652": {
+                        "DPA_DESPAR": "JUAN BAUTISTA AGUIRRE"
+                    },
+                    "090653": {
+                        "DPA_DESPAR": "LAUREL"
+                    },
+                    "090654": {
+                        "DPA_DESPAR": "LIMONAL"
+                    },
+                    "090656": {
+                        "DPA_DESPAR": "LOS LOJAS"
+                    }
+                }
+            },
+            "0907": {
+                "DPA_DESCAN": "DURÁN",
+                "parroquias": {
+                    "090750": {
+                        "DPA_DESPAR": "ELOY ALFARO"
+                    }
+                }
+            },
+            "0908": {
+                "DPA_DESCAN": "EL EMPALME",
+                "parroquias": {
+                    "090850": {
+                        "DPA_DESPAR": "VELASCO IBARRA"
+                    },
+                    "090851": {
+                        "DPA_DESPAR": "GUAYAS"
+                    },
+                    "090852": {
+                        "DPA_DESPAR": "EL ROSARIO"
+                    }
+                }
+            },
+            "0909": {
+                "DPA_DESCAN": "EL TRIUNFO",
+                "parroquias": {
+                    "090950": {
+                        "DPA_DESPAR": "EL TRIUNFO"
+                    }
+                }
+            },
+            "0910": {
+                "DPA_DESCAN": "MILAGRO",
+                "parroquias": {
+                    "091050": {
+                        "DPA_DESPAR": "MILAGRO"
+                    },
+                    "091051": {
+                        "DPA_DESPAR": "CHOBO"
+                    },
+                    "091053": {
+                        "DPA_DESPAR": "MARISCAL SUCRE"
+                    },
+                    "091054": {
+                        "DPA_DESPAR": "ROBERTO ASTUDILLO"
+                    }
+                }
+            },
+            "0911": {
+                "DPA_DESCAN": "NARANJAL",
+                "parroquias": {
+                    "091150": {
+                        "DPA_DESPAR": "NARANJAL"
+                    },
+                    "091151": {
+                        "DPA_DESPAR": "JESÚS MARÍA"
+                    },
+                    "091152": {
+                        "DPA_DESPAR": "SAN CARLOS"
+                    },
+                    "091153": {
+                        "DPA_DESPAR": "SANTA ROSA DE FLANDES"
+                    },
+                    "091154": {
+                        "DPA_DESPAR": "TAURA"
+                    }
+                }
+            },
+            "0912": {
+                "DPA_DESCAN": "NARANJITO",
+                "parroquias": {
+                    "091250": {
+                        "DPA_DESPAR": "NARANJITO"
+                    }
+                }
+            },
+            "0913": {
+                "DPA_DESCAN": "PALESTINA",
+                "parroquias": {
+                    "091350": {
+                        "DPA_DESPAR": "PALESTINA"
+                    }
+                }
+            },
+            "0914": {
+                "DPA_DESCAN": "PEDRO CARBO",
+                "parroquias": {
+                    "091450": {
+                        "DPA_DESPAR": "PEDRO CARBO"
+                    },
+                    "091451": {
+                        "DPA_DESPAR": "VALLE DE LA VIRGEN"
+                    },
+                    "091452": {
+                        "DPA_DESPAR": "SABANILLA"
+                    }
+                }
+            },
+            "0916": {
+                "DPA_DESCAN": "SAMBORONDÓN",
+                "parroquias": {
+                    "091650": {
+                        "DPA_DESPAR": "SAMBORONDÓN"
+                    },
+                    "091651": {
+                        "DPA_DESPAR": "TARIFA"
+                    }
+                }
+            },
+            "0918": {
+                "DPA_DESCAN": "SANTA LUCÍA",
+                "parroquias": {
+                    "091850": {
+                        "DPA_DESPAR": "SANTA LUCÍA"
+                    }
+                }
+            },
+            "0919": {
+                "DPA_DESCAN": "SALITRE",
+                "parroquias": {
+                    "091950": {
+                        "DPA_DESPAR": "EL SALITRE"
+                    },
+                    "091951": {
+                        "DPA_DESPAR": "GENERAL VERNAZA"
+                    },
+                    "091952": {
+                        "DPA_DESPAR": "LA VICTORIA"
+                    },
+                    "091953": {
+                        "DPA_DESPAR": "JUNQUILLAL"
+                    }
+                }
+            },
+            "0920": {
+                "DPA_DESCAN": "SAN JACINTO DE YAGUACHI",
+                "parroquias": {
+                    "092050": {
+                        "DPA_DESPAR": "SAN JACINTO DE YAGUACHI"
+                    },
+                    "092053": {
+                        "DPA_DESPAR": "GENERAL PEDRO J. MONTERO"
+                    },
+                    "092055": {
+                        "DPA_DESPAR": "YAGUACHI VIEJO"
+                    },
+                    "092056": {
+                        "DPA_DESPAR": "VIRGEN DE FÁTIMA"
+                    }
+                }
+            },
+            "0921": {
+                "DPA_DESCAN": "PLAYAS",
+                "parroquias": {
+                    "092150": {
+                        "DPA_DESPAR": "GENERAL VILLAMIL"
+                    }
+                }
+            },
+            "0922": {
+                "DPA_DESCAN": "SIMÓN BOLÍVAR",
+                "parroquias": {
+                    "092250": {
+                        "DPA_DESPAR": "SIMÓN BOLÍVAR"
+                    },
+                    "092251": {
+                        "DPA_DESPAR": "CORONEL LORENZO DE GARAYCOA"
+                    }
+                }
+            },
+            "0923": {
+                "DPA_DESCAN": "CORONEL MARCELINO MARIDUEÑA",
+                "parroquias": {
+                    "092350": {
+                        "DPA_DESPAR": "CORONEL MARCELINO MARIDUEÑA"
+                    }
+                }
+            },
+            "0924": {
+                "DPA_DESCAN": "LOMAS DE SARGENTILLO",
+                "parroquias": {
+                    "092450": {
+                        "DPA_DESPAR": "LOMAS DE SARGENTILLO"
+                    }
+                }
+            },
+            "0925": {
+                "DPA_DESCAN": "NOBOL",
+                "parroquias": {
+                    "092550": {
+                        "DPA_DESPAR": "NARCISA DE JESÚS"
+                    }
+                }
+            },
+            "0927": {
+                "DPA_DESCAN": "GENERAL  ANTONIO ELIZALDE",
+                "parroquias": {
+                    "092750": {
+                        "DPA_DESPAR": "GENERAL ANTONIO ELIZALDE"
+                    }
+                }
+            },
+            "0928": {
+                "DPA_DESCAN": "ISIDRO AYORA",
+                "parroquias": {
+                    "092850": {
+                        "DPA_DESPAR": "ISIDRO AYORA"
+                    }
+                }
+            }
+        }
+    },
+    "10": {
+        "DPA_DESPRO": "IMBABURA",
+        "cantones": {
+            "1001": {
+                "DPA_DESCAN": "IBARRA",
+                "parroquias": {
+                    "100150": {
+                        "DPA_DESPAR": "SAN MIGUEL DE IBARRA"
+                    },
+                    "100151": {
+                        "DPA_DESPAR": "AMBUQUÍ"
+                    },
+                    "100152": {
+                        "DPA_DESPAR": "ANGOCHAGUA"
+                    },
+                    "100153": {
+                        "DPA_DESPAR": "LA CAROLINA"
+                    },
+                    "100154": {
+                        "DPA_DESPAR": "LA ESPERANZA"
+                    },
+                    "100155": {
+                        "DPA_DESPAR": "LITA"
+                    },
+                    "100156": {
+                        "DPA_DESPAR": "SALINAS"
+                    },
+                    "100157": {
+                        "DPA_DESPAR": "SAN ANTONIO"
+                    }
+                }
+            },
+            "1002": {
+                "DPA_DESCAN": "ANTONIO ANTE",
+                "parroquias": {
+                    "100250": {
+                        "DPA_DESPAR": "ATUNTAQUI"
+                    },
+                    "100251": {
+                        "DPA_DESPAR": "IMBAYA"
+                    },
+                    "100252": {
+                        "DPA_DESPAR": "SAN FRANCISCO DE NATABUELA"
+                    },
+                    "100253": {
+                        "DPA_DESPAR": "SAN JOSÉ DE CHALTURA"
+                    },
+                    "100254": {
+                        "DPA_DESPAR": "SAN ROQUE"
+                    }
+                }
+            },
+            "1003": {
+                "DPA_DESCAN": "COTACACHI",
+                "parroquias": {
+                    "100350": {
+                        "DPA_DESPAR": "COTACACHI"
+                    },
+                    "100351": {
+                        "DPA_DESPAR": "APUELA"
+                    },
+                    "100352": {
+                        "DPA_DESPAR": "GARCÍA MORENO"
+                    },
+                    "100353": {
+                        "DPA_DESPAR": "IMANTAG"
+                    },
+                    "100354": {
+                        "DPA_DESPAR": "PEÑAHERRERA"
+                    },
+                    "100355": {
+                        "DPA_DESPAR": "PLAZA GUTIÉRREZ"
+                    },
+                    "100356": {
+                        "DPA_DESPAR": "QUIROGA"
+                    },
+                    "100357": {
+                        "DPA_DESPAR": "SEIS DE JULIO DE CUELLAJE"
+                    },
+                    "100358": {
+                        "DPA_DESPAR": "VACAS GALINDO"
+                    }
+                }
+            },
+            "1004": {
+                "DPA_DESCAN": "OTAVALO",
+                "parroquias": {
+                    "100450": {
+                        "DPA_DESPAR": "OTAVALO"
+                    },
+                    "100451": {
+                        "DPA_DESPAR": "DR. MIGUEL EGAS CABEZAS"
+                    },
+                    "100452": {
+                        "DPA_DESPAR": "EUGENIO ESPEJO"
+                    },
+                    "100453": {
+                        "DPA_DESPAR": "GONZÁLEZ SUÁREZ"
+                    },
+                    "100454": {
+                        "DPA_DESPAR": "PATAQUÍ"
+                    },
+                    "100455": {
+                        "DPA_DESPAR": "SAN JOSÉ DE QUICHINCHE"
+                    },
+                    "100456": {
+                        "DPA_DESPAR": "SAN JUAN DE ILUMÁN"
+                    },
+                    "100457": {
+                        "DPA_DESPAR": "SAN PABLO"
+                    },
+                    "100458": {
+                        "DPA_DESPAR": "SAN RAFAEL"
+                    },
+                    "100459": {
+                        "DPA_DESPAR": "SELVA ALEGRE"
+                    }
+                }
+            },
+            "1005": {
+                "DPA_DESCAN": "PIMAMPIRO",
+                "parroquias": {
+                    "100550": {
+                        "DPA_DESPAR": "PIMAMPIRO"
+                    },
+                    "100551": {
+                        "DPA_DESPAR": "CHUGÁ"
+                    },
+                    "100552": {
+                        "DPA_DESPAR": "MARIANO ACOSTA"
+                    },
+                    "100553": {
+                        "DPA_DESPAR": "SAN FRANCISCO DE SIGSIPAMBA"
+                    }
+                }
+            },
+            "1006": {
+                "DPA_DESCAN": "SAN MIGUEL DE URCUQUÍ",
+                "parroquias": {
+                    "100650": {
+                        "DPA_DESPAR": "URCUQUÍ"
+                    },
+                    "100651": {
+                        "DPA_DESPAR": "CAHUASQUÍ"
+                    },
+                    "100652": {
+                        "DPA_DESPAR": "LA MERCED DE BUENOS AIRES"
+                    },
+                    "100653": {
+                        "DPA_DESPAR": "PABLO ARENAS"
+                    },
+                    "100654": {
+                        "DPA_DESPAR": "SAN BLAS"
+                    },
+                    "100655": {
+                        "DPA_DESPAR": "TUMBABIRO"
+                    }
+                }
+            }
+        }
+    },
+    "11": {
+        "DPA_DESPRO": "LOJA",
+        "cantones": {
+            "1101": {
+                "DPA_DESCAN": "LOJA",
+                "parroquias": {
+                    "110150": {
+                        "DPA_DESPAR": "LOJA"
+                    },
+                    "110151": {
+                        "DPA_DESPAR": "CHANTACO"
+                    },
+                    "110152": {
+                        "DPA_DESPAR": "CHUQUIRIBAMBA"
+                    },
+                    "110153": {
+                        "DPA_DESPAR": "EL CISNE"
+                    },
+                    "110154": {
+                        "DPA_DESPAR": "GUALEL"
+                    },
+                    "110155": {
+                        "DPA_DESPAR": "JIMBILLA"
+                    },
+                    "110156": {
+                        "DPA_DESPAR": "MALACATOS"
+                    },
+                    "110157": {
+                        "DPA_DESPAR": "SAN LUCAS"
+                    },
+                    "110158": {
+                        "DPA_DESPAR": "SAN PEDRO DE VILCABAMBA"
+                    },
+                    "110159": {
+                        "DPA_DESPAR": "SANTIAGO"
+                    },
+                    "110160": {
+                        "DPA_DESPAR": "TAQUIL"
+                    },
+                    "110161": {
+                        "DPA_DESPAR": "VILCABAMBA"
+                    },
+                    "110162": {
+                        "DPA_DESPAR": "YANGANA"
+                    },
+                    "110163": {
+                        "DPA_DESPAR": "QUINARA"
+                    }
+                }
+            },
+            "1102": {
+                "DPA_DESCAN": "CALVAS",
+                "parroquias": {
+                    "110250": {
+                        "DPA_DESPAR": "CARIAMANGA"
+                    },
+                    "110251": {
+                        "DPA_DESPAR": "COLAISACA"
+                    },
+                    "110252": {
+                        "DPA_DESPAR": "EL LUCERO"
+                    },
+                    "110253": {
+                        "DPA_DESPAR": "UTUANA"
+                    },
+                    "110254": {
+                        "DPA_DESPAR": "SANGUILLÍN"
+                    }
+                }
+            },
+            "1103": {
+                "DPA_DESCAN": "CATAMAYO",
+                "parroquias": {
+                    "110350": {
+                        "DPA_DESPAR": "CATAMAYO"
+                    },
+                    "110351": {
+                        "DPA_DESPAR": "EL TAMBO"
+                    },
+                    "110352": {
+                        "DPA_DESPAR": "GUAYQUICHUMA"
+                    },
+                    "110353": {
+                        "DPA_DESPAR": "SAN PEDRO DE LA BENDITA"
+                    },
+                    "110354": {
+                        "DPA_DESPAR": "ZAMBI"
+                    }
+                }
+            },
+            "1104": {
+                "DPA_DESCAN": "CELICA",
+                "parroquias": {
+                    "110450": {
+                        "DPA_DESPAR": "CELICA"
+                    },
+                    "110451": {
+                        "DPA_DESPAR": "CRUZPAMBA"
+                    },
+                    "110455": {
+                        "DPA_DESPAR": "PÓZUL"
+                    },
+                    "110456": {
+                        "DPA_DESPAR": "SABANILLA"
+                    },
+                    "110457": {
+                        "DPA_DESPAR": "TENIENTE MAXIMILIANO RODRÍGUEZ LOAIZA"
+                    }
+                }
+            },
+            "1105": {
+                "DPA_DESCAN": "CHAGUARPAMBA",
+                "parroquias": {
+                    "110550": {
+                        "DPA_DESPAR": "CHAGUARPAMBA"
+                    },
+                    "110551": {
+                        "DPA_DESPAR": "BUENAVISTA"
+                    },
+                    "110552": {
+                        "DPA_DESPAR": "EL ROSARIO"
+                    },
+                    "110553": {
+                        "DPA_DESPAR": "SANTA RUFINA"
+                    },
+                    "110554": {
+                        "DPA_DESPAR": "AMARILLOS"
+                    }
+                }
+            },
+            "1106": {
+                "DPA_DESCAN": "ESPÍNDOLA",
+                "parroquias": {
+                    "110650": {
+                        "DPA_DESPAR": "AMALUZA"
+                    },
+                    "110651": {
+                        "DPA_DESPAR": "BELLAVISTA"
+                    },
+                    "110652": {
+                        "DPA_DESPAR": "JIMBURA"
+                    },
+                    "110653": {
+                        "DPA_DESPAR": "SANTA TERESITA"
+                    },
+                    "110654": {
+                        "DPA_DESPAR": "27 DE ABRIL"
+                    },
+                    "110655": {
+                        "DPA_DESPAR": "EL INGENIO"
+                    },
+                    "110656": {
+                        "DPA_DESPAR": "EL AIRO"
+                    }
+                }
+            },
+            "1107": {
+                "DPA_DESCAN": "GONZANAMÁ",
+                "parroquias": {
+                    "110750": {
+                        "DPA_DESPAR": "GONZANAMÁ"
+                    },
+                    "110751": {
+                        "DPA_DESPAR": "CHANGAIMINA"
+                    },
+                    "110753": {
+                        "DPA_DESPAR": "NAMBACOLA"
+                    },
+                    "110754": {
+                        "DPA_DESPAR": "PURUNUMA"
+                    },
+                    "110756": {
+                        "DPA_DESPAR": "SACAPALCA"
+                    }
+                }
+            },
+            "1108": {
+                "DPA_DESCAN": "MACARÁ",
+                "parroquias": {
+                    "110850": {
+                        "DPA_DESPAR": "MACARÁ"
+                    },
+                    "110851": {
+                        "DPA_DESPAR": "LARAMA"
+                    },
+                    "110852": {
+                        "DPA_DESPAR": "LA VICTORIA"
+                    },
+                    "110853": {
+                        "DPA_DESPAR": "SABIANGO"
+                    }
+                }
+            },
+            "1109": {
+                "DPA_DESCAN": "PALTAS",
+                "parroquias": {
+                    "110950": {
+                        "DPA_DESPAR": "CATACOCHA"
+                    },
+                    "110951": {
+                        "DPA_DESPAR": "CANGONAMÁ"
+                    },
+                    "110952": {
+                        "DPA_DESPAR": "GUACHANAMÁ"
+                    },
+                    "110954": {
+                        "DPA_DESPAR": "LAURO GUERRERO"
+                    },
+                    "110956": {
+                        "DPA_DESPAR": "ORIANGA"
+                    },
+                    "110957": {
+                        "DPA_DESPAR": "SAN ANTONIO"
+                    },
+                    "110958": {
+                        "DPA_DESPAR": "CASANGA"
+                    },
+                    "110959": {
+                        "DPA_DESPAR": "YAMANA"
+                    }
+                }
+            },
+            "1110": {
+                "DPA_DESCAN": "PUYANGO",
+                "parroquias": {
+                    "111050": {
+                        "DPA_DESPAR": "ALAMOR"
+                    },
+                    "111051": {
+                        "DPA_DESPAR": "CIANO"
+                    },
+                    "111052": {
+                        "DPA_DESPAR": "EL ARENAL"
+                    },
+                    "111053": {
+                        "DPA_DESPAR": "EL LIMO"
+                    },
+                    "111054": {
+                        "DPA_DESPAR": "MERCADILLO"
+                    },
+                    "111055": {
+                        "DPA_DESPAR": "VICENTINO"
+                    }
+                }
+            },
+            "1111": {
+                "DPA_DESCAN": "SARAGURO",
+                "parroquias": {
+                    "111150": {
+                        "DPA_DESPAR": "SARAGURO"
+                    },
+                    "111151": {
+                        "DPA_DESPAR": "EL PARAÍSO DE CELEN"
+                    },
+                    "111152": {
+                        "DPA_DESPAR": "EL TABLÓN"
+                    },
+                    "111153": {
+                        "DPA_DESPAR": "LLUZHAPA"
+                    },
+                    "111154": {
+                        "DPA_DESPAR": "MANÚ"
+                    },
+                    "111155": {
+                        "DPA_DESPAR": "SAN ANTONIO DE QUMBE"
+                    },
+                    "111156": {
+                        "DPA_DESPAR": "SAN PABLO DE TENTA"
+                    },
+                    "111157": {
+                        "DPA_DESPAR": "SAN SEBASTIÁN DE YÚLUC"
+                    },
+                    "111158": {
+                        "DPA_DESPAR": "SELVA ALEGRE"
+                    },
+                    "111159": {
+                        "DPA_DESPAR": "URDANETA"
+                    },
+                    "111160": {
+                        "DPA_DESPAR": "SUMAYPAMBA"
+                    }
+                }
+            },
+            "1112": {
+                "DPA_DESCAN": "SOZORANGA",
+                "parroquias": {
+                    "111250": {
+                        "DPA_DESPAR": "SOZORANGA"
+                    },
+                    "111251": {
+                        "DPA_DESPAR": "NUEVA FÁTIMA"
+                    },
+                    "111252": {
+                        "DPA_DESPAR": "TACAMOROS"
+                    }
+                }
+            },
+            "1113": {
+                "DPA_DESCAN": "ZAPOTILLO",
+                "parroquias": {
+                    "111350": {
+                        "DPA_DESPAR": "ZAPOTILLO"
+                    },
+                    "111351": {
+                        "DPA_DESPAR": "MANGAHURCO"
+                    },
+                    "111352": {
+                        "DPA_DESPAR": "GARZAREAL"
+                    },
+                    "111353": {
+                        "DPA_DESPAR": "LIMONES"
+                    },
+                    "111354": {
+                        "DPA_DESPAR": "PALETILLAS"
+                    },
+                    "111355": {
+                        "DPA_DESPAR": "BOLASPAMBA"
+                    },
+                    "111356": {
+                        "DPA_DESPAR": "CAZADEROS"
+                    }
+                }
+            },
+            "1114": {
+                "DPA_DESCAN": "PINDAL",
+                "parroquias": {
+                    "111450": {
+                        "DPA_DESPAR": "PINDAL"
+                    },
+                    "111451": {
+                        "DPA_DESPAR": "CHAQUINAL"
+                    },
+                    "111452": {
+                        "DPA_DESPAR": "12 DE DICIEMBRE"
+                    },
+                    "111453": {
+                        "DPA_DESPAR": "MILAGROS"
+                    }
+                }
+            },
+            "1115": {
+                "DPA_DESCAN": "QUILANGA",
+                "parroquias": {
+                    "111550": {
+                        "DPA_DESPAR": "QUILANGA"
+                    },
+                    "111551": {
+                        "DPA_DESPAR": "FUNDOCHAMBA"
+                    },
+                    "111552": {
+                        "DPA_DESPAR": "SAN ANTONIO DE LAS ARADAS"
+                    }
+                }
+            },
+            "1116": {
+                "DPA_DESCAN": "OLMEDO",
+                "parroquias": {
+                    "111650": {
+                        "DPA_DESPAR": "OLMEDO"
+                    },
+                    "111651": {
+                        "DPA_DESPAR": "LA TINGUE"
+                    }
+                }
+            }
+        }
+    },
+    "12": {
+        "DPA_DESPRO": "LOS RÍOS",
+        "cantones": {
+            "1201": {
+                "DPA_DESCAN": "BABAHOYO",
+                "parroquias": {
+                    "120150": {
+                        "DPA_DESPAR": "BABAHOYO"
+                    },
+                    "120152": {
+                        "DPA_DESPAR": "CARACOL"
+                    },
+                    "120153": {
+                        "DPA_DESPAR": "FEBRES CORDERO"
+                    },
+                    "120154": {
+                        "DPA_DESPAR": "PIMOCHA"
+                    },
+                    "120155": {
+                        "DPA_DESPAR": "LA UNIÓN"
+                    }
+                }
+            },
+            "1202": {
+                "DPA_DESCAN": "BABA",
+                "parroquias": {
+                    "120250": {
+                        "DPA_DESPAR": "BABA"
+                    },
+                    "120251": {
+                        "DPA_DESPAR": "GUARE"
+                    },
+                    "120252": {
+                        "DPA_DESPAR": "ISLA DE BEJUCAL"
+                    }
+                }
+            },
+            "1203": {
+                "DPA_DESCAN": "MONTALVO",
+                "parroquias": {
+                    "120350": {
+                        "DPA_DESPAR": "MONTALVO"
+                    },
+                    "120351": {
+                        "DPA_DESPAR": "LA ESMERALDA"
+                    }
+                }
+            },
+            "1204": {
+                "DPA_DESCAN": "PUEBLOVIEJO",
+                "parroquias": {
+                    "120450": {
+                        "DPA_DESPAR": "PUEBLOVIEJO"
+                    },
+                    "120451": {
+                        "DPA_DESPAR": "PUERTO PECHICHE"
+                    },
+                    "120452": {
+                        "DPA_DESPAR": "SAN JUAN"
+                    }
+                }
+            },
+            "1205": {
+                "DPA_DESCAN": "QUEVEDO",
+                "parroquias": {
+                    "120550": {
+                        "DPA_DESPAR": "QUEVEDO"
+                    },
+                    "120553": {
+                        "DPA_DESPAR": "SAN CARLOS"
+                    },
+                    "120555": {
+                        "DPA_DESPAR": "LA ESPERANZA"
+                    }
+                }
+            },
+            "1206": {
+                "DPA_DESCAN": "URDANETA",
+                "parroquias": {
+                    "120650": {
+                        "DPA_DESPAR": "CATARAMA"
+                    },
+                    "120651": {
+                        "DPA_DESPAR": "RICAURTE"
+                    }
+                }
+            },
+            "1207": {
+                "DPA_DESCAN": "VENTANAS",
+                "parroquias": {
+                    "120750": {
+                        "DPA_DESPAR": "VENTANAS"
+                    },
+                    "120752": {
+                        "DPA_DESPAR": "ZAPOTAL"
+                    },
+                    "120753": {
+                        "DPA_DESPAR": "CHACARITA"
+                    },
+                    "120754": {
+                        "DPA_DESPAR": "LOS ÁNGELES"
+                    }
+                }
+            },
+            "1208": {
+                "DPA_DESCAN": "VINCES",
+                "parroquias": {
+                    "120850": {
+                        "DPA_DESPAR": "VINCES"
+                    },
+                    "120851": {
+                        "DPA_DESPAR": "ANTONIO SOTOMAYOR"
+                    }
+                }
+            },
+            "1209": {
+                "DPA_DESCAN": "PALENQUE",
+                "parroquias": {
+                    "120950": {
+                        "DPA_DESPAR": "PALENQUE"
+                    }
+                }
+            },
+            "1210": {
+                "DPA_DESCAN": "BUENA FE",
+                "parroquias": {
+                    "121050": {
+                        "DPA_DESPAR": "SAN JACINTO DE BUENA FE"
+                    },
+                    "121051": {
+                        "DPA_DESPAR": "PATRICIA PILAR"
+                    }
+                }
+            },
+            "1211": {
+                "DPA_DESCAN": "VALENCIA",
+                "parroquias": {
+                    "121150": {
+                        "DPA_DESPAR": "VALENCIA"
+                    }
+                }
+            },
+            "1212": {
+                "DPA_DESCAN": "MOCACHE",
+                "parroquias": {
+                    "121250": {
+                        "DPA_DESPAR": "MOCACHE"
+                    }
+                }
+            },
+            "1213": {
+                "DPA_DESCAN": "QUINSALOMA",
+                "parroquias": {
+                    "121350": {
+                        "DPA_DESPAR": "QUINSALOMA"
+                    }
+                }
+            }
+        }
+    },
+    "13": {
+        "DPA_DESPRO": "MANABÍ",
+        "cantones": {
+            "1301": {
+                "DPA_DESCAN": "PORTOVIEJO",
+                "parroquias": {
+                    "130150": {
+                        "DPA_DESPAR": "PORTOVIEJO"
+                    },
+                    "130151": {
+                        "DPA_DESPAR": "ABDÓN CALDERÓN"
+                    },
+                    "130152": {
+                        "DPA_DESPAR": "ALHAJUELA"
+                    },
+                    "130153": {
+                        "DPA_DESPAR": "CRUCITA"
+                    },
+                    "130154": {
+                        "DPA_DESPAR": "PUEBLO NUEVO"
+                    },
+                    "130155": {
+                        "DPA_DESPAR": "RIOCHICO"
+                    },
+                    "130156": {
+                        "DPA_DESPAR": "SAN PLÁCIDO"
+                    },
+                    "130157": {
+                        "DPA_DESPAR": "CHIRIJOS"
+                    }
+                }
+            },
+            "1302": {
+                "DPA_DESCAN": "BOLÍVAR",
+                "parroquias": {
+                    "130250": {
+                        "DPA_DESPAR": "CALCETA"
+                    },
+                    "130251": {
+                        "DPA_DESPAR": "MEMBRILLO"
+                    },
+                    "130252": {
+                        "DPA_DESPAR": "QUIROGA"
+                    }
+                }
+            },
+            "1303": {
+                "DPA_DESCAN": "CHONE",
+                "parroquias": {
+                    "130350": {
+                        "DPA_DESPAR": "CHONE"
+                    },
+                    "130351": {
+                        "DPA_DESPAR": "BOYACÁ"
+                    },
+                    "130352": {
+                        "DPA_DESPAR": "CANUTO"
+                    },
+                    "130353": {
+                        "DPA_DESPAR": "CONVENTO"
+                    },
+                    "130354": {
+                        "DPA_DESPAR": "CHIBUNGA"
+                    },
+                    "130355": {
+                        "DPA_DESPAR": "ELOY ALFARO"
+                    },
+                    "130356": {
+                        "DPA_DESPAR": "RICAURTE"
+                    },
+                    "130357": {
+                        "DPA_DESPAR": "SAN ANTONIO"
+                    }
+                }
+            },
+            "1304": {
+                "DPA_DESCAN": "EL CARMEN",
+                "parroquias": {
+                    "130450": {
+                        "DPA_DESPAR": "EL CARMEN"
+                    },
+                    "130451": {
+                        "DPA_DESPAR": "WILFRIDO LOOR MOREIRA"
+                    },
+                    "130452": {
+                        "DPA_DESPAR": "SAN PEDRO DE SUMA"
+                    },
+                    "130453": {
+                        "DPA_DESPAR": "SANTA MARÍA"
+                    },
+                    "130454": {
+                        "DPA_DESPAR": "EL PARAÍSO LA 14"
+                    }
+                }
+            },
+            "1305": {
+                "DPA_DESCAN": "FLAVIO ALFARO",
+                "parroquias": {
+                    "130550": {
+                        "DPA_DESPAR": "FLAVIO ALFARO"
+                    },
+                    "130551": {
+                        "DPA_DESPAR": "SAN FRANCISCO DE NOVILLO"
+                    },
+                    "130552": {
+                        "DPA_DESPAR": "ZAPALLO"
+                    }
+                }
+            },
+            "1306": {
+                "DPA_DESCAN": "JIPIJAPA",
+                "parroquias": {
+                    "130650": {
+                        "DPA_DESPAR": "JIPIJAPA"
+                    },
+                    "130651": {
+                        "DPA_DESPAR": "AMÉRICA"
+                    },
+                    "130652": {
+                        "DPA_DESPAR": "EL ANEGADO"
+                    },
+                    "130653": {
+                        "DPA_DESPAR": "JULCUY"
+                    },
+                    "130654": {
+                        "DPA_DESPAR": "LA UNIÓN"
+                    },
+                    "130656": {
+                        "DPA_DESPAR": "MEMBRILLAL"
+                    },
+                    "130657": {
+                        "DPA_DESPAR": "PEDRO PABLO GÓMEZ"
+                    },
+                    "130658": {
+                        "DPA_DESPAR": "PUERTO CAYO"
+                    }
+                }
+            },
+            "1307": {
+                "DPA_DESCAN": "JUNÍN",
+                "parroquias": {
+                    "130750": {
+                        "DPA_DESPAR": "JUNÍN"
+                    }
+                }
+            },
+            "1308": {
+                "DPA_DESCAN": "MANTA",
+                "parroquias": {
+                    "130850": {
+                        "DPA_DESPAR": "MANTA"
+                    },
+                    "130851": {
+                        "DPA_DESPAR": "SAN LORENZO"
+                    },
+                    "130852": {
+                        "DPA_DESPAR": "SANTA MARIANITA"
+                    }
+                }
+            },
+            "1309": {
+                "DPA_DESCAN": "MONTECRISTI",
+                "parroquias": {
+                    "130950": {
+                        "DPA_DESPAR": "MONTECRISTI"
+                    },
+                    "130952": {
+                        "DPA_DESPAR": "LA PILA"
+                    }
+                }
+            },
+            "1310": {
+                "DPA_DESCAN": "PAJÁN",
+                "parroquias": {
+                    "131050": {
+                        "DPA_DESPAR": "PAJÁN"
+                    },
+                    "131051": {
+                        "DPA_DESPAR": "CAMPOZANO"
+                    },
+                    "131052": {
+                        "DPA_DESPAR": "CASCOL"
+                    },
+                    "131053": {
+                        "DPA_DESPAR": "GUALE"
+                    },
+                    "131054": {
+                        "DPA_DESPAR": "LASCANO"
+                    }
+                }
+            },
+            "1311": {
+                "DPA_DESCAN": "PICHINCHA",
+                "parroquias": {
+                    "131150": {
+                        "DPA_DESPAR": "PICHINCHA"
+                    },
+                    "131151": {
+                        "DPA_DESPAR": "BARRAGANETE"
+                    },
+                    "131152": {
+                        "DPA_DESPAR": "SAN SEBASTIÁN"
+                    }
+                }
+            },
+            "1312": {
+                "DPA_DESCAN": "ROCAFUERTE",
+                "parroquias": {
+                    "131250": {
+                        "DPA_DESPAR": "ROCAFUERTE"
+                    },
+                    "131251": {
+                        "DPA_DESPAR": "SOSOTE"
+                    }
+                }
+            },
+            "1313": {
+                "DPA_DESCAN": "SANTA ANA",
+                "parroquias": {
+                    "131350": {
+                        "DPA_DESPAR": "SANTA ANA DE VUELTA LARGA"
+                    },
+                    "131351": {
+                        "DPA_DESPAR": "AYACUCHO"
+                    },
+                    "131352": {
+                        "DPA_DESPAR": "HONORATO VÁSQUEZ"
+                    },
+                    "131353": {
+                        "DPA_DESPAR": "LA UNIÓN"
+                    },
+                    "131355": {
+                        "DPA_DESPAR": "SAN PABLO"
+                    }
+                }
+            },
+            "1314": {
+                "DPA_DESCAN": "SUCRE",
+                "parroquias": {
+                    "131450": {
+                        "DPA_DESPAR": "BAHIA DE CARÁQUEZ"
+                    },
+                    "131453": {
+                        "DPA_DESPAR": "CHARAPOTÓ"
+                    },
+                    "131457": {
+                        "DPA_DESPAR": "SAN ISIDRO"
+                    }
+                }
+            },
+            "1315": {
+                "DPA_DESCAN": "TOSAGUA",
+                "parroquias": {
+                    "131550": {
+                        "DPA_DESPAR": "TOSAGUA"
+                    },
+                    "131551": {
+                        "DPA_DESPAR": "BACHILLERO"
+                    },
+                    "131552": {
+                        "DPA_DESPAR": "ÁNGEL PEDRO GILER"
+                    }
+                }
+            },
+            "1316": {
+                "DPA_DESCAN": "24 DE MAYO",
+                "parroquias": {
+                    "131650": {
+                        "DPA_DESPAR": "SUCRE"
+                    },
+                    "131651": {
+                        "DPA_DESPAR": "BELLAVISTA"
+                    },
+                    "131652": {
+                        "DPA_DESPAR": "NOBOA"
+                    },
+                    "131653": {
+                        "DPA_DESPAR": "ARQUITECTO SIXTO DURÁN BALLÉN"
+                    }
+                }
+            },
+            "1317": {
+                "DPA_DESCAN": "PEDERNALES",
+                "parroquias": {
+                    "131750": {
+                        "DPA_DESPAR": "PEDERNALES"
+                    },
+                    "131751": {
+                        "DPA_DESPAR": "COJIMÍES"
+                    },
+                    "131752": {
+                        "DPA_DESPAR": "DIEZ DE AGOSTO"
+                    },
+                    "131753": {
+                        "DPA_DESPAR": "ATAHUALPA"
+                    }
+                }
+            },
+            "1318": {
+                "DPA_DESCAN": "OLMEDO",
+                "parroquias": {
+                    "131850": {
+                        "DPA_DESPAR": "OLMEDO"
+                    }
+                }
+            },
+            "1319": {
+                "DPA_DESCAN": "PUERTO LÓPEZ",
+                "parroquias": {
+                    "131950": {
+                        "DPA_DESPAR": "PUERTO LÓPEZ"
+                    },
+                    "131951": {
+                        "DPA_DESPAR": "MACHALILLA"
+                    },
+                    "131952": {
+                        "DPA_DESPAR": "SALANGO"
+                    }
+                }
+            },
+            "1320": {
+                "DPA_DESCAN": "JAMA",
+                "parroquias": {
+                    "132050": {
+                        "DPA_DESPAR": "JAMA"
+                    }
+                }
+            },
+            "1321": {
+                "DPA_DESCAN": "JARAMIJÓ",
+                "parroquias": {
+                    "132150": {
+                        "DPA_DESPAR": "JARAMIJÓ"
+                    }
+                }
+            },
+            "1322": {
+                "DPA_DESCAN": "SAN VICENTE",
+                "parroquias": {
+                    "132250": {
+                        "DPA_DESPAR": "SAN VICENTE"
+                    },
+                    "132251": {
+                        "DPA_DESPAR": "CANOA"
+                    }
+                }
+            }
+        }
+    },
+    "14": {
+        "DPA_DESPRO": "MORONA SANTIAGO",
+        "cantones": {
+            "1401": {
+                "DPA_DESCAN": "MORONA",
+                "parroquias": {
+                    "140150": {
+                        "DPA_DESPAR": "MACAS"
+                    },
+                    "140151": {
+                        "DPA_DESPAR": "ALSHI"
+                    },
+                    "140153": {
+                        "DPA_DESPAR": "GENERAL PROAÑO"
+                    },
+                    "140156": {
+                        "DPA_DESPAR": "SAN ISIDRO"
+                    },
+                    "140158": {
+                        "DPA_DESPAR": "SINAÍ"
+                    },
+                    "140160": {
+                        "DPA_DESPAR": "ZUÑA"
+                    },
+                    "140162": {
+                        "DPA_DESPAR": "CUCHAENTZA"
+                    },
+                    "140164": {
+                        "DPA_DESPAR": "RÍO BLANCO"
+                    },
+                    "901401": {
+                        "DPA_DESPAR": "ZONA EN ESTUDIO \"SINAÍ-CUCHAENTZA\""
+                    }
+                }
+            },
+            "1402": {
+                "DPA_DESCAN": "GUALAQUIZA",
+                "parroquias": {
+                    "140250": {
+                        "DPA_DESPAR": "GUALAQUIZA"
+                    },
+                    "140251": {
+                        "DPA_DESPAR": "AMAZONAS"
+                    },
+                    "140252": {
+                        "DPA_DESPAR": "BERMEJOS"
+                    },
+                    "140253": {
+                        "DPA_DESPAR": "BOMBOÍZA"
+                    },
+                    "140254": {
+                        "DPA_DESPAR": "CHIGÜINDA"
+                    },
+                    "140255": {
+                        "DPA_DESPAR": "EL ROSARIO"
+                    },
+                    "140256": {
+                        "DPA_DESPAR": "NUEVA TARQUI"
+                    },
+                    "140257": {
+                        "DPA_DESPAR": "SAN MIGUEL DE CUYES"
+                    },
+                    "140258": {
+                        "DPA_DESPAR": "EL IDEAL"
+                    }
+                }
+            },
+            "1403": {
+                "DPA_DESCAN": "LIMÓN INDANZA",
+                "parroquias": {
+                    "140350": {
+                        "DPA_DESPAR": "GRAL. LEONIDAS PLAZA GUTIÉRREZ"
+                    },
+                    "140351": {
+                        "DPA_DESPAR": "INDANZA"
+                    },
+                    "140353": {
+                        "DPA_DESPAR": "SAN ANTONIO"
+                    },
+                    "140356": {
+                        "DPA_DESPAR": "SAN MIGUEL DE CONCHAY"
+                    },
+                    "140357": {
+                        "DPA_DESPAR": "SANTA SUSANA DE CHIVIAZA"
+                    },
+                    "140358": {
+                        "DPA_DESPAR": "YUNGANZA"
+                    }
+                }
+            },
+            "1404": {
+                "DPA_DESCAN": "PALORA",
+                "parroquias": {
+                    "140450": {
+                        "DPA_DESPAR": "PALORA"
+                    },
+                    "140451": {
+                        "DPA_DESPAR": "ARAPICOS"
+                    },
+                    "140452": {
+                        "DPA_DESPAR": "CUMANDÁ"
+                    },
+                    "140454": {
+                        "DPA_DESPAR": "SANGAY"
+                    },
+                    "140455": {
+                        "DPA_DESPAR": "16 DE AGOSTO"
+                    }
+                }
+            },
+            "1405": {
+                "DPA_DESCAN": "SANTIAGO",
+                "parroquias": {
+                    "140550": {
+                        "DPA_DESPAR": "SANTIAGO DE MÉNDEZ"
+                    },
+                    "140551": {
+                        "DPA_DESPAR": "COPAL"
+                    },
+                    "140552": {
+                        "DPA_DESPAR": "CHUPIANZA"
+                    },
+                    "140553": {
+                        "DPA_DESPAR": "PATUCA"
+                    },
+                    "140554": {
+                        "DPA_DESPAR": "SAN LUIS DE EL ACHO"
+                    },
+                    "140556": {
+                        "DPA_DESPAR": "TAYUZA"
+                    },
+                    "140557": {
+                        "DPA_DESPAR": "SAN FRANCISCO DE CHINIMBIMI"
+                    }
+                }
+            },
+            "1406": {
+                "DPA_DESCAN": "SUCÚA",
+                "parroquias": {
+                    "140650": {
+                        "DPA_DESPAR": "SUCÚA"
+                    },
+                    "140651": {
+                        "DPA_DESPAR": "ASUNCIÓN"
+                    },
+                    "140652": {
+                        "DPA_DESPAR": "HUAMBI"
+                    },
+                    "140655": {
+                        "DPA_DESPAR": "SANTA MARIANITA DE JESÚS"
+                    }
+                }
+            },
+            "1407": {
+                "DPA_DESCAN": "HUAMBOYA",
+                "parroquias": {
+                    "140750": {
+                        "DPA_DESPAR": "HUAMBOYA"
+                    },
+                    "140751": {
+                        "DPA_DESPAR": "CHIGUAZA"
+                    }
+                }
+            },
+            "1408": {
+                "DPA_DESCAN": "SAN JUAN BOSCO",
+                "parroquias": {
+                    "140850": {
+                        "DPA_DESPAR": "SAN JUAN BOSCO"
+                    },
+                    "140851": {
+                        "DPA_DESPAR": "PAN DE AZÚCAR"
+                    },
+                    "140852": {
+                        "DPA_DESPAR": "SAN CARLOS DE LIMÓN"
+                    },
+                    "140853": {
+                        "DPA_DESPAR": "SAN JACINTO DE WAKAMBEIS"
+                    },
+                    "140854": {
+                        "DPA_DESPAR": "SANTIAGO DE PANANZA"
+                    }
+                }
+            },
+            "1409": {
+                "DPA_DESCAN": "TAISHA",
+                "parroquias": {
+                    "140950": {
+                        "DPA_DESPAR": "TAISHA"
+                    },
+                    "140951": {
+                        "DPA_DESPAR": "HUASAGA"
+                    },
+                    "140952": {
+                        "DPA_DESPAR": "MACUMA"
+                    },
+                    "140953": {
+                        "DPA_DESPAR": "TUUTINENTSA"
+                    },
+                    "140954": {
+                        "DPA_DESPAR": "PUMPUENTSA"
+                    }
+                }
+            },
+            "1410": {
+                "DPA_DESCAN": "LOGROÑO",
+                "parroquias": {
+                    "141050": {
+                        "DPA_DESPAR": "LOGROÑO"
+                    },
+                    "141051": {
+                        "DPA_DESPAR": "YAUPI"
+                    },
+                    "141052": {
+                        "DPA_DESPAR": "SHIMPIS"
+                    }
+                }
+            },
+            "1411": {
+                "DPA_DESCAN": "PABLO SEXTO",
+                "parroquias": {
+                    "141150": {
+                        "DPA_DESPAR": "PABLO SEXTO"
+                    }
+                }
+            },
+            "1412": {
+                "DPA_DESCAN": "TIWINTZA",
+                "parroquias": {
+                    "141250": {
+                        "DPA_DESPAR": "SANTIAGO"
+                    },
+                    "141251": {
+                        "DPA_DESPAR": "SAN JOSÉ DE MORONA"
+                    }
+                }
+            },
+            "1413": {
+                "DPA_DESCAN": "SEVILLA DON BOSCO",
+                "parroquias": {
+                    "141350": {
+                        "DPA_DESPAR": "SEVILLA DON BOSCO"
+                    }
+                }
+            }
+        }
+    },
+    "15": {
+        "DPA_DESPRO": "NAPO",
+        "cantones": {
+            "1501": {
+                "DPA_DESCAN": "TENA",
+                "parroquias": {
+                    "150150": {
+                        "DPA_DESPAR": "TENA"
+                    },
+                    "150151": {
+                        "DPA_DESPAR": "AHUANO"
+                    },
+                    "150153": {
+                        "DPA_DESPAR": "CHONTAPUNTA"
+                    },
+                    "150154": {
+                        "DPA_DESPAR": "PANO"
+                    },
+                    "150155": {
+                        "DPA_DESPAR": "PUERTO MISAHUALLÍ"
+                    },
+                    "150156": {
+                        "DPA_DESPAR": "PUERTO NAPO"
+                    },
+                    "150157": {
+                        "DPA_DESPAR": "TÁLAG"
+                    },
+                    "150158": {
+                        "DPA_DESPAR": "SAN JUAN DE MUYUNA"
+                    }
+                }
+            },
+            "1503": {
+                "DPA_DESCAN": "ARCHIDONA",
+                "parroquias": {
+                    "150350": {
+                        "DPA_DESPAR": "ARCHIDONA"
+                    },
+                    "150352": {
+                        "DPA_DESPAR": "COTUNDO"
+                    },
+                    "150354": {
+                        "DPA_DESPAR": "SAN PABLO DE USHPAYACU"
+                    },
+                    "150356": {
+                        "DPA_DESPAR": "HATUN SUMAKU"
+                    }
+                }
+            },
+            "1504": {
+                "DPA_DESCAN": "EL CHACO",
+                "parroquias": {
+                    "150450": {
+                        "DPA_DESPAR": "EL CHACO"
+                    },
+                    "150451": {
+                        "DPA_DESPAR": "GONZALO DÍAZ DE PINEDA"
+                    },
+                    "150452": {
+                        "DPA_DESPAR": "LINARES"
+                    },
+                    "150453": {
+                        "DPA_DESPAR": "OYACACHI"
+                    },
+                    "150454": {
+                        "DPA_DESPAR": "SANTA ROSA"
+                    },
+                    "150455": {
+                        "DPA_DESPAR": "SARDINAS"
+                    }
+                }
+            },
+            "1507": {
+                "DPA_DESCAN": "QUIJOS",
+                "parroquias": {
+                    "150750": {
+                        "DPA_DESPAR": "BAEZA"
+                    },
+                    "150751": {
+                        "DPA_DESPAR": "COSANGA"
+                    },
+                    "150752": {
+                        "DPA_DESPAR": "CUYUJA"
+                    },
+                    "150753": {
+                        "DPA_DESPAR": "PAPALLACTA"
+                    },
+                    "150754": {
+                        "DPA_DESPAR": "SAN FRANCISCO DE BORJA"
+                    },
+                    "150756": {
+                        "DPA_DESPAR": "SUMACO"
+                    }
+                }
+            },
+            "1509": {
+                "DPA_DESCAN": "CARLOS JULIO AROSEMENA TOLA",
+                "parroquias": {
+                    "150950": {
+                        "DPA_DESPAR": "CARLOS JULIO AROSEMENA TOLA"
+                    }
+                }
+            }
+        }
+    },
+    "16": {
+        "DPA_DESPRO": "PASTAZA",
+        "cantones": {
+            "1601": {
+                "DPA_DESCAN": "PASTAZA",
+                "parroquias": {
+                    "160150": {
+                        "DPA_DESPAR": "PUYO"
+                    },
+                    "160152": {
+                        "DPA_DESPAR": "CANELOS"
+                    },
+                    "160154": {
+                        "DPA_DESPAR": "DIEZ DE AGOSTO"
+                    },
+                    "160155": {
+                        "DPA_DESPAR": "FÁTIMA"
+                    },
+                    "160156": {
+                        "DPA_DESPAR": "MONTALVO"
+                    },
+                    "160157": {
+                        "DPA_DESPAR": "POMONA"
+                    },
+                    "160158": {
+                        "DPA_DESPAR": "RÍO CORRIENTES"
+                    },
+                    "160159": {
+                        "DPA_DESPAR": "RÍO TIGRE"
+                    },
+                    "160161": {
+                        "DPA_DESPAR": "SARAYACU"
+                    },
+                    "160162": {
+                        "DPA_DESPAR": "SIMÓN BOLÍVAR"
+                    },
+                    "160163": {
+                        "DPA_DESPAR": "TARQUI"
+                    },
+                    "160164": {
+                        "DPA_DESPAR": "TENIENTE HUGO ORTIZ"
+                    },
+                    "160165": {
+                        "DPA_DESPAR": "VERACRUZ"
+                    },
+                    "160166": {
+                        "DPA_DESPAR": "EL TRIUNFO"
+                    }
+                }
+            },
+            "1602": {
+                "DPA_DESCAN": "MERA",
+                "parroquias": {
+                    "160250": {
+                        "DPA_DESPAR": "MERA"
+                    },
+                    "160251": {
+                        "DPA_DESPAR": "MADRE TIERRA"
+                    },
+                    "160252": {
+                        "DPA_DESPAR": "SHELL"
+                    }
+                }
+            },
+            "1603": {
+                "DPA_DESCAN": "SANTA CLARA",
+                "parroquias": {
+                    "160350": {
+                        "DPA_DESPAR": "SANTA CLARA"
+                    },
+                    "160351": {
+                        "DPA_DESPAR": "SAN JOSÉ"
+                    }
+                }
+            },
+            "1604": {
+                "DPA_DESCAN": "ARAJUNO",
+                "parroquias": {
+                    "160450": {
+                        "DPA_DESPAR": "ARAJUNO"
+                    },
+                    "160451": {
+                        "DPA_DESPAR": "CURARAY"
+                    }
+                }
+            }
+        }
+    },
+    "17": {
+        "DPA_DESPRO": "PICHINCHA",
+        "cantones": {
+            "1701": {
+                "DPA_DESCAN": "DISTRITO METROPOLITANO DE QUITO",
+                "parroquias": {
+                    "170150": {
+                        "DPA_DESPAR": "QUITO"
+                    },
+                    "170151": {
+                        "DPA_DESPAR": "ALANGASÍ"
+                    },
+                    "170152": {
+                        "DPA_DESPAR": "AMAGUAÑA"
+                    },
+                    "170153": {
+                        "DPA_DESPAR": "ATAHUALPA"
+                    },
+                    "170154": {
+                        "DPA_DESPAR": "CALACALÍ"
+                    },
+                    "170155": {
+                        "DPA_DESPAR": "CALDERÓN"
+                    },
+                    "170156": {
+                        "DPA_DESPAR": "CONOCOTO"
+                    },
+                    "170157": {
+                        "DPA_DESPAR": "CUMBAYÁ"
+                    },
+                    "170158": {
+                        "DPA_DESPAR": "CHAVEZPAMBA"
+                    },
+                    "170159": {
+                        "DPA_DESPAR": "CHECA"
+                    },
+                    "170160": {
+                        "DPA_DESPAR": "EL QUINCHE"
+                    },
+                    "170161": {
+                        "DPA_DESPAR": "GUALEA"
+                    },
+                    "170162": {
+                        "DPA_DESPAR": "GUANGOPOLO"
+                    },
+                    "170163": {
+                        "DPA_DESPAR": "GUAYLLABAMBA"
+                    },
+                    "170164": {
+                        "DPA_DESPAR": "LA MERCED"
+                    },
+                    "170165": {
+                        "DPA_DESPAR": "LLANO CHICO"
+                    },
+                    "170166": {
+                        "DPA_DESPAR": "LLOA"
+                    },
+                    "170168": {
+                        "DPA_DESPAR": "NANEGAL"
+                    },
+                    "170169": {
+                        "DPA_DESPAR": "NANEGALITO"
+                    },
+                    "170170": {
+                        "DPA_DESPAR": "NAYÓN"
+                    },
+                    "170171": {
+                        "DPA_DESPAR": "NONO"
+                    },
+                    "170172": {
+                        "DPA_DESPAR": "PACTO"
+                    },
+                    "170174": {
+                        "DPA_DESPAR": "PERUCHO"
+                    },
+                    "170175": {
+                        "DPA_DESPAR": "PIFO"
+                    },
+                    "170176": {
+                        "DPA_DESPAR": "PÍNTAG"
+                    },
+                    "170177": {
+                        "DPA_DESPAR": "POMASQUI"
+                    },
+                    "170178": {
+                        "DPA_DESPAR": "PUÉLLARO"
+                    },
+                    "170179": {
+                        "DPA_DESPAR": "PUEMBO"
+                    },
+                    "170180": {
+                        "DPA_DESPAR": "SAN ANTONIO"
+                    },
+                    "170181": {
+                        "DPA_DESPAR": "SAN JOSÉ DE MINAS"
+                    },
+                    "170183": {
+                        "DPA_DESPAR": "TABABELA"
+                    },
+                    "170184": {
+                        "DPA_DESPAR": "TUMBACO"
+                    },
+                    "170185": {
+                        "DPA_DESPAR": "YARUQUÍ"
+                    },
+                    "170186": {
+                        "DPA_DESPAR": "ZÁMBIZA"
+                    }
+                }
+            },
+            "1702": {
+                "DPA_DESCAN": "CAYAMBE",
+                "parroquias": {
+                    "170250": {
+                        "DPA_DESPAR": "CAYAMBE"
+                    },
+                    "170251": {
+                        "DPA_DESPAR": "ASCÁZUBI"
+                    },
+                    "170252": {
+                        "DPA_DESPAR": "CANGAHUA"
+                    },
+                    "170253": {
+                        "DPA_DESPAR": "OLMEDO"
+                    },
+                    "170254": {
+                        "DPA_DESPAR": "OTÓN"
+                    },
+                    "170255": {
+                        "DPA_DESPAR": "SANTA ROSA DE CUZUBAMBA"
+                    },
+                    "170256": {
+                        "DPA_DESPAR": "SAN JOSÉ DE AYORA"
+                    },
+                    "170257": {
+                        "DPA_DESPAR": "JUAN MONTALVO"
+                    }
+                }
+            },
+            "1703": {
+                "DPA_DESCAN": "MEJÍA",
+                "parroquias": {
+                    "170350": {
+                        "DPA_DESPAR": "MACHACHI"
+                    },
+                    "170351": {
+                        "DPA_DESPAR": "ALOAG"
+                    },
+                    "170352": {
+                        "DPA_DESPAR": "ALOASÍ"
+                    },
+                    "170353": {
+                        "DPA_DESPAR": "CUTUGLAHUA"
+                    },
+                    "170354": {
+                        "DPA_DESPAR": "EL CHAUPI"
+                    },
+                    "170355": {
+                        "DPA_DESPAR": "MANUEL CORNEJO ASTORGA"
+                    },
+                    "170356": {
+                        "DPA_DESPAR": "TAMBILLO"
+                    },
+                    "170357": {
+                        "DPA_DESPAR": "UYUMBICHO"
+                    }
+                }
+            },
+            "1704": {
+                "DPA_DESCAN": "PEDRO MONCAYO",
+                "parroquias": {
+                    "170450": {
+                        "DPA_DESPAR": "TABACUNDO"
+                    },
+                    "170451": {
+                        "DPA_DESPAR": "LA ESPERANZA"
+                    },
+                    "170452": {
+                        "DPA_DESPAR": "MALCHINGUÍ"
+                    },
+                    "170453": {
+                        "DPA_DESPAR": "TOCACHI"
+                    },
+                    "170454": {
+                        "DPA_DESPAR": "TUPIGACHI"
+                    }
+                }
+            },
+            "1705": {
+                "DPA_DESCAN": "RUMIÑAHUI",
+                "parroquias": {
+                    "170550": {
+                        "DPA_DESPAR": "SANGOLQUÍ"
+                    },
+                    "170551": {
+                        "DPA_DESPAR": "COTOGCHOA"
+                    },
+                    "170552": {
+                        "DPA_DESPAR": "RUMIPAMBA"
+                    }
+                }
+            },
+            "1707": {
+                "DPA_DESCAN": "SAN MIGUEL DE LOS BANCOS",
+                "parroquias": {
+                    "170750": {
+                        "DPA_DESPAR": "SAN MIGUEL DE LOS BANCOS"
+                    },
+                    "170751": {
+                        "DPA_DESPAR": "MINDO"
+                    }
+                }
+            },
+            "1708": {
+                "DPA_DESCAN": "PEDRO VICENTE MALDONADO",
+                "parroquias": {
+                    "170850": {
+                        "DPA_DESPAR": "PEDRO VICENTE MALDONADO"
+                    }
+                }
+            },
+            "1709": {
+                "DPA_DESCAN": "PUERTO QUITO",
+                "parroquias": {
+                    "170950": {
+                        "DPA_DESPAR": "PUERTO QUITO"
+                    }
+                }
+            }
+        }
+    },
+    "18": {
+        "DPA_DESPRO": "TUNGURAHUA",
+        "cantones": {
+            "1801": {
+                "DPA_DESCAN": "AMBATO",
+                "parroquias": {
+                    "180150": {
+                        "DPA_DESPAR": "AMBATO"
+                    },
+                    "180151": {
+                        "DPA_DESPAR": "AMBATILLO"
+                    },
+                    "180152": {
+                        "DPA_DESPAR": "ATAHUALPA"
+                    },
+                    "180153": {
+                        "DPA_DESPAR": "AUGUSTO N. MARTÍNEZ"
+                    },
+                    "180154": {
+                        "DPA_DESPAR": "CONSTANTINO FERNÁNDEZ"
+                    },
+                    "180155": {
+                        "DPA_DESPAR": "HUACHI GRANDE"
+                    },
+                    "180156": {
+                        "DPA_DESPAR": "IZAMBA"
+                    },
+                    "180157": {
+                        "DPA_DESPAR": "JUAN BENIGNO VELA"
+                    },
+                    "180158": {
+                        "DPA_DESPAR": "MONTALVO"
+                    },
+                    "180159": {
+                        "DPA_DESPAR": "PASA"
+                    },
+                    "180160": {
+                        "DPA_DESPAR": "PICAIHUA"
+                    },
+                    "180161": {
+                        "DPA_DESPAR": "PILAGÜÍN"
+                    },
+                    "180162": {
+                        "DPA_DESPAR": "QUISAPINCHA"
+                    },
+                    "180163": {
+                        "DPA_DESPAR": "SAN BARTOLOMÉ DE PINLLO"
+                    },
+                    "180164": {
+                        "DPA_DESPAR": "SAN FERNANDO"
+                    },
+                    "180165": {
+                        "DPA_DESPAR": "SANTA ROSA"
+                    },
+                    "180166": {
+                        "DPA_DESPAR": "TOTORAS"
+                    },
+                    "180167": {
+                        "DPA_DESPAR": "CUNCHIBAMBA"
+                    },
+                    "180168": {
+                        "DPA_DESPAR": "UNAMUNCHO"
+                    }
+                }
+            },
+            "1802": {
+                "DPA_DESCAN": "BAÑOS DE AGUA SANTA",
+                "parroquias": {
+                    "180250": {
+                        "DPA_DESPAR": "BAÑOS"
+                    },
+                    "180251": {
+                        "DPA_DESPAR": "LLIGUA"
+                    },
+                    "180252": {
+                        "DPA_DESPAR": "RÍO NEGRO"
+                    },
+                    "180253": {
+                        "DPA_DESPAR": "RÍO VERDE"
+                    },
+                    "180254": {
+                        "DPA_DESPAR": "ULBA"
+                    }
+                }
+            },
+            "1803": {
+                "DPA_DESCAN": "CEVALLOS",
+                "parroquias": {
+                    "180350": {
+                        "DPA_DESPAR": "CEVALLOS"
+                    }
+                }
+            },
+            "1804": {
+                "DPA_DESCAN": "MOCHA",
+                "parroquias": {
+                    "180450": {
+                        "DPA_DESPAR": "MOCHA"
+                    },
+                    "180451": {
+                        "DPA_DESPAR": "PINGUILÍ"
+                    }
+                }
+            },
+            "1805": {
+                "DPA_DESCAN": "PATATE",
+                "parroquias": {
+                    "180550": {
+                        "DPA_DESPAR": "PATATE"
+                    },
+                    "180551": {
+                        "DPA_DESPAR": "EL TRIUNFO"
+                    },
+                    "180552": {
+                        "DPA_DESPAR": "LOS ANDES"
+                    },
+                    "180553": {
+                        "DPA_DESPAR": "SUCRE"
+                    }
+                }
+            },
+            "1806": {
+                "DPA_DESCAN": "QUERO",
+                "parroquias": {
+                    "180650": {
+                        "DPA_DESPAR": "QUERO"
+                    },
+                    "180651": {
+                        "DPA_DESPAR": "RUMIPAMBA"
+                    },
+                    "180652": {
+                        "DPA_DESPAR": "YANAYACU MOCHAPATA"
+                    }
+                }
+            },
+            "1807": {
+                "DPA_DESCAN": "SAN PEDRO DE PELILEO",
+                "parroquias": {
+                    "180750": {
+                        "DPA_DESPAR": "PELILEO"
+                    },
+                    "180751": {
+                        "DPA_DESPAR": "BENÍTEZ"
+                    },
+                    "180752": {
+                        "DPA_DESPAR": "BOLÍVAR"
+                    },
+                    "180753": {
+                        "DPA_DESPAR": "COTALÓ"
+                    },
+                    "180754": {
+                        "DPA_DESPAR": "CHIQUICHA"
+                    },
+                    "180755": {
+                        "DPA_DESPAR": "EL ROSARIO"
+                    },
+                    "180756": {
+                        "DPA_DESPAR": "GARCÍA MORENO"
+                    },
+                    "180757": {
+                        "DPA_DESPAR": "GUAMBALÓ"
+                    },
+                    "180758": {
+                        "DPA_DESPAR": "SALASACA"
+                    }
+                }
+            },
+            "1808": {
+                "DPA_DESCAN": "SANTIAGO DE PÍLLARO",
+                "parroquias": {
+                    "180850": {
+                        "DPA_DESPAR": "PÍLLARO"
+                    },
+                    "180851": {
+                        "DPA_DESPAR": "BAQUERIZO MORENO"
+                    },
+                    "180852": {
+                        "DPA_DESPAR": "EMILIO MARÍA TERÁN"
+                    },
+                    "180853": {
+                        "DPA_DESPAR": "MARCOS ESPINEL"
+                    },
+                    "180854": {
+                        "DPA_DESPAR": "PRESIDENTE URBINA"
+                    },
+                    "180855": {
+                        "DPA_DESPAR": "SAN ANDRÉS"
+                    },
+                    "180856": {
+                        "DPA_DESPAR": "SAN JOSÉ DE POALÓ"
+                    },
+                    "180857": {
+                        "DPA_DESPAR": "SAN MIGUELITO"
+                    }
+                }
+            },
+            "1809": {
+                "DPA_DESCAN": "TISALEO",
+                "parroquias": {
+                    "180950": {
+                        "DPA_DESPAR": "TISALEO"
+                    },
+                    "180951": {
+                        "DPA_DESPAR": "QUINCHICOTO"
+                    }
+                }
+            }
+        }
+    },
+    "19": {
+        "DPA_DESPRO": "ZAMORA CHINCHIPE",
+        "cantones": {
+            "1901": {
+                "DPA_DESCAN": "ZAMORA",
+                "parroquias": {
+                    "190150": {
+                        "DPA_DESPAR": "ZAMORA"
+                    },
+                    "190151": {
+                        "DPA_DESPAR": "CUMBARATZA"
+                    },
+                    "190152": {
+                        "DPA_DESPAR": "GUADALUPE"
+                    },
+                    "190153": {
+                        "DPA_DESPAR": "IMBANA"
+                    },
+                    "190155": {
+                        "DPA_DESPAR": "SABANILLA"
+                    },
+                    "190156": {
+                        "DPA_DESPAR": "TIMBARA"
+                    },
+                    "190158": {
+                        "DPA_DESPAR": "SAN CARLOS DE LAS MINAS"
+                    }
+                }
+            },
+            "1902": {
+                "DPA_DESCAN": "CHINCHIPE",
+                "parroquias": {
+                    "190250": {
+                        "DPA_DESPAR": "ZUMBA"
+                    },
+                    "190251": {
+                        "DPA_DESPAR": "CHITO"
+                    },
+                    "190252": {
+                        "DPA_DESPAR": "EL CHORRO"
+                    },
+                    "190254": {
+                        "DPA_DESPAR": "LA CHONTA"
+                    },
+                    "190256": {
+                        "DPA_DESPAR": "PUCAPAMBA"
+                    },
+                    "190259": {
+                        "DPA_DESPAR": "SAN ANDRÉS"
+                    }
+                }
+            },
+            "1903": {
+                "DPA_DESCAN": "NANGARITZA",
+                "parroquias": {
+                    "190350": {
+                        "DPA_DESPAR": "GUAYZIMI"
+                    },
+                    "190351": {
+                        "DPA_DESPAR": "ZURMI"
+                    },
+                    "190352": {
+                        "DPA_DESPAR": "NUEVO PARAÍSO"
+                    },
+                    "190353": {
+                        "DPA_DESPAR": "NANKAIS"
+                    }
+                }
+            },
+            "1904": {
+                "DPA_DESCAN": "YACUAMBI",
+                "parroquias": {
+                    "190450": {
+                        "DPA_DESPAR": "28 DE MAYO"
+                    },
+                    "190451": {
+                        "DPA_DESPAR": "LA PAZ"
+                    },
+                    "190452": {
+                        "DPA_DESPAR": "TUTUPALI"
+                    }
+                }
+            },
+            "1905": {
+                "DPA_DESCAN": "YANTZAZA",
+                "parroquias": {
+                    "190550": {
+                        "DPA_DESPAR": "YANTZAZA"
+                    },
+                    "190551": {
+                        "DPA_DESPAR": "CHICAÑA"
+                    },
+                    "190553": {
+                        "DPA_DESPAR": "LOS ENCUENTROS"
+                    }
+                }
+            },
+            "1906": {
+                "DPA_DESCAN": "EL PANGUI",
+                "parroquias": {
+                    "190650": {
+                        "DPA_DESPAR": "EL PANGUI"
+                    },
+                    "190651": {
+                        "DPA_DESPAR": "EL GUISME"
+                    },
+                    "190652": {
+                        "DPA_DESPAR": "PACHICUTZA"
+                    },
+                    "190653": {
+                        "DPA_DESPAR": "TUNDAYME"
+                    }
+                }
+            },
+            "1907": {
+                "DPA_DESCAN": "CENTINELA DEL CÓNDOR",
+                "parroquias": {
+                    "190750": {
+                        "DPA_DESPAR": "ZUMBI"
+                    },
+                    "190752": {
+                        "DPA_DESPAR": "TRIUNFO DORADO"
+                    },
+                    "190753": {
+                        "DPA_DESPAR": "PANGUINTZA"
+                    }
+                }
+            },
+            "1908": {
+                "DPA_DESCAN": "PALANDA",
+                "parroquias": {
+                    "190850": {
+                        "DPA_DESPAR": "PALANDA"
+                    },
+                    "190851": {
+                        "DPA_DESPAR": "EL PORVENIR DEL CARMEN"
+                    },
+                    "190852": {
+                        "DPA_DESPAR": "SAN FRANCISCO DEL VERGEL"
+                    },
+                    "190853": {
+                        "DPA_DESPAR": "VALLADOLID"
+                    },
+                    "190854": {
+                        "DPA_DESPAR": "LA CANELA"
+                    }
+                }
+            },
+            "1909": {
+                "DPA_DESCAN": "PAQUISHA",
+                "parroquias": {
+                    "190950": {
+                        "DPA_DESPAR": "PAQUISHA"
+                    },
+                    "190951": {
+                        "DPA_DESPAR": "BELLAVISTA"
+                    },
+                    "190952": {
+                        "DPA_DESPAR": "NUEVO QUITO"
+                    }
+                }
+            }
+        }
+    },
+    "20": {
+        "DPA_DESPRO": "GALÁPAGOS",
+        "cantones": {
+            "2001": {
+                "DPA_DESCAN": "SAN CRISTÓBAL",
+                "parroquias": {
+                    "200150": {
+                        "DPA_DESPAR": "PUERTO BAQUERIZO MORENO"
+                    },
+                    "200151": {
+                        "DPA_DESPAR": "EL PROGRESO"
+                    },
+                    "200152": {
+                        "DPA_DESPAR": "ISLA SANTA MARÍA FLOREANA"
+                    }
+                }
+            },
+            "2002": {
+                "DPA_DESCAN": "ISABELA",
+                "parroquias": {
+                    "200250": {
+                        "DPA_DESPAR": "PUERTO VILLAMIL"
+                    },
+                    "200251": {
+                        "DPA_DESPAR": "TOMÁS DE BERLANGA"
+                    }
+                }
+            },
+            "2003": {
+                "DPA_DESCAN": "SANTA CRUZ",
+                "parroquias": {
+                    "200350": {
+                        "DPA_DESPAR": "PUERTO AYORA"
+                    },
+                    "200351": {
+                        "DPA_DESPAR": "BELLA VISTA"
+                    },
+                    "200352": {
+                        "DPA_DESPAR": "SANTA ROSA"
+                    }
+                }
+            }
+        }
+    },
+    "21": {
+        "DPA_DESPRO": "SUCUMBÍOS",
+        "cantones": {
+            "2101": {
+                "DPA_DESCAN": "LAGO AGRIO",
+                "parroquias": {
+                    "210150": {
+                        "DPA_DESPAR": "NUEVA LOJA"
+                    },
+                    "210152": {
+                        "DPA_DESPAR": "DURENO"
+                    },
+                    "210153": {
+                        "DPA_DESPAR": "GENERAL FARFÁN"
+                    },
+                    "210155": {
+                        "DPA_DESPAR": "EL ENO"
+                    },
+                    "210156": {
+                        "DPA_DESPAR": "PACAYACU"
+                    },
+                    "210157": {
+                        "DPA_DESPAR": "JAMBELÍ"
+                    },
+                    "210158": {
+                        "DPA_DESPAR": "SANTA CECILIA"
+                    },
+                    "210160": {
+                        "DPA_DESPAR": "10 DE AGOSTO"
+                    }
+                }
+            },
+            "2102": {
+                "DPA_DESCAN": "GONZALO PIZARRO",
+                "parroquias": {
+                    "210250": {
+                        "DPA_DESPAR": "LUMBAQUÍ"
+                    },
+                    "210251": {
+                        "DPA_DESPAR": "EL REVENTADOR"
+                    },
+                    "210252": {
+                        "DPA_DESPAR": "GONZALO PIZARRO"
+                    },
+                    "210254": {
+                        "DPA_DESPAR": "PUERTO LIBRE"
+                    }
+                }
+            },
+            "2103": {
+                "DPA_DESCAN": "PUTUMAYO",
+                "parroquias": {
+                    "210350": {
+                        "DPA_DESPAR": "PUERTO EL CARMEN DE PUTUMAYO"
+                    },
+                    "210351": {
+                        "DPA_DESPAR": "PALMA ROJA"
+                    },
+                    "210352": {
+                        "DPA_DESPAR": "PUERTO BOLÍVAR"
+                    },
+                    "210353": {
+                        "DPA_DESPAR": "PUERTO RODRÍGUEZ"
+                    },
+                    "210354": {
+                        "DPA_DESPAR": "SANTA ELENA"
+                    },
+                    "210355": {
+                        "DPA_DESPAR": "SANSAHUARI"
+                    }
+                }
+            },
+            "2104": {
+                "DPA_DESCAN": "SHUSHUFINDI",
+                "parroquias": {
+                    "210450": {
+                        "DPA_DESPAR": "SHUSHUFINDI"
+                    },
+                    "210451": {
+                        "DPA_DESPAR": "LIMONCOCHA"
+                    },
+                    "210452": {
+                        "DPA_DESPAR": "PAÑACOCHA"
+                    },
+                    "210453": {
+                        "DPA_DESPAR": "SAN ROQUE"
+                    },
+                    "210454": {
+                        "DPA_DESPAR": "SAN PEDRO DE LOS COFÁNES"
+                    },
+                    "210455": {
+                        "DPA_DESPAR": "SIETE DE JULIO"
+                    },
+                    "210456": {
+                        "DPA_DESPAR": "LA MAGDALENA"
+                    },
+                    "210457": {
+                        "DPA_DESPAR": "LA PRIMAVERA"
+                    }
+                }
+            },
+            "2105": {
+                "DPA_DESCAN": "SUCUMBÍOS",
+                "parroquias": {
+                    "210550": {
+                        "DPA_DESPAR": "LA BONITA"
+                    },
+                    "210551": {
+                        "DPA_DESPAR": "EL PLAYÓN DE SAN FRANCISCO"
+                    },
+                    "210552": {
+                        "DPA_DESPAR": "LA SOFÍA"
+                    },
+                    "210553": {
+                        "DPA_DESPAR": "ROSA FLORIDA"
+                    },
+                    "210554": {
+                        "DPA_DESPAR": "SANTA BÁRBARA"
+                    }
+                }
+            },
+            "2106": {
+                "DPA_DESCAN": "CASCALES",
+                "parroquias": {
+                    "210650": {
+                        "DPA_DESPAR": "EL DORADO DE CASCALES"
+                    },
+                    "210651": {
+                        "DPA_DESPAR": "SANTA ROSA DE SUCUMBÍOS"
+                    },
+                    "210652": {
+                        "DPA_DESPAR": "SEVILLA"
+                    },
+                    "210653": {
+                        "DPA_DESPAR": "NUEVA TRONCAL"
+                    }
+                }
+            },
+            "2107": {
+                "DPA_DESCAN": "CUYABENO",
+                "parroquias": {
+                    "210750": {
+                        "DPA_DESPAR": "TARAPOA"
+                    },
+                    "210751": {
+                        "DPA_DESPAR": "CUYABENO"
+                    },
+                    "210752": {
+                        "DPA_DESPAR": "AGUAS NEGRAS"
+                    }
+                }
+            }
+        }
+    },
+    "22": {
+        "DPA_DESPRO": "ORELLANA",
+        "cantones": {
+            "2201": {
+                "DPA_DESCAN": "FRANCISCO DE ORELLANA",
+                "parroquias": {
+                    "220150": {
+                        "DPA_DESPAR": "EL COCA"
+                    },
+                    "220151": {
+                        "DPA_DESPAR": "DAYUMA"
+                    },
+                    "220152": {
+                        "DPA_DESPAR": "TARACOA"
+                    },
+                    "220153": {
+                        "DPA_DESPAR": "ALEJANDRO LABAKA"
+                    },
+                    "220154": {
+                        "DPA_DESPAR": "EL DORADO"
+                    },
+                    "220155": {
+                        "DPA_DESPAR": "EL EDÉN"
+                    },
+                    "220156": {
+                        "DPA_DESPAR": "GARCÍA MORENO"
+                    },
+                    "220157": {
+                        "DPA_DESPAR": "INÉS ARANGO"
+                    },
+                    "220158": {
+                        "DPA_DESPAR": "LA BELLEZA"
+                    },
+                    "220159": {
+                        "DPA_DESPAR": "NUEVO PARAÍSO"
+                    },
+                    "220160": {
+                        "DPA_DESPAR": "SAN JOSÉ DE GUAYUSA"
+                    },
+                    "220161": {
+                        "DPA_DESPAR": "SAN LUIS DE ARMENIA"
+                    }
+                }
+            },
+            "2202": {
+                "DPA_DESCAN": "AGUARICO",
+                "parroquias": {
+                    "220250": {
+                        "DPA_DESPAR": "NUEVO ROCAFUERTE"
+                    },
+                    "220251": {
+                        "DPA_DESPAR": "CAPITÁN AUGUSTO RIVADENEYRA"
+                    },
+                    "220252": {
+                        "DPA_DESPAR": "CONONACO"
+                    },
+                    "220253": {
+                        "DPA_DESPAR": "SANTA MARÍA DE HUIRIRIMA"
+                    },
+                    "220255": {
+                        "DPA_DESPAR": "YASUNÍ"
+                    }
+                }
+            },
+            "2203": {
+                "DPA_DESCAN": "LA JOYA DE LOS SACHAS",
+                "parroquias": {
+                    "220350": {
+                        "DPA_DESPAR": "LA JOYA DE LOS SACHAS"
+                    },
+                    "220351": {
+                        "DPA_DESPAR": "ENOKANQUI"
+                    },
+                    "220352": {
+                        "DPA_DESPAR": "POMPEYA"
+                    },
+                    "220353": {
+                        "DPA_DESPAR": "SAN CARLOS"
+                    },
+                    "220354": {
+                        "DPA_DESPAR": "SAN SEBASTIÁN DEL COCA"
+                    },
+                    "220355": {
+                        "DPA_DESPAR": "LAGO SAN PEDRO"
+                    },
+                    "220356": {
+                        "DPA_DESPAR": "RUMIPAMBA"
+                    },
+                    "220357": {
+                        "DPA_DESPAR": "TRES DE NOVIEMBRE"
+                    },
+                    "220358": {
+                        "DPA_DESPAR": "UNIÓN MILAGREÑA"
+                    }
+                }
+            },
+            "2204": {
+                "DPA_DESCAN": "LORETO",
+                "parroquias": {
+                    "220450": {
+                        "DPA_DESPAR": "LORETO"
+                    },
+                    "220451": {
+                        "DPA_DESPAR": "ÁVILA"
+                    },
+                    "220452": {
+                        "DPA_DESPAR": "PUERTO MURIALDO"
+                    },
+                    "220453": {
+                        "DPA_DESPAR": "SAN JOSÉ DE PAYAMINO"
+                    },
+                    "220454": {
+                        "DPA_DESPAR": "SAN JOSÉ DE DAHUANO"
+                    },
+                    "220455": {
+                        "DPA_DESPAR": "SAN VICENTE DE HUATICOCHA"
+                    }
+                }
+            }
+        }
+    },
+    "23": {
+        "DPA_DESPRO": "SANTO DOMINGO DE LOS TSÁCHILAS",
+        "cantones": {
+            "2301": {
+                "DPA_DESCAN": "SANTO DOMINGO",
+                "parroquias": {
+                    "230150": {
+                        "DPA_DESPAR": "SANTO DOMINGO DE LOS COLORADOS"
+                    },
+                    "230151": {
+                        "DPA_DESPAR": "ALLURIQUÍN"
+                    },
+                    "230152": {
+                        "DPA_DESPAR": "PUERTO LIMÓN"
+                    },
+                    "230153": {
+                        "DPA_DESPAR": "LUZ DE AMÉRICA"
+                    },
+                    "230154": {
+                        "DPA_DESPAR": "SAN JACINTO DEL BÚA"
+                    },
+                    "230155": {
+                        "DPA_DESPAR": "VALLE HERMOSO"
+                    },
+                    "230156": {
+                        "DPA_DESPAR": "EL ESFUERZO"
+                    },
+                    "230157": {
+                        "DPA_DESPAR": "SANTA MARÍA DEL TOACHI"
+                    }
+                }
+            },
+            "2302": {
+                "DPA_DESCAN": "LA CONCORDIA",
+                "parroquias": {
+                    "230250": {
+                        "DPA_DESPAR": "LA CONCORDIA"
+                    },
+                    "230251": {
+                        "DPA_DESPAR": "MONTERREY"
+                    },
+                    "230252": {
+                        "DPA_DESPAR": "LA VILLEGAS"
+                    },
+                    "230253": {
+                        "DPA_DESPAR": "PLAN PILOTO"
+                    }
+                }
+            }
+        }
+    },
+    "24": {
+        "DPA_DESPRO": "SANTA ELENA",
+        "cantones": {
+            "2401": {
+                "DPA_DESCAN": "SANTA ELENA",
+                "parroquias": {
+                    "240150": {
+                        "DPA_DESPAR": "SANTA ELENA"
+                    },
+                    "240151": {
+                        "DPA_DESPAR": "ATAHUALPA"
+                    },
+                    "240152": {
+                        "DPA_DESPAR": "COLONCHE"
+                    },
+                    "240153": {
+                        "DPA_DESPAR": "CHANDUY"
+                    },
+                    "240154": {
+                        "DPA_DESPAR": "MANGLARALTO"
+                    },
+                    "240155": {
+                        "DPA_DESPAR": "SIMÓN BOLÍVAR"
+                    },
+                    "240156": {
+                        "DPA_DESPAR": "SAN JOSÉ DE ANCÓN"
+                    }
+                }
+            },
+            "2402": {
+                "DPA_DESCAN": "LA LIBERTAD",
+                "parroquias": {
+                    "240250": {
+                        "DPA_DESPAR": "LA LIBERTAD"
+                    }
+                }
+            },
+            "2403": {
+                "DPA_DESCAN": "SALINAS",
+                "parroquias": {
+                    "240350": {
+                        "DPA_DESPAR": "SALINAS"
+                    },
+                    "240351": {
+                        "DPA_DESPAR": "ANCONCITO"
+                    },
+                    "240352": {
+                        "DPA_DESPAR": "JOSÉ LUIS TAMAYO"
+                    }
+                }
+            }
+        }
+    },
+    "90": {
+        "DPA_DESPRO": "ZONA EN ESTUDIO: JUVAL (CAÑAR-CHIMBORAZO)",
+        "cantones": {
+            "9006": {
+                "DPA_DESCAN": "ZONA EN ESTUDIO: JUVAL (CAÑAR-CHIMBORAZO)",
+                "parroquias": {
+                    "900651": {
+                        "DPA_DESPAR": "ZONA EN ESTUDIO: JUVAL (CAÑAR-CHIMBORAZO)"
+                    }
+                }
+            }
+        }
+    },
+    "ISLA": {
+        "DPA_DESPRO": "ISLA",
+        "cantones": {
+            "ISLA": {
+                "DPA_DESCAN": "ISLA",
+                "parroquias": {
+                    "ISLA": {
+                        "DPA_DESPAR": "ISLA"
+                    }
+                }
+            }
+        }
+    }
+}
