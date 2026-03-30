@@ -1085,15 +1085,49 @@ if btn:
             # ga.index == grp.index == índices originales de df_w → update correcto
             df_w.update(ga[['encuestador','dia_operativo','dia_inicio','dia_fin']])
 
-    # Fase GYE
+    # Fase GYE — clustering geográfico (v5.1: reemplaza round-robin)
+    # Agrupa UPMs de GYE en clusters por cercanía geográfica (barrios),
+    # para que cada equipo cubra un sector distinto en vez de que todos
+    # vayan al mismo barrio en días diferentes.
     if act_gye and len(df_gye)>0:
-        for i,(idx,row) in enumerate(df_gye.sort_values('carga_pond',ascending=False).iterrows()):
-            eq_a=nombres[i%n_eq]
-            enc_a=(i//n_eq)%enc_dict.get(eq_a,3)+1
-            dia_a=min((i//(n_eq*enc_dict.get(eq_a,3)))+1,p["dias_gye"])
-            df_w.loc[idx,['equipo','jornada','encuestador',
-                          'dia_operativo','dia_inicio','dia_fin']]=\
-                [eq_a,'Jornada 1',enc_a,dia_a,dia_a,dia_a]
+        n_gye_clusters = min(n_eq, len(df_gye))  # un cluster por equipo
+        if n_gye_clusters >= 2 and len(df_gye) >= n_gye_clusters:
+            labels_gye, _, _, _ = clustering_balanceado(
+                df_gye, n_clusters=n_gye_clusters,
+                cv_objetivo=0.15, max_iter=200, k_vecinos=6)
+            df_gye['cluster_gye'] = labels_gye
+
+            # Asignar cada cluster GYE a un equipo distinto
+            for c_id in range(n_gye_clusters):
+                eq_a = nombres[c_id % n_eq]
+                mask_c = df_gye['cluster_gye'] == c_id
+                grp_gye = df_gye[mask_c].copy()
+                if len(grp_gye) == 0:
+                    continue
+
+                n_enc_eq = enc_dict.get(eq_a, 3)
+                dias_gye = p["dias_gye"]
+
+                grp_gye['equipo'] = eq_a
+                grp_gye['jornada'] = 'Jornada 1'
+
+                # Asignar encuestadores y días dentro de los días GYE
+                ga_gye = asignar_encuestadores_y_dias(
+                    grp_gye, n_enc_eq, dias_gye,
+                    p["viv_min"], p["viv_max"], inicio_dia=1)
+                df_w.update(ga_gye[['equipo', 'jornada', 'encuestador',
+                                     'dia_operativo', 'dia_inicio', 'dia_fin']])
+        else:
+            # Caso borde: muy pocas UPMs en GYE, asignar al equipo más cercano
+            eq_a = nombres[0]
+            df_gye['equipo'] = eq_a
+            df_gye['jornada'] = 'Jornada 1'
+            n_enc_eq = enc_dict.get(eq_a, 3)
+            ga_gye = asignar_encuestadores_y_dias(
+                df_gye, n_enc_eq, p["dias_gye"],
+                p["viv_min"], p["viv_max"], inicio_dia=1)
+            df_w.update(ga_gye[['equipo', 'jornada', 'encuestador',
+                                 'dia_operativo', 'dia_inicio', 'dia_fin']])
 
     # 5. TSP
     prog.progress(52,"Optimizando rutas TSP...")
