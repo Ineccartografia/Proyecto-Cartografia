@@ -350,27 +350,13 @@ def cargar_gpkg(path, dissolve_upm=True):
 
 def clustering_balanceado(df, n_clusters, cv_objetivo=0.10, max_iter=300, k_vecinos=8):
     """
-    Clustering en dos fases para balancear suma de viviendas ponderadas.
+    Clustering geográfico balanceado con RESTRICCIÓN DE DISTANCIA (v6).
 
-    FASE 1 — KMeans geográfico: semillas geográficamente coherentes.
-
-    FASE 2 — Post-balance iterativo con DOS modos de swap:
-
-    MODO FRONTERA (preferido):
-      Mueve UPMs en la frontera entre clusters (detectadas por k-NN).
-      Preserva cohesión geográfica.
-
-    MODO GLOBAL (fallback cuando frontera se atasca ≥3 iteraciones):
-      Mueve UPMs del cluster más pesado al cluster liviano más cercano
-      geográficamente. Permite balancear zonas no adyacentes.
-
-    CRITERIO DE PARADA MEJORADO (v5):
-      Se detiene cuando:
-        a) CV ≤ cv_objetivo  (objetivo alcanzado), O
-        b) El CV no mejora más de 0.1 pp en las últimas 10 iteraciones
-           (plateau: equilibrio estable aunque no óptimo), O
-        c) max_iter alcanzado.
-      Esto evita que el algoritmo siga iterando sin producir mejoras reales.
+    FASE 1 — KMeans geográfico.
+    FASE 2 — Rebalanceo iterativo con límite de deformación:
+      Antes de aceptar un swap, verifica que el punto movido no quede
+      a más de 2× el radio actual del cluster destino. Esto evita
+      clusters "estirados" con puntos en provincias lejanas.
     """
     coords = df[['x','y']].values.astype(float)
     cargas = df['carga_pond'].values.astype(float)
@@ -427,8 +413,20 @@ def clustering_balanceado(df, n_clusters, cv_objetivo=0.10, max_iter=300, k_veci
                     mask_p = np.where(labels==ci_p)[0]
                     if len(mask_p)==0: continue
                     mejor_cv,mejor_idx = cv,-1
+                    # Radio máximo del cluster destino (2× radio actual)
+                    pts_l = coords[labels==ci_l]
+                    if len(pts_l) > 0:
+                        cent_l = pts_l.mean(axis=0)
+                        radio_l = np.max(np.linalg.norm(pts_l - cent_l, axis=1)) if len(pts_l)>1 else 50000
+                        max_dist_l = max(radio_l * 2.0, 30000)  # mín 30km
+                    else:
+                        cent_l = np.zeros(2); max_dist_l = 1e12
+
                     for idx in mask_p:
                         if not any(labels[v]==ci_l for v in nbr[idx] if v!=idx): continue
+                        # Rechazar si queda demasiado lejos del cluster destino
+                        dist_to_dest = np.linalg.norm(coords[idx] - cent_l)
+                        if dist_to_dest > max_dist_l: continue
                         labels[idx]=ci_l
                         cv_n=cv_pct(pd.Series(cluster_sums()))
                         labels[idx]=ci_p
@@ -450,7 +448,15 @@ def clustering_balanceado(df, n_clusters, cv_objetivo=0.10, max_iter=300, k_veci
                 if ci_p==ci_l or len(mask_p)==0: continue
                 dists = np.linalg.norm(coords[mask_p]-cents[ci_l],axis=1)
                 cands = mask_p[np.argsort(dists)[:10]]
+                # Radio del cluster destino
+                pts_dest = coords[labels==ci_l]
+                cent_dest = pts_dest.mean(axis=0) if len(pts_dest)>0 else np.zeros(2)
+                radio_dest = np.max(np.linalg.norm(pts_dest - cent_dest, axis=1)) if len(pts_dest)>1 else 50000
+                max_dist_dest = max(radio_dest * 2.0, 30000)
+
                 for idx in cands:
+                    # Rechazar si queda muy lejos
+                    if np.linalg.norm(coords[idx] - cent_dest) > max_dist_dest: continue
                     labels[idx]=ci_l
                     cv_n=cv_pct(pd.Series(cluster_sums()))
                     labels[idx]=ci_p
@@ -577,7 +583,6 @@ def asignar_encuestadores_y_dias(df_grp, n_enc, dias_tot, viv_min, viv_max,
 # ══════════════════════════════════════════════════════════════════════════════
 
 ESTADO_OK  = "✅ Planificada"
-ESTADO_MV  = "🔀 Trasladada"
 ESTADO_CAN = "❌ Cancelada"
 
 def construir_calendario_jornadas(total_meses, mes_inicio_cal, config_jornadas):
@@ -974,14 +979,14 @@ with st.sidebar:
         st.divider()
         st.markdown("**Parámetros operativos**")
         p=st.session_state.params
-        p["dias_op"] =st.slider("Días operativos",10,14,p["dias_op"])
-        p["viv_min"] =st.slider("Mín viv/día",30,60,p["viv_min"])
-        p["viv_max"] =st.slider("Máx viv/día",60,120,p["viv_max"])
-        p["factor_r"]=st.slider("Factor rural (×)",1.0,2.5,p["factor_r"],0.1)
+        p["dias_op"] =st.slider("Días operativos",10,14,p["dias_op"],help="Días hábiles por jornada (mitad de mes)")
+        p["viv_min"] =st.slider("Mín viv/día",30,60,p["viv_min"],help="Mínimo de viviendas por encuestador por día")
+        p["viv_max"] =st.slider("Máx viv/día",60,120,p["viv_max"],help="Máximo de viviendas por encuestador por día")
+        p["factor_r"]=st.slider("Factor rural (×)",1.0,2.5,p["factor_r"],0.1,help="Multiplicador de carga para zonas dispersas/rurales (más tiempo por vivienda)")
         st.markdown("**Rebalanceo clusters**")
-        p["cv_objetivo"] =st.slider("CV objetivo (%)",3,25,p.get("cv_objetivo",10))
-        p["max_iter_bal"]=st.slider("Iter. máx.",50,500,p.get("max_iter_bal",300),step=50)
-        p["k_vecinos"]   =st.slider("Vecinos frontera (k)",4,20,p.get("k_vecinos",8))
+        p["cv_objetivo"] =st.slider("CV objetivo (%)",3,25,p.get("cv_objetivo",10),help="Coeficiente de variación objetivo entre equipos. Menor = más equilibrado pero clusters más deformados")
+        p["max_iter_bal"]=st.slider("Iter. máx.",50,500,p.get("max_iter_bal",300),step=50,help="Iteraciones máximas del algoritmo de rebalanceo")
+        p["k_vecinos"]   =st.slider("Vecinos frontera (k)",4,20,p.get("k_vecinos",8),help="Número de vecinos geográficos para detectar fronteras entre clusters. Mayor = swaps más suaves")
         p["usar_bomb"]=st.toggle("Equipo Bombero",value=p["usar_bomb"])
         if p["usar_bomb"]:
             p["min_dist_bomb_m"]=st.slider("Dist. mín. Bombero (km)",10,150,
@@ -1341,7 +1346,7 @@ if btn:
     st.session_state.tsp_results=all_tsp_r; st.session_state.road_paths=all_road_p
     st.session_state.resumen_bal=resumen_bal
     st.session_state.resultados_generados=True
-    st.success(f"✓ Planificación generada: {len(meses_a_planificar)} mes(es), {len(df_plan_final)} UPMs.")
+    st.success(f"✓ Planificación generada: {len(meses_a_plan)} mes(es), {len(df_plan_final)} UPMs.")
 
 
 
@@ -1428,7 +1433,9 @@ with tab_mapa:
             ).add_to(m)
         if mrts:
             for clave,coords in road_p_view.items():
-                eq,jor=clave.split('||')
+                parts=clave.split('||')
+                eq=parts[-2] if len(parts)>=3 else parts[0]
+                jor=parts[-1] if len(parts)>=2 else ''
                 if jor=='Jornada 1' and not mj1: continue
                 if jor=='Jornada 2' and not mj2: continue
                 if len(coords)>1:
@@ -1612,15 +1619,15 @@ with tab_analisis:
             .sort_values('dist_base_m',ascending=False).reset_index(drop=True),
             use_container_width=True,height=200)
 
-# ══ TAB 3 — PLANIFICACIÓN DE JORNADAS (NUEVO v5) ══════════════════════════════
+# ══ TAB 3 — PLANIFICACIÓN DE JORNADAS ══════════════════════════════
 with tab_plan:
     st.markdown("<div class='stitle'>Calendario de Jornadas del Operativo</div>",
                 unsafe_allow_html=True)
     st.markdown("""<div class='ibox'>
-    Configura el estado de cada jornada. Si una jornada se <b>traslada</b>, el sistema
-    detecta automáticamente si en el mes receptor habrá <b>3 jornadas</b> activas
-    (la trasladada + las 2 propias) y lo señala en el calendario.<br>
-    Las fechas de inicio que ingreses aquí se usarán en el Excel.
+    Cuando una jornada se <b>cancela</b>, todas las jornadas posteriores
+    se desplazan automáticamente una posición. Si el desplazamiento excede
+    el último mes, aparece un período adicional al final del cronograma.<br>
+    Las fechas de inicio se usarán en el Excel.
     </div>""",unsafe_allow_html=True)
 
     mes_ini_cal=st.session_state.mes_inicio_cal
@@ -1638,83 +1645,53 @@ with tab_plan:
         all_jornadas.append({'jn':j1_n_,'mes':mes,'mes_nombre':mes_n_,'mitad':1})
         all_jornadas.append({'jn':j2_n_,'mes':mes,'mes_nombre':mes_n_,'mitad':2})
 
-    # Detectar colisiones (mes que recibe jornada trasladada → 3 jornadas)
-    trasladadas_a={}   # {mes_destino: [jn trasladada, ...]}
-    for jinfo in all_jornadas:
-        jn=jinfo['jn']
-        estado=cfg_j.get(jn,{}).get('estado',ESTADO_OK)
-        tr_a=cfg_j.get(jn,{}).get('trasladada_a',None)
-        if estado==ESTADO_MV and tr_a:
-            trasladadas_a.setdefault(tr_a,[]).append(jn)
-
     st.markdown(f"**{len(all_jornadas)} jornadas en {total_meses_op} meses operativos**")
+
+    # Mostrar cascada resultante de cancelaciones
+    slots_originales = [j['jn'] for j in all_jornadas]
+    contenidos_activos = [jn for jn in slots_originales if cfg_j.get(jn,{}).get('estado',ESTADO_OK)!=ESTADO_CAN]
+    n_canceladas_tab = len(slots_originales) - len(contenidos_activos)
+
+    if n_canceladas_tab > 0:
+        st.markdown(f"<div class='wbox'>⚠️ <b>{n_canceladas_tab} jornada(s) cancelada(s)</b> → "
+                    f"el cronograma se desplaza {n_canceladas_tab} slot(s). "
+                    f"Se necesitan {n_canceladas_tab} slot(s) adicional(es) al final.</div>",
+                    unsafe_allow_html=True)
 
     for mes in meses_todos:
         j1_n_,j2_n_,mes_n_=jornada_num_desde_mes(int(mes),mes_ini_cal)
-        # ¿Hay jornadas trasladadas a este mes?
-        js_extra=trasladadas_a.get(int(mes),[])
-        n_total_mes=2+len(js_extra)
-        alerta_3=""
-        if n_total_mes>=3:
-            alerta_3=f" ⚠️ **{n_total_mes} jornadas** en este mes (incluye traslado)"
 
-        with st.expander(f"📅 Mes {int(mes)} — {mes_n_} · J{j1_n_} + J{j2_n_}{alerta_3}",
+        with st.expander(f"📅 Mes {int(mes)} — {mes_n_} · J{j1_n_} + J{j2_n_}",
                          expanded=(int(mes)==int(df['mes'].iloc[0]))):
-            if js_extra:
-                for jn_extra in js_extra:
-                    st.markdown(f"<div class='jplan-mv'>🔀 Jornada {jn_extra} trasladada a este mes</div>",
-                                unsafe_allow_html=True)
             for j_n_iter in [j1_n_,j2_n_]:
                 st.markdown(f"**Jornada {j_n_iter}** (mitad {'1ª' if j_n_iter==j1_n_ else '2ª'})")
                 cfg_this=cfg_j.get(j_n_iter,{})
-                col_e,col_f,col_t=st.columns([2,2,2])
+                col_e,col_f=st.columns([1,1])
                 with col_e:
                     estado_sel=st.selectbox(
                         "Estado",
-                        [ESTADO_OK,ESTADO_MV,ESTADO_CAN],
-                        index=[ESTADO_OK,ESTADO_MV,ESTADO_CAN].index(
-                            cfg_this.get('estado',ESTADO_OK)),
+                        [ESTADO_OK,ESTADO_CAN],
+                        index=[ESTADO_OK,ESTADO_CAN].index(
+                            cfg_this.get('estado',ESTADO_OK) if cfg_this.get('estado',ESTADO_OK) in [ESTADO_OK,ESTADO_CAN] else ESTADO_OK),
                         key=f"est_{j_n_iter}")
                 with col_f:
                     fecha_sel=st.date_input(
                         "Fecha de inicio",
                         value=cfg_this.get('fecha',None) or date.today(),
-                        key=f"fec_{j_n_iter}")
-                with col_t:
-                    if estado_sel==ESTADO_MV:
-                        # Seleccionar mes destino del traslado
-                        meses_destino=[m for m in meses_todos if int(m)!=int(mes)]
-                        tr_default=cfg_this.get('trasladada_a',
-                                                 int(meses_destino[0]) if meses_destino else None)
-                        tr_idx=0
-                        if tr_default and tr_default in [int(m) for m in meses_destino]:
-                            tr_idx=[int(m) for m in meses_destino].index(tr_default)
-                        tr_mes=st.selectbox(
-                            "Trasladar a mes",
-                            [int(m) for m in meses_destino],
-                            index=tr_idx,
-                            format_func=lambda x: f"Mes {x} — {jornada_num_desde_mes(x,mes_ini_cal)[2]}",
-                            key=f"tr_{j_n_iter}")
-                    else:
-                        tr_mes=None
-                        st.markdown("<div style='height:38px'></div>",unsafe_allow_html=True)
+                        key=f"fec_{j_n_iter}",
+                        disabled=(estado_sel==ESTADO_CAN))
 
-                # Guardar
-                cfg_j[j_n_iter]={'estado':estado_sel,'fecha':fecha_sel,'trasladada_a':tr_mes}
+                cfg_j[j_n_iter]={'estado':estado_sel,'fecha':fecha_sel,'trasladada_a':None}
 
-                # Indicador visual
                 if estado_sel==ESTADO_OK:
                     st.markdown(f"<div class='jplan-ok'>✅ J{j_n_iter} — "
                                 f"inicio {fecha_sel.strftime('%d/%m/%Y')} — "
                                 f"{p['dias_op']} días → fin "
                                 f"{(fecha_sel+timedelta(days=p['dias_op']-1)).strftime('%d/%m/%Y')}"
                                 f"</div>",unsafe_allow_html=True)
-                elif estado_sel==ESTADO_MV:
-                    st.markdown(f"<div class='jplan-mv'>🔀 J{j_n_iter} trasladada → "
-                                f"Mes {tr_mes} · se encuestará en ese período</div>",
-                                unsafe_allow_html=True)
                 else:
-                    st.markdown(f"<div class='jplan-can'>❌ J{j_n_iter} cancelada</div>",
+                    st.markdown(f"<div class='jplan-can'>❌ J{j_n_iter} cancelada → "
+                                f"se desplaza a la siguiente jornada</div>",
                                 unsafe_allow_html=True)
 
     st.session_state.config_jornadas=cfg_j
