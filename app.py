@@ -966,6 +966,7 @@ _defs = {
     # Nuevo v5
     "mes_inicio_cal": 7,            # Julio por defecto
     "config_jornadas": {},          # {jornada_num: {estado, fecha, trasladada_a}}
+    "catalogo_df": None, "catalogo_lookup": {}, "catalogo_cols": {},
     "params":{
         "dias_op":12,"viv_min":40,"viv_max":70,"factor_r":1.8,
         "usar_bomb":False,"usar_gye":True,"dias_gye":3,"umbral_gye":5,
