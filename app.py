@@ -1702,6 +1702,35 @@ with tab_reporte:
     corresponde al número real del cronograma INEC.
     </div>""",unsafe_allow_html=True)
 
+    # ── Catálogo territorial ──────────────────
+    st.markdown("<div class='stitle'>Catálogo territorial para completar el Excel</div>",
+                unsafe_allow_html=True)
+    st.markdown("""<div class='ibox'>
+    Sube el Excel o CSV con la organización territorial del Ecuador. La app usa
+    ese catálogo para completar provincia, cantón, parroquia y códigos auxiliares
+    en el reporte final.
+    </div>""", unsafe_allow_html=True)
+
+    cat_file = st.file_uploader(
+        "Catálogo territorial (.xlsx, .xls o .csv)",
+        type=["xlsx", "xls", "csv"],
+        key="catalogo_territorial_up"
+    )
+    if cat_file is not None:
+        try:
+            df_cat = cargar_catalogo_territorial(cat_file)
+            lookup_cat, cols_cat = preparar_lookup_territorial(df_cat)
+            st.session_state.catalogo_df = df_cat
+            st.session_state.catalogo_lookup = lookup_cat
+            st.session_state.catalogo_cols = cols_cat
+            st.success(f"✓ Catálogo cargado: {len(df_cat):,} filas")
+        except Exception as e:
+            st.error(f"No se pudo leer el catálogo territorial: {e}")
+
+    if st.session_state.catalogo_df is not None:
+        cols_detectadas = {k: v for k, v in st.session_state.catalogo_cols.items() if v}
+        st.caption(f"Columnas detectadas: {cols_detectadas}")
+
     # Personal por equipo
     st.markdown("<div class='stitle'>Personal por equipo</div>",unsafe_allow_html=True)
     for eq in eq_cfg:
