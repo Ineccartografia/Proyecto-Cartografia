@@ -60,7 +60,7 @@ from openpyxl.utils import get_column_letter
 warnings.filterwarnings('ignore')
 
 # ── PAGE CONFIG ───────────────────────────────
-st.set_page_config(page_title="ENDI · Planificación",
+st.set_page_config(page_title="Planificación",
                    page_icon="🗺️", layout="wide",
                    initial_sidebar_state="expanded")
 
@@ -732,7 +732,7 @@ def generar_excel(df_plan, eq_cfg, personal_info,
 
             for txt in ["INSTITUTO NACIONAL DE ESTADÍSTICA Y CENSOS",
                         "COORDINACIÓN ZONAL LITORAL CZ8L",
-                        "ACTUALIZACIÓN CARTOGRÁFICA - ENDI ENLISTAMIENTO",
+                        "ACTUALIZACIÓN CARTOGRÁFICA - ENLISTAMIENTO",
                         "PROGRAMACIÓN OPERATIVO DE CAMPO"]:
                 merge_row(cur,1,last_col,txt,bold=True,bg=AZ_OSCURO,fg=BLANCO,ha="center",sz=9)
                 cur+=1
