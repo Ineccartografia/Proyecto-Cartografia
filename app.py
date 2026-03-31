@@ -544,199 +544,298 @@ def construir_calendario_jornadas(total_meses, mes_inicio_cal, config_jornadas):
 # ══════════════════════════════════════════════════════════════════════════════
 
 def generar_excel(df_plan, eq_cfg, personal_info,
-                  jornadas_activas, dias_op):
+                  fecha_j1, fecha_j2, dias_op, j1_num, j2_num, mes_nombre,
+                  catalogo_lookup=None):
     """
-    Genera Excel con una hoja por jornada activa.
-    jornadas_activas: lista de dicts {'jornada_num', 'jornada_nombre', 'fecha'}
+    Genera Excel con dos hojas (una por jornada), cada una con su número
+    de jornada correcto (j1_num, j2_num) y su fecha de inicio independiente.
     """
+    catalogo_lookup = catalogo_lookup or {}
     wb = openpyxl.Workbook()
     wb.remove(wb.active)
 
-    AZ_OSCURO="0D3B6E"; AZ_MEDIO="1A5276"; AZ_CLARO="D6EAF8"
-    VRD_CHECK="D5F5E3"; BLANCO="FFFFFF"
+    # ── Estilos ──
+    AZ_OSCURO = "E2E8F0"; AZ_MEDIO="F8FAFC"; AZ_CLARO="FFFFFF"
+    VRD_CHECK  = "DCFCE7"; GRIS="F8FAFC"; BLANCO="0F172A"
+    # Paletas de color por encuestador (rotativas)
+    # Cada encuestador tiene su propia familia de colores para identificarlo visualmente
     ENC_PALETAS = [
-        {"par":"DBEAFE","impar":"EFF6FF","subtot":"BFDBFE","hdr":"1D4ED8"},
-        {"par":"D1FAE5","impar":"ECFDF5","subtot":"A7F3D0","hdr":"065F46"},
-        {"par":"FEF9C3","impar":"FEFCE8","subtot":"FDE68A","hdr":"854D0E"},
-        {"par":"FCE7F3","impar":"FDF4FF","subtot":"F9A8D4","hdr":"831843"},
-        {"par":"FFE4E6","impar":"FFF1F2","subtot":"FECACA","hdr":"9F1239"},
-        {"par":"E0E7FF","impar":"EEF2FF","subtot":"C7D2FE","hdr":"3730A3"},
+        {"par": "DBEAFE", "impar": "EFF6FF", "subtot": "BFDBFE", "hdr": "1D4ED8"},  # azul
+        {"par": "D1FAE5", "impar": "ECFDF5", "subtot": "A7F3D0", "hdr": "065F46"},  # verde
+        {"par": "FEF9C3", "impar": "FEFCE8", "subtot": "FDE68A", "hdr": "854D0E"},  # amarillo
+        {"par": "FCE7F3", "impar": "FDF4FF", "subtot": "F9A8D4", "hdr": "831843"},  # rosa
+        {"par": "FFE4E6", "impar": "FFF1F2", "subtot": "FECACA", "hdr": "9F1239"},  # rojo
+        {"par": "E0E7FF", "impar": "EEF2FF", "subtot": "C7D2FE", "hdr": "3730A3"},  # índigo
     ]
 
-    def sc(cell,bold=False,bg=None,fg="000000",ha="left",sz=9,brd=False,wrap=False):
-        cell.font=Font(bold=bold,size=sz,color=fg)
-        cell.alignment=Alignment(horizontal=ha,vertical="center",wrap_text=wrap)
-        if bg: cell.fill=PatternFill("solid",fgColor=bg)
+    def sc(cell, bold=False, bg=None, fg="000000",
+           ha="left", sz=9, brd=False, wrap=False, italic=False):
+        """Shortcut para estilizar una celda."""
+        cell.font      = Font(bold=bold, size=sz, color=fg, italic=italic)
+        cell.alignment = Alignment(horizontal=ha, vertical="center", wrap_text=wrap)
+        if bg:
+            cell.fill = PatternFill("solid", fgColor=bg)
         if brd:
-            t=Side(style='thin')
-            cell.border=Border(left=t,right=t,top=t,bottom=t)
+            t = Side(style='thin')
+            cell.border = Border(left=t, right=t, top=t, bottom=t)
 
-    ct_counter=[700]
+    ct_counter = [700]  # CT global, empieza en CT700
 
-    for jinfo in jornadas_activas:
-        j_num         = jinfo['jornada_num']
-        j_nombre_hoja = jinfo['jornada_nombre']   # e.g. "Jornada 1" o "Jornada Especial"
-        fecha_inicio  = jinfo.get('fecha')
+    # Iteramos con el número de jornada REAL de cada hoja
+    # j1_num y j2_num se calculan automáticamente desde el mes seleccionado
+    for jornada_nombre, fecha_inicio, n_jornada_hoja in [
+        ("Jornada 1", fecha_j1, j1_num),
+        ("Jornada 2", fecha_j2, j2_num)
+    ]:
+        df_jor = df_plan[df_plan['jornada'] == jornada_nombre].copy()
+        if len(df_jor) == 0:
+            continue
 
-        df_jor = df_plan[df_plan['jornada']==j_nombre_hoja].copy()
-        if len(df_jor)==0: continue
+        ws = wb.create_sheet(title=jornada_nombre)
+        ws.sheet_view.showGridLines = False
 
-        ws = wb.create_sheet(title=f"J{j_num} — {j_nombre_hoja[:12]}")
-        ws.sheet_view.showGridLines=False
-
-        anchos={'A':14,'B':14,'C':8,'D':5,'E':5,'F':6,'G':6,'H':6,'I':5,
-                'J':18,'K':13,'L':10,'M':14,'N':5}
-        for col_l,w in anchos.items():
-            ws.column_dimensions[col_l].width=w
+        # Anchos de columnas fijas (A=1 … N=14)
+        anchos = {'A':14,'B':14,'C':8,'D':5,'E':5,'F':6,
+                  'G':6,'H':6,'I':5,'J':18,'K':13,'L':10,'M':14,'N':5}
+        for col_l, w in anchos.items():
+            ws.column_dimensions[col_l].width = w
+        # Columnas de fecha (O en adelante)
         for i in range(dias_op):
-            ws.column_dimensions[get_column_letter(15+i)].width=7
-        ws.column_dimensions[get_column_letter(15+dias_op)].width=6
+            ws.column_dimensions[get_column_letter(15+i)].width = 7
+        # Columna # VIV
+        ws.column_dimensions[get_column_letter(15+dias_op)].width = 6
 
-        cur=1
-        equipos_jor=[e['nombre'] for e in eq_cfg if e['nombre'] in df_jor['equipo'].values]
+        cur = 1  # fila actual
 
-        for grupo_num,nombre_eq in enumerate(equipos_jor,1):
-            df_eq=df_jor[df_jor['equipo']==nombre_eq].copy()
-            if len(df_eq)==0: continue
+        equipos_jor = [e['nombre'] for e in eq_cfg
+                       if e['nombre'] in df_jor['equipo'].values]
 
-            pi=personal_info.get(nombre_eq,{})
-            n_enc=next((e['enc'] for e in eq_cfg if e['nombre']==nombre_eq),3)
-            last_col=15+dias_op
+        for grupo_num, nombre_eq in enumerate(equipos_jor, 1):
+            df_eq = df_jor[df_jor['equipo'] == nombre_eq].copy()
+            if len(df_eq) == 0: continue
 
+            pi    = personal_info.get(nombre_eq, {})
+            n_enc = next((e['enc'] for e in eq_cfg if e['nombre']==nombre_eq), 3)
+
+            # Fechas
             if fecha_inicio:
-                fechas=[fecha_inicio+timedelta(days=i) for i in range(dias_op)]
-                fi_str=fecha_inicio.strftime("%d-%b-%y").upper()
-                ff_str=fechas[-1].strftime("%d-%b-%y").upper()
+                fechas      = [fecha_inicio + timedelta(days=i) for i in range(dias_op)]
+                fi_str      = fecha_inicio.strftime("%d-%b-%y").upper()
+                ff_str      = fechas[-1].strftime("%d-%b-%y").upper()
             else:
-                fechas=None; fi_str="____"; ff_str="____"
+                fechas      = None
+                fi_str      = "____"
+                ff_str      = "____"
 
-            def merge_row(row,c1,c2,val,**kw):
+            last_col_idx = 15 + dias_op  # columna # viv
+
+            def merge_row(row, c1, c2, val, **kw):
                 ws.merge_cells(f'{get_column_letter(c1)}{row}:{get_column_letter(c2)}{row}')
-                c=ws.cell(row,c1,val); sc(c,**kw); return c
+                c = ws.cell(row, c1, val)
+                sc(c, **kw)
+                return c
 
+            # ── Encabezado institucional ──────────────────
             for txt in ["INSTITUTO NACIONAL DE ESTADÍSTICA Y CENSOS",
                         "COORDINACIÓN ZONAL LITORAL CZ8L",
                         "ACTUALIZACIÓN CARTOGRÁFICA - ENDI ENLISTAMIENTO",
                         "PROGRAMACIÓN OPERATIVO DE CAMPO"]:
-                merge_row(cur,1,last_col,txt,bold=True,bg=AZ_OSCURO,fg=BLANCO,ha="center",sz=9)
-                cur+=1
-            cur+=1
+                merge_row(cur,1,last_col_idx,txt,bold=True,bg=AZ_OSCURO,
+                          fg=BLANCO,ha="center",sz=9)
+                cur += 1
+            cur += 1
 
-            ws.cell(cur,1,"JORNADA"); sc(ws.cell(cur,1),bold=True,sz=10)
-            ws.cell(cur,2,str(j_num)).font=Font(bold=True,size=11)
-            ws.cell(cur,7,"GRUPO"); sc(ws.cell(cur,7),bold=True,sz=10)
-            ws.cell(cur,9,str(grupo_num)).font=Font(bold=True,size=11)
-            cur+=2
+            # JORNADA / GRUPO — número de jornada real de esta hoja
+            ws.cell(cur,1,"JORNADA")
+            jorn_cell = ws.cell(cur,2,str(n_jornada_hoja))
+            jorn_cell.font = Font(bold=True,size=11)
+            ws.cell(cur,7,"GRUPO")
+            ws.cell(cur,9,str(grupo_num)).font = Font(bold=True,size=11)
+            sc(ws.cell(cur,1),bold=True,sz=10)
+            sc(ws.cell(cur,7),bold=True,sz=10)
+            cur += 2
 
-            ws.cell(cur,1,"PERÍODO DE ACTUALIZACIÓN:"); sc(ws.cell(cur,1),bold=True,sz=9)
+            # Período
+            ws.cell(cur,1,"PERÍODO DE ACTUALIZACIÓN:")
+            sc(ws.cell(cur,1),bold=True,sz=9)
             ws.cell(cur,5,"DEL"); ws.cell(cur,6,fi_str)
-            ws.cell(cur,9,"AL");  ws.cell(cur,10,ff_str)
-            cur+=2
+            ws.cell(cur,9,"AL"); ws.cell(cur,10,ff_str)
+            cur += 2
 
+            # Cabecera de personal
             for col,txt in [(3,"COD."),(4,"NOMBRE"),(8,"No. CÉDULA"),(11,"No. CELULAR")]:
                 sc(ws.cell(cur,col,txt),bold=True,sz=8)
-            cur+=1
+            cur += 1
 
-            ws.cell(cur,1,"SUPERVISOR:"); sc(ws.cell(cur,1),bold=True,sz=9)
+            # Supervisor
+            ws.cell(cur,1,"SUPERVISOR:")
             ws.cell(cur,3,pi.get('supervisor_cod',''))
             ws.cell(cur,4,pi.get('supervisor_nombre',''))
             ws.cell(cur,8,pi.get('supervisor_cedula',''))
             ws.cell(cur,11,pi.get('supervisor_celular',''))
-            cur+=2
+            sc(ws.cell(cur,1),bold=True,sz=9)
+            cur += 2
 
-            enc_list=pi.get('encuestadores',[])
+            # Encuestadores
+            enc_list = pi.get('encuestadores', [])
             for j in range(n_enc):
-                info=enc_list[j] if j<len(enc_list) else {}
-                ws.cell(cur,1,"ENCUESTADOR"); sc(ws.cell(cur,1),bold=True,sz=9)
-                ws.cell(cur,3,info.get('cod','')); ws.cell(cur,4,info.get('nombre',''))
-                ws.cell(cur,8,info.get('cedula','')); ws.cell(cur,11,info.get('celular',''))
-                cur+=1
-            cur+=1
+                info = enc_list[j] if j < len(enc_list) else {}
+                ws.cell(cur,1,"ENCUESTADOR")
+                ws.cell(cur,3,info.get('cod',''))
+                ws.cell(cur,4,info.get('nombre',''))
+                ws.cell(cur,8,info.get('cedula',''))
+                ws.cell(cur,11,info.get('celular',''))
+                sc(ws.cell(cur,1),bold=True,sz=9)
+                cur += 1
+            cur += 1
 
-            ws.cell(cur,1,"VEHÍCULO: CHOFER"); sc(ws.cell(cur,1),bold=True,sz=9)
-            ws.cell(cur,4,pi.get('chofer_nombre','')); ws.cell(cur,8,pi.get('chofer_cedula',''))
-            cur+=1
-            ws.cell(cur,1,"PLACA:"); sc(ws.cell(cur,1),bold=True,sz=9)
-            ws.cell(cur,4,pi.get('placa','')); cur+=2
+            # Vehículo / Chofer
+            ws.cell(cur,1,"VEHÍCULO: CHOFER")
+            ws.cell(cur,4,pi.get('chofer_nombre',''))
+            ws.cell(cur,8,pi.get('chofer_cedula',''))
+            sc(ws.cell(cur,1),bold=True,sz=9)
+            cur += 1
+            ws.cell(cur,1,"PLACA:")
+            ws.cell(cur,4,pi.get('placa',''))
+            sc(ws.cell(cur,1),bold=True,sz=9)
+            cur += 2
 
-            # Encabezado de tabla
+            # ── Encabezado de tabla ──────────────────────
+            # Fila 1: secciones principales
             merge_row(cur,1,4,"EQUIPO",bold=True,bg=AZ_MEDIO,fg=BLANCO,ha="center",sz=8,brd=True)
             merge_row(cur,5,14,"IDENTIFICACIÓN",bold=True,bg=AZ_MEDIO,fg=BLANCO,ha="center",sz=8,brd=True)
-            merge_row(cur,15,14+dias_op,"RECORRIDO DE LOS SECTORES — FECHA",
-                      bold=True,bg=AZ_MEDIO,fg=BLANCO,ha="center",sz=7,brd=True)
-            sc(ws.cell(cur,last_col,"# VIV"),bold=True,bg=AZ_MEDIO,fg=BLANCO,ha="center",sz=8,brd=True)
-            ws.row_dimensions[cur].height=24; cur+=1
+            fecha_hdr = "RECORRIDO DE LOS SECTORES EN LA JORNADA — FECHA"
+            merge_row(cur,15,14+dias_op,fecha_hdr,bold=True,bg=AZ_MEDIO,fg=BLANCO,ha="center",sz=7,brd=True)
+            sc(ws.cell(cur,last_col_idx,"# VIV"),bold=True,bg=AZ_MEDIO,fg=BLANCO,ha="center",sz=8,brd=True)
+            ws.row_dimensions[cur].height = 24
+            cur += 1
 
-            for ci,h in enumerate(["SUPERVISOR","ENCUESTADOR","CARGA","PROV","CANTON",
-                                    "CIUDAD/PARROQ","ZONA","SECTOR","MAN","CÓDIGO",
-                                    "PROVINCIA","CANTÓN","CIUDAD","NRO EDIF"],1):
-                sc(ws.cell(cur,ci,h),bold=True,bg=AZ_CLARO,ha="center",sz=7,brd=True,wrap=True)
+            # Fila 2: columnas detalle
+            sub_hdrs = ["SUPERVISOR","ENCUESTADOR","CARGA DE TRABAJO",
+                        "PROV","CANTON","CIUDAD O PARROQ","ZONA","SECTOR","MAN",
+                        "CÓDIGO DE LA JURISDICCIÓN","PROVINCIA","CANTÓN",
+                        "CIUDAD, PARROQ. O LOC AMAZ.","NRO EDIF"]
+            for ci,h in enumerate(sub_hdrs,1):
+                sc(ws.cell(cur,ci,h),bold=True,bg=AZ_CLARO,ha="center",
+                   sz=7,brd=True,wrap=True)
+
             for i in range(dias_op):
-                lbl=fechas[i].strftime("%d/%m") if fechas else f"D{i+1}"
+                lbl = fechas[i].strftime("%d/%m") if fechas else f"Día {i+1}"
                 sc(ws.cell(cur,15+i,lbl),bold=True,bg=AZ_CLARO,ha="center",sz=7,brd=True)
-            sc(ws.cell(cur,last_col,"# VIV"),bold=True,bg=AZ_CLARO,ha="center",sz=7,brd=True)
-            ws.row_dimensions[cur].height=32; cur+=1
 
-            df_sorted=df_eq.sort_values(['encuestador','dia_inicio']).copy()
-            enc_actual=None; fila_enc=0; viv_enc_acum=0; enc_ci=-1
+            sc(ws.cell(cur,last_col_idx,"# VIV"),bold=True,bg=AZ_CLARO,ha="center",sz=7,brd=True)
+            ws.row_dimensions[cur].height = 32
+            cur += 1
 
-            for _,(_, rd) in enumerate(df_sorted.iterrows()):
-                enc_id=int(rd.get('encuestador',0))
-                if enc_id!=enc_actual and enc_actual is not None:
-                    pal=ENC_PALETAS[enc_ci%len(ENC_PALETAS)]
-                    enc_info=enc_list[enc_actual-1] if 0<enc_actual<=len(enc_list) else {}
-                    merge_row(cur,1,9,f"SUBTOTAL {enc_info.get('nombre',f'Enc {enc_actual}')}",
-                              bold=True,bg=pal["subtot"],fg=pal["hdr"],ha="right",sz=8)
-                    for ci in range(10,last_col): sc(ws.cell(cur,ci,""),bg=pal["subtot"],brd=True)
-                    sc(ws.cell(cur,last_col,viv_enc_acum),bold=True,ha="center",sz=9,
-                       bg=pal["subtot"],fg=pal["hdr"],brd=True)
-                    ws.row_dimensions[cur].height=14; cur+=1; viv_enc_acum=0
-                if enc_id!=enc_actual:
-                    enc_actual=enc_id; fila_enc=0; enc_ci=(enc_ci+1)%len(ENC_PALETAS)
+            # ── Filas de datos agrupadas por encuestador ─
+            # Ordenamos por encuestador primero, luego por dia_inicio
+            df_sorted = df_eq.sort_values(['encuestador','dia_inicio']).copy()
 
-                pal=ENC_PALETAS[enc_ci%len(ENC_PALETAS)]
-                bg_row=pal["par"] if fila_enc%2==0 else pal["impar"]
-                fila_enc+=1; viv_enc_acum+=int(rd.get('viv',0))
+            enc_actual  = None      # encuestador en curso
+            fila_enc    = 0         # contador de fila dentro del encuestador
+            viv_enc_acum = 0        # viviendas acumuladas para el subtotal
+            enc_color_idx = -1      # índice de paleta del encuestador actual
 
-                p_cod=parse_codigo(str(rd['id_entidad']))
-                enc_i=enc_list[enc_id-1] if 0<enc_id<=len(enc_list) else {}
-                ct_str=f"CT{ct_counter[0]:03d}"; ct_counter[0]+=1
+            for ri, (_, rd) in enumerate(df_sorted.iterrows()):
+                enc_id = int(rd.get('encuestador', 0))
 
-                vals=[pi.get('supervisor_cedula',''),enc_i.get('cedula',''),ct_str,
-                      p_cod['prov'],p_cod['canton'],p_cod['ciudad_parroq'],
-                      p_cod['zona'],p_cod['sector'],p_cod['man'],
-                      str(rd['id_entidad']),'','','','']
-                for ci,val in enumerate(vals,1):
-                    sc(ws.cell(cur,ci,val),bg=AZ_CLARO if ci==10 else bg_row,
-                       ha="center",sz=8,brd=True)
+                # ¿Cambiamos de encuestador? → insertar fila de subtotal del anterior
+                if enc_id != enc_actual and enc_actual is not None:
+                    pal_sub = ENC_PALETAS[enc_color_idx % len(ENC_PALETAS)]
+                    bg_sub  = pal_sub["subtot"]
+                    fg_sub  = pal_sub["hdr"]
+                    enc_info_prev = enc_list[enc_actual-1] if 0 < enc_actual <= len(enc_list) else {}
+                    # Fila separadora / subtotal
+                    merge_row(cur, 1, 9,
+                              f"SUBTOTAL {enc_info_prev.get('nombre', f'Encuestador {enc_actual}')}",
+                              bold=True, bg=bg_sub, fg=fg_sub, ha="right", sz=8)
+                    for ci in range(10, last_col_idx):
+                        sc(ws.cell(cur, ci, ""), bg=bg_sub, brd=True)
+                    sc(ws.cell(cur, last_col_idx, viv_enc_acum),
+                       bold=True, ha="center", sz=9, bg=bg_sub, fg=fg_sub, brd=True)
+                    ws.row_dimensions[cur].height = 14
+                    cur += 1
+                    viv_enc_acum = 0
 
-                d_ini=int(rd.get('dia_inicio',rd.get('dia_operativo',1)))
-                d_fin=int(rd.get('dia_fin',d_ini))
+                # Actualizar encuestador actual
+                if enc_id != enc_actual:
+                    enc_actual    = enc_id
+                    fila_enc      = 0
+                    enc_color_idx = (enc_color_idx + 1) % len(ENC_PALETAS)
+
+                pal      = ENC_PALETAS[enc_color_idx % len(ENC_PALETAS)]
+                bg_row   = pal["par"] if fila_enc % 2 == 0 else pal["impar"]
+                fila_enc += 1
+                viv_enc_acum += int(rd.get('viv', 0))
+
+                p_cod    = parse_codigo(str(rd['id_entidad']))
+                enc_i    = enc_list[enc_id-1] if 0 < enc_id <= len(enc_list) else {}
+                ct_str   = f"CT{ct_counter[0]:03d}"
+                ct_counter[0] += 1
+
+                cod_parr = f"{p_cod['prov']}{p_cod['canton']}{p_cod['ciudad_parroq']}"
+                geo = catalogo_lookup.get(cod_parr, {})
+                row_vals = [
+                    pi.get('supervisor_cedula', ''),
+                    enc_i.get('cedula', ''),
+                    ct_str,
+                    p_cod['prov'], p_cod['canton'],
+                    p_cod['ciudad_parroq'],
+                    p_cod['zona'], p_cod['sector'], p_cod['man'],
+                    str(rd['id_entidad']),
+                    geo.get('provincia_nombre', ''),
+                    geo.get('canton_nombre', ''),
+                    geo.get('parroquia_nombre', ''),
+                    geo.get('fcode', ''),
+                ]
+                for ci, val in enumerate(row_vals, 1):
+                    c = ws.cell(cur, ci, val)
+                    sc(c, bg=AZ_CLARO if ci == 10 else bg_row,
+                       ha="center", sz=8, brd=True)
+
+                d_ini = int(rd.get('dia_inicio', rd.get('dia_operativo', 1)))
+                d_fin = int(rd.get('dia_fin', d_ini))
                 for i in range(dias_op):
-                    if d_ini<=i+1<=d_fin:
-                        sc(ws.cell(cur,15+i,"✓"),bold=True,bg=VRD_CHECK,ha="center",sz=11,brd=True)
+                    dia_num = i + 1
+                    in_rng  = (d_ini <= dia_num <= d_fin)
+                    if in_rng:
+                        c = ws.cell(cur, 15 + i, "✓")
+                        sc(c, bold=True, bg=VRD_CHECK, ha="center", sz=11, brd=True)
                     else:
-                        sc(ws.cell(cur,15+i,""),bg=bg_row,ha="center",brd=True)
-                sc(ws.cell(cur,last_col,int(rd.get('viv',0))),ha="center",sz=8,brd=True,bg=bg_row)
-                cur+=1
+                        sc(ws.cell(cur, 15 + i, ""), bg=bg_row, ha="center", brd=True)
 
+                sc(ws.cell(cur, last_col_idx, int(rd.get('viv', 0))),
+                   ha="center", sz=8, brd=True, bg=bg_row)
+                cur += 1
+
+            # Subtotal del último encuestador
             if enc_actual is not None:
-                pal=ENC_PALETAS[enc_ci%len(ENC_PALETAS)]
-                enc_info=enc_list[enc_actual-1] if 0<enc_actual<=len(enc_list) else {}
-                merge_row(cur,1,9,f"SUBTOTAL {enc_info.get('nombre',f'Enc {enc_actual}')}",
-                          bold=True,bg=pal["subtot"],fg=pal["hdr"],ha="right",sz=8)
-                for ci in range(10,last_col): sc(ws.cell(cur,ci,""),bg=pal["subtot"],brd=True)
-                sc(ws.cell(cur,last_col,viv_enc_acum),bold=True,ha="center",sz=9,
-                   bg=pal["subtot"],fg=pal["hdr"],brd=True)
-                ws.row_dimensions[cur].height=14; cur+=1
+                pal_sub  = ENC_PALETAS[enc_color_idx % len(ENC_PALETAS)]
+                enc_info = enc_list[enc_actual-1] if 0 < enc_actual <= len(enc_list) else {}
+                merge_row(cur, 1, 9,
+                          f"SUBTOTAL {enc_info.get('nombre', f'Encuestador {enc_actual}')}",
+                          bold=True, bg=pal_sub["subtot"], fg=pal_sub["hdr"], ha="right", sz=8)
+                for ci in range(10, last_col_idx):
+                    sc(ws.cell(cur, ci, ""), bg=pal_sub["subtot"], brd=True)
+                sc(ws.cell(cur, last_col_idx, viv_enc_acum),
+                   bold=True, ha="center", sz=9,
+                   bg=pal_sub["subtot"], fg=pal_sub["hdr"], brd=True)
+                ws.row_dimensions[cur].height = 14
+                cur += 1
 
-            sc(ws.cell(cur,last_col-1,"TOTAL"),bold=True,ha="right",sz=8,bg=AZ_CLARO,brd=True)
-            sc(ws.cell(cur,last_col,int(df_eq['viv'].sum())),bold=True,ha="center",
-               sz=8,bg=AZ_CLARO,brd=True)
-            cur+=4
+            # Total de viviendas del equipo
+            tot_viv_eq = int(df_eq['viv'].sum())
+            sc(ws.cell(cur, last_col_idx-1, "TOTAL"),
+               bold=True, ha="right", sz=8, bg=AZ_CLARO, brd=True)
+            sc(ws.cell(cur, last_col_idx, tot_viv_eq),
+               bold=True, ha="center", sz=8, bg=AZ_CLARO, brd=True)
+            cur += 4  # espacio entre grupos
 
-    buf=io.BytesIO(); wb.save(buf); buf.seek(0)
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
     return buf.getvalue()
+
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1573,6 +1672,35 @@ with tab_reporte:
     corresponde al número real del cronograma INEC.
     </div>""",unsafe_allow_html=True)
 
+      # ── Catálogo territorial ──────────────────
+    st.markdown("<div class='stitle'>Catálogo territorial para completar el Excel</div>",
+                unsafe_allow_html=True)
+    st.markdown("""<div class='ibox'>
+    Sube el Excel o CSV con la organización territorial del Ecuador. La app usa
+    ese catálogo para completar provincia, cantón, parroquia y códigos auxiliares
+    en el reporte final.
+    </div>""", unsafe_allow_html=True)
+
+    cat_file = st.file_uploader(
+        "Catálogo territorial (.xlsx, .xls o .csv)",
+        type=["xlsx", "xls", "csv"],
+        key="catalogo_territorial_up"
+    )
+    if cat_file is not None:
+        try:
+            df_cat = cargar_catalogo_territorial(cat_file)
+            lookup_cat, cols_cat = preparar_lookup_territorial(df_cat)
+            st.session_state.catalogo_df = df_cat
+            st.session_state.catalogo_lookup = lookup_cat
+            st.session_state.catalogo_cols = cols_cat
+            st.success(f"✓ Catálogo cargado: {len(df_cat):,} filas")
+        except Exception as e:
+            st.error(f"No se pudo leer el catálogo territorial: {e}")
+
+    if st.session_state.catalogo_df is not None:
+        cols_detectadas = {k: v for k, v in st.session_state.catalogo_cols.items() if v}
+        st.caption(f"Columnas detectadas: {cols_detectadas}")
+
     # Personal por equipo
     st.markdown("<div class='stitle'>Personal por equipo</div>",unsafe_allow_html=True)
     for eq in eq_cfg:
@@ -1652,23 +1780,33 @@ with tab_reporte:
 
     mes_n_excel=jornada_num_desde_mes(int(df['mes'].iloc[0]),mes_ini_cal)[2]
 
-    if st.button("📋 Generar Excel",use_container_width=True,type="primary"):
+    if st.button("📋 Generar Excel", use_container_width=True, type="primary"):
         with st.spinner("Generando Excel..."):
             try:
-                excel_bytes=generar_excel(
-                    df_plan=df_plan,eq_cfg=eq_cfg,
-                    personal_info=st.session_state.personal_info,
-                    jornadas_activas=jornadas_excel,
-                    dias_op=p["dias_op"]
+                excel_bytes = generar_excel(
+                    df_plan       = df_plan,
+                    eq_cfg        = eq_cfg,
+                    personal_info = st.session_state.personal_info,
+                    fecha_j1      = st.session_state.fecha_j1,
+                    fecha_j2      = st.session_state.fecha_j2,
+                    dias_op       = p["dias_op"],
+                    j1_num        = st.session_state.get("j1_num", 1),
+                    j2_num        = st.session_state.get("j2_num", 2),
+                    mes_nombre    = MESES_N.get(int(df['mes'].iloc[0]),''),
+                    catalogo_lookup = st.session_state.get('catalogo_lookup', {})
                 )
-                nums=[str(ji['jornada_num']) for ji in jornadas_excel]
-                fname=f"planificacion_J{'_'.join(nums)}_{mes_n_excel}.xlsx"
+                j1n = st.session_state.get("j1_num", 1)
+                j2n = st.session_state.get("j2_num", 2)
+                mes_n = MESES_N.get(int(df['mes'].iloc[0]),'mes')
                 st.download_button(
-                    label=f"⬇️ Descargar {fname}",data=excel_bytes,
-                    file_name=fname,
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True)
-                st.success("✓ Excel listo.")
+                    label     = f"⬇️ Descargar J{j1n}+J{j2n}_{mes_n}.xlsx",
+                    data      = excel_bytes,
+                    file_name = f"planificacion_J{j1n}-J{j2n}_{mes_n}.xlsx",
+                    mime      = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
+                st.success("✓ Excel listo para descargar.")
             except Exception as e:
-                st.error(f"Error: {e}")
-                import traceback; st.code(traceback.format_exc())
+                st.error(f"Error generando Excel: {e}")
+                import traceback
+                st.code(traceback.format_exc())
