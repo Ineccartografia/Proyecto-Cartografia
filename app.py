@@ -1789,7 +1789,7 @@ with tab_reporte:
                     personal_info=st.session_state.personal_info,
                     jornadas_activas=jornadas_excel,
                     dias_op=p["dias_op"],
-                    catalogo_lookup = st.session_state.get('catalogo_lookup', {})
+                    catalogo_lookup = st.session_state.get('catalogo_lookup', {}))
                 
                 nums=[str(ji['jornada_num']) for ji in jornadas_excel]
                 fname=f"planificacion_J{'_'.join(nums)}_{mes_n_excel}.xlsx"
