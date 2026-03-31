@@ -148,6 +148,18 @@ def utm_to_wgs84(df):
     return df
 
 def parse_codigo(codigo):
+    """
+    Parsea un código territorial/INEC en sus componentes jerárquicos.
+
+    Formato esperado (12 o 15 caracteres):
+    PP CC ZZ ZZZ SSS [MMM]
+      - PP  : provincia
+      - CC  : cantón
+      - ZZ  : ciudad o parroquia
+      - ZZZ : zona
+      - SSS : sector
+      - MMM : manzana (opcional)
+    """
     c = str(codigo).strip()
     r = {'prov':'','canton':'','ciudad_parroq':'','zona':'','sector':'','man':''}
     if len(c)>=6:  r['prov']=c[:2]; r['canton']=c[2:4]; r['ciudad_parroq']=c[4:6]
@@ -155,6 +167,108 @@ def parse_codigo(codigo):
     if len(c)>=12: r['sector']=c[9:12]
     if len(c)>=15: r['man']=c[12:15]
     return r
+
+
+def normalizar_codigo(valor, ancho=None):
+    """Normaliza códigos y preserva ceros a la izquierda."""
+    if pd.isna(valor):
+        return ''
+    s = str(valor).strip()
+    if s.endswith('.0'):
+        s = s[:-2]
+    s = ''.join(ch for ch in s if ch.isdigit())
+    if not s:
+        return ''
+    if ancho:
+        s = s.zfill(ancho)[-ancho:]
+    return s
+
+
+def detectar_columnas_catalogo(df_cat):
+    """Detecta columnas relevantes del catálogo territorial."""
+    cols = {str(c).strip().upper(): c for c in df_cat.columns}
+
+    def pick(*candidatas):
+        for cand in candidatas:
+            if cand in cols:
+                return cols[cand]
+        return None
+
+    return {
+        'parroquia_cod': pick('DPA_PARROQ', 'COD_PARROQUIA', 'PARROQUIA_CODIGO'),
+        'parroquia_nom': pick('DPA_DESPAR', 'DESC_PARROQUIA', 'PARROQUIA'),
+        'canton_cod'   : pick('DPA_CANTON', 'COD_CANTON', 'CANTON_CODIGO'),
+        'canton_nom'   : pick('DPA_DESCAN', 'DESC_CANTON', 'CANTON'),
+        'prov_cod'     : pick('DPA_PROVIN', 'COD_PROVINCIA', 'PROVINCIA_CODIGO'),
+        'prov_nom'     : pick('DPA_DESPRO', 'DESC_PROVINCIA', 'PROVINCIA'),
+        'tipo_txt'     : pick('TXT', 'TIPO', 'TIPO_SECTOR', 'CLASE'),
+        'fcode'        : pick('FCODE', 'COD_FCODE', 'CODIGO_FCODE')
+    }
+
+
+def cargar_catalogo_territorial(file_obj):
+    """Carga el Excel/CSV territorial usado para completar el reporte."""
+    nombre = getattr(file_obj, 'name', '').lower()
+    if nombre.endswith('.csv'):
+        df_cat = pd.read_csv(file_obj)
+    else:
+        df_cat = pd.read_excel(file_obj)
+    df_cat.columns = [str(c).strip() for c in df_cat.columns]
+    return df_cat
+
+
+def preparar_lookup_territorial(df_cat):
+    """Construye un índice por código parroquial para enriquecer el Excel."""
+    if df_cat is None or len(df_cat) == 0:
+        return {}, {}
+
+    cols = detectar_columnas_catalogo(df_cat)
+    cod_col = cols.get('parroquia_cod')
+    if not cod_col:
+        return {}, cols
+
+    work = df_cat.copy()
+    work['__parroq_cod__'] = work[cod_col].apply(lambda v: normalizar_codigo(v, 6))
+    work = work[work['__parroq_cod__'] != ''].drop_duplicates('__parroq_cod__', keep='first')
+
+    lookup = {}
+    for _, row in work.iterrows():
+        cod = row['__parroq_cod__']
+        lookup[cod] = {
+            'provincia_codigo' : normalizar_codigo(row[cols['prov_cod']], 2) if cols.get('prov_cod') else cod[:2],
+            'provincia_nombre' : str(row[cols['prov_nom']]).strip() if cols.get('prov_nom') and pd.notna(row[cols['prov_nom']]) else '',
+            'canton_codigo'    : normalizar_codigo(row[cols['canton_cod']], 4) if cols.get('canton_cod') else cod[:4],
+            'canton_nombre'    : str(row[cols['canton_nom']]).strip() if cols.get('canton_nom') and pd.notna(row[cols['canton_nom']]) else '',
+            'parroquia_codigo' : cod,
+            'parroquia_nombre' : str(row[cols['parroquia_nom']]).strip() if cols.get('parroquia_nom') and pd.notna(row[cols['parroquia_nom']]) else '',
+            'tipo_txt'         : str(row[cols['tipo_txt']]).strip() if cols.get('tipo_txt') and pd.notna(row[cols['tipo_txt']]) else '',
+            'fcode'            : str(row[cols['fcode']]).strip() if cols.get('fcode') and pd.notna(row[cols['fcode']]) else ''
+        }
+    return lookup, cols
+
+
+def enriquecer_plan_con_catalogo(df_plan, catalogo_lookup):
+    """Añade nombres territoriales al plan para vista previa y exportación."""
+    if df_plan is None or len(df_plan) == 0:
+        return df_plan
+    if not catalogo_lookup:
+        return df_plan.copy()
+
+    df_out = df_plan.copy()
+    provs, cants, parroqs, tipos = [], [], [], []
+    for _, row in df_out.iterrows():
+        partes = parse_codigo(row.get('id_entidad', ''))
+        cod_parr = f"{partes['prov']}{partes['canton']}{partes['ciudad_parroq']}"
+        geo = catalogo_lookup.get(cod_parr, {})
+        provs.append(geo.get('provincia_nombre', ''))
+        cants.append(geo.get('canton_nombre', ''))
+        parroqs.append(geo.get('parroquia_nombre', ''))
+        tipos.append(geo.get('tipo_txt', ''))
+    df_out['provincia_nombre'] = provs
+    df_out['canton_nombre'] = cants
+    df_out['parroquia_nombre'] = parroqs
+    df_out['tipo_asentamiento'] = tipos
+    return df_out
 
 def jornada_num_desde_mes(mes_operativo, mes_inicio_cal):
     """
