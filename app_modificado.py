@@ -334,23 +334,30 @@ def cargar_gpkg(path, dissolve_upm=True):
 #  CLUSTERING BALANCEADO (v5 — igual que v4 pero con criterio de parada mejorado)
 # ══════════════════════════════════════════════════════════════════════════════
 
-def clustering_balanceado(df, n_clusters, cv_objetivo=0.20, max_iter=50, k_vecinos=5):
+def clustering_balanceado(df, n_clusters, cv_objetivo=0.20, max_iter=80, k_vecinos=15):
     """
     Clustering en dos fases para balancear suma de viviendas ponderadas.
 
     FASE 1 — KMeans geográfico: semillas geográficamente coherentes.
 
-    FASE 2 — Post-balance SUAVE (solo frontera):
-      Mueve UPMs en la frontera entre el cluster más pesado y el más liviano.
-      Preserva cohesión geográfica. NO usa modo global para no dispersar
-      geográficamente los clusters.
+    FASE 2 — Post-balance SUAVE con dos modos complementarios:
+
+    MODO 1 — FRONTERA k-NN (preferido):
+      Detecta puntos en el borde entre clusters usando k vecinos más cercanos.
+      k_vecinos=15 asegura buena cobertura de la frontera.
+
+    MODO 2 — PROXIMIDAD GEOGRÁFICA (fallback suave):
+      Cuando el modo frontera no encuentra candidatos (clusters no adyacentes),
+      mueve puntos del cluster pesado que estén geográficamente MÁS CERCA
+      del centroide del cluster liviano que del propio centroide.
+      Condición geográfica estricta: solo si d_destino < d_origen.
+      Evalúa los 5 candidatos más próximos → más suave que el modo global original.
 
     CRITERIO DE PARADA (soft):
-      Se detiene cuando:
-        a) CV ≤ cv_objetivo  (objetivo alcanzado), O
-        b) El CV no mejora más de 0.5 pp en las últimas 5 iteraciones
-           (plateau rápido), O
-        c) max_iter alcanzado.
+      a) CV ≤ cv_objetivo  (objetivo alcanzado)
+      b) CV no mejora más de 0.5 pp en las últimas 5 iteraciones (plateau)
+      c) 5 iteraciones consecutivas sin mejora
+      d) max_iter alcanzado
     """
     coords = df[['x','y']].values.astype(float)
     cargas = df['carga_pond'].values.astype(float)
@@ -372,10 +379,11 @@ def clustering_balanceado(df, n_clusters, cv_objetivo=0.20, max_iter=50, k_vecin
     cv_ini = cv_pct(pd.Series(cluster_sums()))
     log    = [{'iter':0,'cv':cv_ini,'modo':'inicial'}]
 
-    tree,_  = BallTree(coords,leaf_size=40), None
+    tree    = BallTree(coords,leaf_size=40)
     _,nbr   = tree.query(coords,k=min(k_vecinos+1,n))
 
-    cv_history = [cv_ini]   # historial para detección de plateau
+    cv_history  = [cv_ini]
+    no_mejora   = 0
 
     for it in range(1, max_iter+1):
         sums = cluster_sums()
@@ -386,11 +394,10 @@ def clustering_balanceado(df, n_clusters, cv_objetivo=0.20, max_iter=50, k_vecin
             log.append({'iter':it,'cv':cv,'modo':'objetivo alcanzado ✓'})
             break
 
-        # ── Criterio b: plateau rápido (sin mejora en últimas 5 iter) ───────
+        # ── Criterio b: plateau (sin mejora en últimas 5 iter) ───────────────
         cv_history.append(cv)
         if len(cv_history) >= 5:
-            mejora_reciente = cv_history[-5] - cv_history[-1]
-            if mejora_reciente < 0.5:   # menos de 0.5 pp de mejora → parar
+            if cv_history[-5] - cv_history[-1] < 0.5:
                 log.append({'iter':it,'cv':cv,'modo':'plateau — equilibrio estable'})
                 break
 
@@ -398,8 +405,7 @@ def clustering_balanceado(df, n_clusters, cv_objetivo=0.20, max_iter=50, k_vecin
         orden_livianos = np.argsort(sums)
         mejora         = False
 
-        # ── MODO FRONTERA (único modo — preserva geografía) ──────────────────
-        # Solo evalúa el par más pesado vs más liviano (1×1, no 3×3)
+        # ── MODO 1: Frontera k-NN ────────────────────────────────────────────
         for ci_p in orden_pesados[:2]:
             for ci_l in orden_livianos[:2]:
                 if ci_p==ci_l: continue
@@ -415,12 +421,42 @@ def clustering_balanceado(df, n_clusters, cv_objetivo=0.20, max_iter=50, k_vecin
                 if mejor_idx>=0:
                     labels[mejor_idx]=ci_l
                     log.append({'iter':it,'cv':mejor_cv,'modo':'frontera'})
-                    mejora=True; break
+                    mejora=True; no_mejora=0; break
             if mejora: break
 
+        # ── MODO 2: Proximidad geográfica (fallback suave) ───────────────────
+        # Solo mueve puntos que estén geográficamente más cerca del destino
+        # que de su propio centroide → preserva coherencia geográfica.
         if not mejora:
+            cents = centroides_actuales()
+            ci_p  = int(orden_pesados[0])
+            mejor_cv_g,mejor_idx_g,mejor_dest = cv,-1,-1
+            for ci_l in orden_livianos[:3]:
+                if ci_p==ci_l: continue
+                mask_p = np.where(labels==ci_p)[0]
+                if len(mask_p)==0: continue
+                d_orig = np.linalg.norm(coords[mask_p]-cents[ci_p],axis=1)
+                d_dest = np.linalg.norm(coords[mask_p]-cents[ci_l],axis=1)
+                # Condición geográfica: solo candidatos más cerca del destino
+                candidatos = mask_p[d_dest < d_orig]
+                if len(candidatos)==0: continue
+                # Solo los 5 más próximos → suave, no exhaustivo
+                top = candidatos[np.argsort(
+                    np.linalg.norm(coords[candidatos]-cents[ci_l],axis=1))[:5]]
+                for idx in top:
+                    labels[idx]=ci_l
+                    cv_n=cv_pct(pd.Series(cluster_sums()))
+                    labels[idx]=ci_p
+                    if cv_n<mejor_cv_g: mejor_cv_g,mejor_idx_g,mejor_dest=cv_n,idx,ci_l
+            if mejor_idx_g>=0 and mejor_cv_g<cv:
+                labels[mejor_idx_g]=mejor_dest
+                log.append({'iter':it,'cv':mejor_cv_g,'modo':'proximidad'})
+                mejora=True; no_mejora=0
+
+        if not mejora:
+            no_mejora+=1
             log.append({'iter':it,'cv':cv,'modo':'sin mejora'})
-            if sum(1 for l in log[-4:] if l.get('modo')=='sin mejora')>=3:
+            if no_mejora>=5:
                 break
 
     cv_fin = cv_pct(pd.Series(cluster_sums()))
@@ -829,7 +865,7 @@ _defs = {
     "params":{
         "dias_op":12,"viv_min":50,"viv_max":80,"factor_r":1.5,
         "usar_bomb":True,"usar_gye":True,"dias_gye":3,"umbral_gye":10,
-        "cv_objetivo":20,"max_iter_bal":50,"k_vecinos":5,
+        "cv_objetivo":20,"max_iter_bal":80,"k_vecinos":15,
     },
     "equipos_cfg":[
         {"id":1,"nombre":"Equipo 1","enc":3},
@@ -965,8 +1001,8 @@ with st.sidebar:
         p["factor_r"]=st.slider("Factor rural (×)",1.0,2.5,p["factor_r"],0.1)
         st.markdown("**Rebalanceo clusters**")
         p["cv_objetivo"] =st.slider("CV objetivo (%)",10,40,p.get("cv_objetivo",20))
-        p["max_iter_bal"]=st.slider("Iter. máx.",10,200,p.get("max_iter_bal",50),step=10)
-        p["k_vecinos"]   =st.slider("Vecinos frontera (k)",3,15,p.get("k_vecinos",5))
+        p["max_iter_bal"]=st.slider("Iter. máx.",20,200,p.get("max_iter_bal",80),step=10)
+        p["k_vecinos"]   =st.slider("Vecinos frontera (k)",5,30,p.get("k_vecinos",15))
         p["usar_bomb"]=st.toggle("Equipo Bombero",value=p["usar_bomb"])
         if p["usar_bomb"]:
             p["min_dist_bomb_m"]=st.slider("Dist. mín. Bombero (km)",10,150,
