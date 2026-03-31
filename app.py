@@ -1,5 +1,5 @@
 # =============================================================================
-# PLANIFICACIÓN CARTOGRÁFICA ENDI 2025 — STREAMLIT v5
+# PLANIFICACIÓN CARTOGRÁFICA — STREAMLIT v5
 # INEC · Zonal Litoral · Autores: Franklin López, Carlos Quinto
 #
 # CAMBIOS v5 (sobre v4):
@@ -1040,7 +1040,7 @@ with st.sidebar:
 # ── HEADER ────────────────────────────────────
 st.markdown("""
 <div class='hdr'>
-  <h1>Planificación Automática · Actualización Cartográfica · v5</h1>
+  <h1>Planificación Automática · Actualización Cartográfica</h1>
   <p>Encuesta Nacional &nbsp;·&nbsp; Zonal Litoral &nbsp;·&nbsp; INEC Ecuador</p>
 </div>""",unsafe_allow_html=True)
 
