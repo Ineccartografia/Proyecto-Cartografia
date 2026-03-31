@@ -1909,12 +1909,12 @@ with tab_reporte:
                     dias_op       = p["dias_op"],
                     j1_num        = st.session_state.get("j1_num", 1),
                     j2_num        = st.session_state.get("j2_num", 2),
-                    mes_nombre    = MESES_N.get(int(df['mes'].iloc[0]),''),
+                    mes_nombre    = MESES_CAL.get(int(df['mes'].iloc[0]),''),
                     catalogo_lookup = st.session_state.get('catalogo_lookup', {})
                 )
                 j1n = st.session_state.get("j1_num", 1)
                 j2n = st.session_state.get("j2_num", 2)
-                mes_n = MESES_N.get(int(df['mes'].iloc[0]),'mes')
+                mes_n = MESES_CAL.get(int(df['mes'].iloc[0]),'mes')
                 st.download_button(
                     label     = f"⬇️ Descargar J{j1n}+J{j2n}_{mes_n}.xlsx",
                     data      = excel_bytes,
