@@ -853,9 +853,9 @@ _defs = {
     "mes_inicio_cal": 7,            # Julio por defecto
     "config_jornadas": {},          # {jornada_num: {estado, fecha, trasladada_a}}
     "params":{
-        "dias_op":12,"viv_min":50,"viv_max":80,"factor_r":1.5,
-        "usar_bomb":True,"usar_gye":True,"dias_gye":3,"umbral_gye":10,
-        "cv_objetivo":10,"max_iter_bal":300,"k_vecinos":8,
+        "dias_op":12,"viv_min":40,"viv_max":70,"factor_r":1.8,
+        "usar_bomb":False,"usar_gye":True,"dias_gye":3,"umbral_gye":5,
+        "cv_objetivo":10,"max_iter_bal":300,"k_vecinos":10,
     },
     "equipos_cfg":[
         {"id":1,"nombre":"Equipo 1","enc":3},
