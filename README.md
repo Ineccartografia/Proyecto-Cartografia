@@ -24,3 +24,8 @@ Al subir el archivo Man_SEC_ENCIET.gpkg y darle a "Procesar", aparece el siguien
 
 Que el programa identifique, en los arhcivos con una sola capa, que los sectores dispersos contienen en su código "ManSec" los caracteres 999. Se debe además extraer de estos códigos la provincia, cantón y parroquia, ya que el archivo de la ENCIET no cuenta con esta información para las zonas dispersas.
 
+
+
+## CAMBIOS
+
+Cambios realizados en app.py el dia 31/3/26. Agregar estética de Franklin, permitir modificaciones manuales y corregir planificación (necesario, los slots no son independientes)
