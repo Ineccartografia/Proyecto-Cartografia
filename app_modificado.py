@@ -334,36 +334,30 @@ def cargar_gpkg(path, dissolve_upm=True):
 #  CLUSTERING BALANCEADO (v5 — igual que v4 pero con criterio de parada mejorado)
 # ══════════════════════════════════════════════════════════════════════════════
 
-def clustering_balanceado(df, n_clusters, cv_objetivo=0.10, max_iter=300, k_vecinos=8):
+def clustering_balanceado(df, n_clusters, cv_objetivo=0.20, max_iter=50, k_vecinos=5):
     """
     Clustering en dos fases para balancear suma de viviendas ponderadas.
 
     FASE 1 — KMeans geográfico: semillas geográficamente coherentes.
 
-    FASE 2 — Post-balance iterativo con DOS modos de swap:
+    FASE 2 — Post-balance SUAVE (solo frontera):
+      Mueve UPMs en la frontera entre el cluster más pesado y el más liviano.
+      Preserva cohesión geográfica. NO usa modo global para no dispersar
+      geográficamente los clusters.
 
-    MODO FRONTERA (preferido):
-      Mueve UPMs en la frontera entre clusters (detectadas por k-NN).
-      Preserva cohesión geográfica.
-
-    MODO GLOBAL (fallback cuando frontera se atasca ≥3 iteraciones):
-      Mueve UPMs del cluster más pesado al cluster liviano más cercano
-      geográficamente. Permite balancear zonas no adyacentes.
-
-    CRITERIO DE PARADA MEJORADO (v5):
+    CRITERIO DE PARADA (soft):
       Se detiene cuando:
         a) CV ≤ cv_objetivo  (objetivo alcanzado), O
-        b) El CV no mejora más de 0.1 pp en las últimas 10 iteraciones
-           (plateau: equilibrio estable aunque no óptimo), O
+        b) El CV no mejora más de 0.5 pp en las últimas 5 iteraciones
+           (plateau rápido), O
         c) max_iter alcanzado.
-      Esto evita que el algoritmo siga iterando sin producir mejoras reales.
     """
     coords = df[['x','y']].values.astype(float)
     cargas = df['carga_pond'].values.astype(float)
     n      = len(df)
 
-    km     = KMeans(n_clusters=n_clusters,init='k-means++',n_init=20,
-                    max_iter=500,random_state=42)
+    km     = KMeans(n_clusters=n_clusters,init='k-means++',n_init=10,
+                    max_iter=300,random_state=42)
     labels = km.fit_predict(coords).copy()
 
     def cluster_sums():
@@ -381,8 +375,7 @@ def clustering_balanceado(df, n_clusters, cv_objetivo=0.10, max_iter=300, k_veci
     tree,_  = BallTree(coords,leaf_size=40), None
     _,nbr   = tree.query(coords,k=min(k_vecinos+1,n))
 
-    no_mejora_frontera = 0
-    cv_history         = [cv_ini]   # historial para detección de plateau
+    cv_history = [cv_ini]   # historial para detección de plateau
 
     for it in range(1, max_iter+1):
         sums = cluster_sums()
@@ -393,11 +386,11 @@ def clustering_balanceado(df, n_clusters, cv_objetivo=0.10, max_iter=300, k_veci
             log.append({'iter':it,'cv':cv,'modo':'objetivo alcanzado ✓'})
             break
 
-        # ── Criterio b: plateau (sin mejora significativa en últimas 10 iter)
+        # ── Criterio b: plateau rápido (sin mejora en últimas 5 iter) ───────
         cv_history.append(cv)
-        if len(cv_history) >= 10:
-            mejora_reciente = cv_history[-10] - cv_history[-1]
-            if mejora_reciente < 0.1:   # menos de 0.1 pp de mejora
+        if len(cv_history) >= 5:
+            mejora_reciente = cv_history[-5] - cv_history[-1]
+            if mejora_reciente < 0.5:   # menos de 0.5 pp de mejora → parar
                 log.append({'iter':it,'cv':cv,'modo':'plateau — equilibrio estable'})
                 break
 
@@ -405,50 +398,30 @@ def clustering_balanceado(df, n_clusters, cv_objetivo=0.10, max_iter=300, k_veci
         orden_livianos = np.argsort(sums)
         mejora         = False
 
-        # ── MODO 1: Frontera ─────────────────────────────────────────────────
-        if no_mejora_frontera < 3:
-            for ci_p in orden_pesados[:3]:
-                for ci_l in orden_livianos[:3]:
-                    if ci_p==ci_l: continue
-                    mask_p = np.where(labels==ci_p)[0]
-                    if len(mask_p)==0: continue
-                    mejor_cv,mejor_idx = cv,-1
-                    for idx in mask_p:
-                        if not any(labels[v]==ci_l for v in nbr[idx] if v!=idx): continue
-                        labels[idx]=ci_l
-                        cv_n=cv_pct(pd.Series(cluster_sums()))
-                        labels[idx]=ci_p
-                        if cv_n<mejor_cv: mejor_cv,mejor_idx=cv_n,idx
-                    if mejor_idx>=0:
-                        labels[mejor_idx]=ci_l
-                        log.append({'iter':it,'cv':mejor_cv,'modo':'frontera'})
-                        mejora=True; no_mejora_frontera=0; break
-                if mejora: break
-            if not mejora: no_mejora_frontera+=1
-
-        # ── MODO 2: Global (fallback) ─────────────────────────────────────────
-        if not mejora:
-            cents  = centroides_actuales()
-            ci_p   = orden_pesados[0]
-            mask_p = np.where(labels==ci_p)[0]
-            mejor_cv_g,mejor_idx_g,mejor_dest = cv,-1,-1
+        # ── MODO FRONTERA (único modo — preserva geografía) ──────────────────
+        # Solo evalúa el par más pesado vs más liviano (1×1, no 3×3)
+        for ci_p in orden_pesados[:2]:
             for ci_l in orden_livianos[:2]:
-                if ci_p==ci_l or len(mask_p)==0: continue
-                dists = np.linalg.norm(coords[mask_p]-cents[ci_l],axis=1)
-                cands = mask_p[np.argsort(dists)[:10]]
-                for idx in cands:
+                if ci_p==ci_l: continue
+                mask_p = np.where(labels==ci_p)[0]
+                if len(mask_p)==0: continue
+                mejor_cv,mejor_idx = cv,-1
+                for idx in mask_p:
+                    if not any(labels[v]==ci_l for v in nbr[idx] if v!=idx): continue
                     labels[idx]=ci_l
                     cv_n=cv_pct(pd.Series(cluster_sums()))
                     labels[idx]=ci_p
-                    if cv_n<mejor_cv_g: mejor_cv_g,mejor_idx_g,mejor_dest=cv_n,idx,ci_l
-            if mejor_idx_g>=0 and mejor_cv_g<cv:
-                labels[mejor_idx_g]=mejor_dest
-                log.append({'iter':it,'cv':mejor_cv_g,'modo':'global'})
-                mejora=True; no_mejora_frontera=0
-            else:
-                log.append({'iter':it,'cv':cv,'modo':'sin mejora'})
-                if sum(1 for l in log[-6:] if l.get('modo')=='sin mejora')>=5:
-                    break
+                    if cv_n<mejor_cv: mejor_cv,mejor_idx=cv_n,idx
+                if mejor_idx>=0:
+                    labels[mejor_idx]=ci_l
+                    log.append({'iter':it,'cv':mejor_cv,'modo':'frontera'})
+                    mejora=True; break
+            if mejora: break
+
+        if not mejora:
+            log.append({'iter':it,'cv':cv,'modo':'sin mejora'})
+            if sum(1 for l in log[-4:] if l.get('modo')=='sin mejora')>=3:
+                break
 
     cv_fin = cv_pct(pd.Series(cluster_sums()))
     log.append({'iter':len(log),'cv':cv_fin,'modo':'final'})
@@ -856,7 +829,7 @@ _defs = {
     "params":{
         "dias_op":12,"viv_min":50,"viv_max":80,"factor_r":1.5,
         "usar_bomb":True,"usar_gye":True,"dias_gye":3,"umbral_gye":10,
-        "cv_objetivo":10,"max_iter_bal":300,"k_vecinos":8,
+        "cv_objetivo":20,"max_iter_bal":50,"k_vecinos":5,
     },
     "equipos_cfg":[
         {"id":1,"nombre":"Equipo 1","enc":3},
@@ -991,9 +964,9 @@ with st.sidebar:
         p["viv_max"] =st.slider("Máx viv/día",60,120,p["viv_max"])
         p["factor_r"]=st.slider("Factor rural (×)",1.0,2.5,p["factor_r"],0.1)
         st.markdown("**Rebalanceo clusters**")
-        p["cv_objetivo"] =st.slider("CV objetivo (%)",3,25,p.get("cv_objetivo",10))
-        p["max_iter_bal"]=st.slider("Iter. máx.",50,500,p.get("max_iter_bal",300),step=50)
-        p["k_vecinos"]   =st.slider("Vecinos frontera (k)",4,20,p.get("k_vecinos",8))
+        p["cv_objetivo"] =st.slider("CV objetivo (%)",10,40,p.get("cv_objetivo",20))
+        p["max_iter_bal"]=st.slider("Iter. máx.",10,200,p.get("max_iter_bal",50),step=10)
+        p["k_vecinos"]   =st.slider("Vecinos frontera (k)",3,15,p.get("k_vecinos",5))
         p["usar_bomb"]=st.toggle("Equipo Bombero",value=p["usar_bomb"])
         if p["usar_bomb"]:
             p["min_dist_bomb_m"]=st.slider("Dist. mín. Bombero (km)",10,150,
@@ -1103,8 +1076,8 @@ if btn:
 
     if len(df_no_gye)>=n_clust:
         # CV antes (solo KMeans)
-        km_init=KMeans(n_clusters=n_clust,init='k-means++',n_init=20,
-                       max_iter=500,random_state=42)
+        km_init=KMeans(n_clusters=n_clust,init='k-means++',n_init=10,
+                       max_iter=300,random_state=42)
         lab_init=km_init.fit_predict(df_no_gye[['x','y']].values.astype(float))
         carg_arr=df_no_gye['carga_pond'].values
         vib_antes={c:float(carg_arr[lab_init==c].sum()) for c in range(n_clust)}
@@ -1203,7 +1176,7 @@ if btn:
         if n_gye_clusters >= 2:
             # KMeans puramente geográfico — sin rebalanceo
             km_gye = KMeans(n_clusters=n_gye_clusters, init='k-means++',
-                            n_init=30, max_iter=500, random_state=42)
+                            n_init=10, max_iter=300, random_state=42)
             labels_gye = km_gye.fit_predict(
                 df_gye[['x','y']].values.astype(float))
             df_gye = df_gye.copy()
@@ -1795,3 +1768,5 @@ with tab_reporte:
             except Exception as e:
                 st.error(f"Error: {e}")
                 import traceback; st.code(traceback.format_exc())
+
+                
