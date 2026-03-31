@@ -60,164 +60,64 @@ from openpyxl.utils import get_column_letter
 warnings.filterwarnings('ignore')
 
 # ── PAGE CONFIG ───────────────────────────────
-st.set_page_config(page_title="INEC · ENDI Planificación",
-                   page_icon="📊", layout="wide",
+st.set_page_config(page_title="ENDI · Planificación",
+                   page_icon="🗺️", layout="wide",
                    initial_sidebar_state="expanded")
 
 # ── CSS ───────────────────────────────────────
-INEC_LOGO = "https://upload.wikimedia.org/wikipedia/commons/a/a8/Logo_del_INEC_Ecuador.png"
-
-st.markdown(f"""
+st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
-
-/* ── Base ─────────────────────────────────── */
-html,body,[class*="css"]{{font-family:'Inter',sans-serif;color:#1a1a2e}}
-.main .block-container{{padding-top:2rem}}
-
-/* ── Sidebar ──────────────────────────────── */
-[data-testid="stSidebar"]{{background:#f7f8fb;border-right:1px solid #e2e6ed}}
-[data-testid="stSidebar"] *{{color:#2d3348 !important}}
-[data-testid="stSidebar"] .stDivider{{border-color:#e2e6ed !important}}
-
-/* ── Header ───────────────────────────────── */
-.hdr{{
-  background:#ffffff;
-  border-radius:10px;padding:20px 28px;margin-bottom:24px;
-  border:1px solid #e2e6ed;border-left:4px solid #003B71;
-  display:flex;align-items:center;gap:20px;
-  box-shadow:0 1px 3px rgba(0,0,0,.04)
-}}
-.hdr img{{height:52px;flex-shrink:0}}
-.hdr-text h1{{color:#003B71!important;font-size:17px!important;font-weight:600!important;
-              margin:0 0 2px!important;font-family:'JetBrains Mono',monospace!important;
-              letter-spacing:-.3px}}
-.hdr-text p{{color:#6b7a90!important;font-size:12px!important;margin:0!important;font-weight:400}}
-
-/* ── KPI cards ────────────────────────────── */
-.kcard{{
-  background:#ffffff;border:1px solid #e2e6ed;border-radius:10px;
-  padding:16px;text-align:center;transition:box-shadow .2s;
-  box-shadow:0 1px 2px rgba(0,0,0,.03)
-}}
-.kcard:hover{{box-shadow:0 3px 12px rgba(0,59,113,.08)}}
-.kcard .v{{font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:600;
-           color:#003B71;line-height:1}}
-.kcard .l{{font-size:10px;color:#8896a6;margin-top:5px;text-transform:uppercase;
-           letter-spacing:.6px;font-weight:500}}
-.kcard .s{{font-size:10px;color:#a8b5c0;margin-top:2px}}
-
-/* ── Step badges ──────────────────────────── */
-.step{{
-  display:inline-block;background:#eef3fa;color:#003B71;border:1px solid #d0daea;
-  border-radius:4px;padding:2px 8px;font-family:'JetBrains Mono',monospace;
-  font-size:10px;font-weight:600;letter-spacing:.8px;margin-bottom:6px
-}}
-
-/* ── Section titles ───────────────────────── */
-.stitle{{
-  font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;
-  color:#003B71;text-transform:uppercase;letter-spacing:1px;
-  border-bottom:2px solid #e2e6ed;padding-bottom:8px;margin:22px 0 14px
-}}
-
-/* ── Info box ─────────────────────────────── */
-.ibox{{
-  background:#f0f6ff;border:1px solid #d0daea;border-left:3px solid #003B71;
-  border-radius:7px;padding:12px 16px;margin:9px 0;font-size:13px;color:#2d4a6f
-}}
-
-/* ── Warning box ──────────────────────────── */
-.wbox{{
-  background:#fffbf0;border:1px solid #f0deb0;border-left:3px solid #e6a817;
-  border-radius:7px;padding:12px 16px;margin:9px 0;font-size:13px;color:#7a5c10
-}}
-
-/* ── Bombero card ─────────────────────────── */
-.bcard{{
-  background:#faf5ff;border:1px solid #e4d5f5;border-left:3px solid #7c3aed;
-  border-radius:7px;padding:13px 16px;margin:9px 0
-}}
-
-/* ── Pills ────────────────────────────────── */
-.pill-ok{{
-  display:inline-block;background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;
-  border-radius:20px;padding:2px 10px;font-size:11px;
-  font-family:'JetBrains Mono',monospace;font-weight:600
-}}
-.pill-w{{
-  display:inline-block;background:#fffbeb;color:#b45309;border:1px solid #fde68a;
-  border-radius:20px;padding:2px 10px;font-size:11px;
-  font-family:'JetBrains Mono',monospace;font-weight:600
-}}
-
-/* ── Equipo card ──────────────────────────── */
-.eq-card{{
-  background:#ffffff;border:1px solid #e2e6ed;border-radius:9px;
-  padding:14px 16px;text-align:center;transition:box-shadow .2s;
-  box-shadow:0 1px 2px rgba(0,0,0,.03)
-}}
-.eq-card:hover{{box-shadow:0 3px 12px rgba(0,59,113,.08)}}
-
-/* ── Personal info form ───────────────────── */
-.pi-form{{
-  background:#fafbfc;border:1px solid #e2e6ed;border-radius:8px;
-  padding:16px;margin-bottom:12px
-}}
-
-/* ── Balance box ──────────────────────────── */
-.balance-box{{
-  background:#ecfdf5;border:1px solid #a7f3d0;border-left:3px solid #059669;
-  border-radius:7px;padding:12px 16px;margin:9px 0;font-size:12px;color:#065f46
-}}
-
-/* ── Jornada planning ─────────────────────── */
-.jplan-ok{{
-  background:#ecfdf5;border:1px solid #a7f3d0;border-left:3px solid #059669;
-  border-radius:6px;padding:8px 14px;margin:4px 0;font-size:12px;color:#065f46
-}}
-.jplan-mv{{
-  background:#fffbeb;border:1px solid #fde68a;border-left:3px solid #d97706;
-  border-radius:6px;padding:8px 14px;margin:4px 0;font-size:12px;color:#92400e
-}}
-.jplan-can{{
-  background:#fef2f2;border:1px solid #fecaca;border-left:3px solid #dc2626;
-  border-radius:6px;padding:8px 14px;margin:4px 0;font-size:12px;color:#991b1b
-}}
-
-/* ── Streamlit overrides ──────────────────── */
-.stTabs [data-baseweb="tab-list"]{{
-  gap:0;border-bottom:2px solid #e2e6ed
-}}
-.stTabs [data-baseweb="tab"]{{
-  color:#6b7a90;font-weight:500;font-size:13px;
-  padding:10px 20px;border-bottom:2px solid transparent
-}}
-.stTabs [aria-selected="true"]{{
-  color:#003B71!important;border-bottom:2px solid #003B71!important;
-  font-weight:600
-}}
-button[kind="primary"]{{
-  background:#003B71!important;border:none!important;
-  font-weight:600!important;letter-spacing:.3px
-}}
-button[kind="primary"]:hover{{
-  background:#00508f!important
-}}
-
-/* ── Sidebar logo ─────────────────────────── */
-.sidebar-logo{{
-  display:flex;align-items:center;gap:12px;
-  padding:4px 0 12px;margin-bottom:4px
-}}
-.sidebar-logo img{{height:40px}}
-.sidebar-logo .sidebar-title{{
-  font-family:'JetBrains Mono',monospace;font-size:12px;
-  font-weight:600;color:#003B71!important;line-height:1.3
-}}
-.sidebar-logo .sidebar-sub{{
-  font-size:10px;color:#8896a6!important;margin-top:2px;font-weight:400
-}}
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap');
+html,body,[class*="css"]{font-family:'IBM Plex Sans',sans-serif}
+[data-testid="stSidebar"]{background:#0c0f1a;border-right:1px solid #1e2540}
+[data-testid="stSidebar"] *{color:#d0d8e8 !important}
+.hdr{background:linear-gradient(135deg,#071e3d,#0d3b6e 60%,#0a2a52);
+     border-radius:12px;padding:24px 32px;margin-bottom:20px;
+     border-left:5px solid #2e86de;position:relative;overflow:hidden}
+.hdr::after{content:"INEC";position:absolute;right:24px;top:50%;
+            transform:translateY(-50%);font-family:'IBM Plex Mono',monospace;
+            font-size:76px;font-weight:600;color:rgba(255,255,255,.04);letter-spacing:6px}
+.hdr h1{color:#fff!important;font-size:18px!important;font-weight:600!important;
+        margin:0 0 3px!important;font-family:'IBM Plex Mono',monospace!important}
+.hdr p{color:#7eb3d8!important;font-size:12px!important;margin:0!important}
+.kcard{background:#111827;border:1px solid #1f2d45;border-radius:10px;
+       padding:14px 16px;text-align:center;transition:border-color .2s}
+.kcard:hover{border-color:#2e86de}
+.kcard .v{font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600;
+          color:#2e86de;line-height:1}
+.kcard .l{font-size:10px;color:#7a8fa6;margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
+.kcard .s{font-size:10px;color:#4a6070;margin-top:2px}
+.step{display:inline-block;background:#0d2035;color:#2e86de;border:1px solid #1a4060;
+      border-radius:4px;padding:2px 7px;font-family:'IBM Plex Mono',monospace;
+      font-size:10px;font-weight:600;letter-spacing:1px;margin-bottom:6px}
+.stitle{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;color:#2e86de;
+        text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #1f2d45;
+        padding-bottom:7px;margin:18px 0 12px}
+.ibox{background:#0a1f35;border:1px solid #143050;border-left:3px solid #2e86de;
+      border-radius:7px;padding:11px 15px;margin:9px 0;font-size:13px;color:#7eb3d8}
+.wbox{background:#1a1400;border:1px solid #3a2800;border-left:3px solid #f39c12;
+      border-radius:7px;padding:11px 15px;margin:9px 0;font-size:13px;color:#c9a227}
+.bcard{background:#1a0d2e;border:1px solid #3d1a6e;border-left:3px solid #9b59b6;
+       border-radius:7px;padding:13px 16px;margin:9px 0}
+.pill-ok{display:inline-block;background:#0a2e1a;color:#27ae60;border:1px solid #1a5e35;
+         border-radius:20px;padding:2px 9px;font-size:11px;
+         font-family:'IBM Plex Mono',monospace;font-weight:600}
+.pill-w{display:inline-block;background:#1a1500;color:#e67e22;border:1px solid #5a3c00;
+        border-radius:20px;padding:2px 9px;font-size:11px;
+        font-family:'IBM Plex Mono',monospace;font-weight:600}
+.eq-card{background:#0d1520;border:1px solid #1f2d45;border-radius:9px;
+         padding:14px 16px;text-align:center;transition:border-color .2s}
+.eq-card:hover{border-color:#2e86de}
+.pi-form{background:#0d1520;border:1px solid #1f2d45;border-radius:8px;
+         padding:16px;margin-bottom:12px}
+.balance-box{background:#071a10;border:1px solid #0d4020;border-left:3px solid #27ae60;
+             border-radius:7px;padding:11px 15px;margin:9px 0;font-size:12px;color:#5dca8a}
+.jplan-ok  {background:#061a0e;border:1px solid #0d4020;border-left:3px solid #27ae60;
+             border-radius:6px;padding:8px 14px;margin:4px 0;font-size:12px;color:#5dca8a}
+.jplan-mv  {background:#1a1200;border:1px solid #3a2800;border-left:3px solid #f39c12;
+             border-radius:6px;padding:8px 14px;margin:4px 0;font-size:12px;color:#c9a227}
+.jplan-can {background:#1a0800;border:1px solid #3a1000;border-left:3px solid #e74c3c;
+             border-radius:6px;padding:8px 14px;margin:4px 0;font-size:12px;color:#e07060}
 </style>
 """, unsafe_allow_html=True)
 
@@ -233,8 +133,8 @@ MESES_CAL = {
     7:"Julio",8:"Agosto",9:"Septiembre",10:"Octubre",11:"Noviembre",12:"Diciembre"
 }
 
-COLORES  = ['#dc2626','#003B71','#059669','#d97706','#7c3aed',
-            '#0891b2','#c2410c','#be185d']
+COLORES  = ['#e74c3c','#2e86de','#27ae60','#f39c12','#9b59b6',
+            '#1abc9c','#e67e22','#e91e63']
 
 # ── HELPERS ───────────────────────────────────
 def cv_pct(s):
@@ -256,18 +156,18 @@ def parse_codigo(codigo, org_territorial=None):
     if len(c)>=12: r['sector']=c[9:12]
     if len(c)>=15: r['man']=c[12:15]
     if org_territorial and len(c)>=6:
-        pp=c[:2]; ppcc=c[:4]; ppccaa=c[:6]
-        prov_data=org_territorial.get(pp,{})
-        r['prov_nombre']=prov_data.get('DPA_DESPRO','')
-        cant_data=prov_data.get('cantones',{}).get(ppcc,{})
-        r['canton_nombre']=cant_data.get('DPA_DESCAN','')
-        parr_data=cant_data.get('parroquias',{}).get(ppccaa,{})
-        r['parroq_nombre']=parr_data.get('DPA_DESPAR','')
+        pp,ppcc,ppccaa=c[:2],c[:4],c[:6]
+        pd_=org_territorial.get(pp,{})
+        r['prov_nombre']=pd_.get('DPA_DESPRO','')
+        cd_=pd_.get('cantones',{}).get(ppcc,{})
+        r['canton_nombre']=cd_.get('DPA_DESCAN','')
+        pr_=cd_.get('parroquias',{}).get(ppccaa,{})
+        r['parroq_nombre']=pr_.get('DPA_DESPAR','')
     return r
 
-def cargar_org_territorial(contenido_txt):
+def cargar_org_territorial(txt):
     import json
-    try: return json.loads(contenido_txt)
+    try: return json.loads(txt)
     except: return {}
 
 def jornada_num_desde_mes(mes_operativo, mes_inicio_cal):
@@ -350,13 +250,12 @@ def cargar_gpkg(path, dissolve_upm=True):
 
 def clustering_balanceado(df, n_clusters, cv_objetivo=0.10, max_iter=300, k_vecinos=8):
     """
-    Clustering geográfico balanceado con RESTRICCIÓN DE DISTANCIA (v6).
+    Clustering en dos fases para balancear suma de viviendas ponderadas.
 
-    FASE 1 — KMeans geográfico.
-    FASE 2 — Rebalanceo iterativo con límite de deformación:
-      Antes de aceptar un swap, verifica que el punto movido no quede
-      a más de 2× el radio actual del cluster destino. Esto evita
-      clusters "estirados" con puntos en provincias lejanas.
+    Clustering geográfico con rebalanceo SUAVE (v6.1).
+    Balancea carga entre clusters pero limita swaps a puntos que no
+    estén demasiado lejos del cluster destino (≤ 3× percentil 90 del radio,
+    mín 50km). Esto evita clusters deformados con puntos en provincias lejanas.
     """
     coords = df[['x','y']].values.astype(float)
     cargas = df['carga_pond'].values.astype(float)
@@ -413,20 +312,21 @@ def clustering_balanceado(df, n_clusters, cv_objetivo=0.10, max_iter=300, k_veci
                     mask_p = np.where(labels==ci_p)[0]
                     if len(mask_p)==0: continue
                     mejor_cv,mejor_idx = cv,-1
-                    # Radio máximo del cluster destino (2× radio actual)
+                    # Límite suave: no mover puntos que queden muy lejos del destino
                     pts_l = coords[labels==ci_l]
-                    if len(pts_l) > 0:
+                    if len(pts_l)>1:
                         cent_l = pts_l.mean(axis=0)
-                        radio_l = np.max(np.linalg.norm(pts_l - cent_l, axis=1)) if len(pts_l)>1 else 50000
-                        max_dist_l = max(radio_l * 2.0, 30000)  # mín 30km
+                        dists_l = np.linalg.norm(pts_l - cent_l, axis=1)
+                        radio_l = np.percentile(dists_l, 90)
+                        max_dist_l = max(radio_l * 3.0, 50000)
                     else:
-                        cent_l = np.zeros(2); max_dist_l = 1e12
+                        cent_l = pts_l.mean(axis=0) if len(pts_l)>0 else coords.mean(axis=0)
+                        max_dist_l = 1e12
 
                     for idx in mask_p:
                         if not any(labels[v]==ci_l for v in nbr[idx] if v!=idx): continue
-                        # Rechazar si queda demasiado lejos del cluster destino
-                        dist_to_dest = np.linalg.norm(coords[idx] - cent_l)
-                        if dist_to_dest > max_dist_l: continue
+                        # Soft distance check
+                        if np.linalg.norm(coords[idx] - cent_l) > max_dist_l: continue
                         labels[idx]=ci_l
                         cv_n=cv_pct(pd.Series(cluster_sums()))
                         labels[idx]=ci_p
@@ -438,7 +338,7 @@ def clustering_balanceado(df, n_clusters, cv_objetivo=0.10, max_iter=300, k_veci
                 if mejora: break
             if not mejora: no_mejora_frontera+=1
 
-        # ── MODO 2: Global (fallback) ─────────────────────────────────────────
+        # ── MODO 2: Global con límite de distancia ────────────────────────────
         if not mejora:
             cents  = centroides_actuales()
             ci_p   = orden_pesados[0]
@@ -446,17 +346,17 @@ def clustering_balanceado(df, n_clusters, cv_objetivo=0.10, max_iter=300, k_veci
             mejor_cv_g,mejor_idx_g,mejor_dest = cv,-1,-1
             for ci_l in orden_livianos[:2]:
                 if ci_p==ci_l or len(mask_p)==0: continue
+                pts_l = coords[labels==ci_l]
+                if len(pts_l)>1:
+                    dists_l = np.linalg.norm(pts_l-cents[ci_l],axis=1)
+                    radio_l = np.percentile(dists_l, 90)
+                    max_d = max(radio_l * 3.0, 50000)
+                else:
+                    max_d = 1e12
                 dists = np.linalg.norm(coords[mask_p]-cents[ci_l],axis=1)
-                cands = mask_p[np.argsort(dists)[:10]]
-                # Radio del cluster destino
-                pts_dest = coords[labels==ci_l]
-                cent_dest = pts_dest.mean(axis=0) if len(pts_dest)>0 else np.zeros(2)
-                radio_dest = np.max(np.linalg.norm(pts_dest - cent_dest, axis=1)) if len(pts_dest)>1 else 50000
-                max_dist_dest = max(radio_dest * 2.0, 30000)
-
+                cands = mask_p[np.argsort(dists)[:15]]
                 for idx in cands:
-                    # Rechazar si queda muy lejos
-                    if np.linalg.norm(coords[idx] - cent_dest) > max_dist_dest: continue
+                    if dists[np.where(mask_p==idx)[0][0]] > max_d: continue
                     labels[idx]=ci_l
                     cv_n=cv_pct(pd.Series(cluster_sums()))
                     labels[idx]=ci_p
@@ -507,75 +407,46 @@ def nearest_neighbor_order(points_xy, start_xy=None):
 
 def asignar_encuestadores_y_dias(df_grp, n_enc, dias_tot, viv_min, viv_max,
                                   inicio_dia=1):
-    """
-    Asigna encuestadores y distribuye manzanas en días de forma UNIFORME.
-    v5.3: target_dia = total_viv_enc / dias_tot por encuestador.
-    """
-    target = (viv_min + viv_max) / 2.0
+    """Distribución diaria UNIFORME (v6). target_dia = total_viv_enc / dias_tot."""
     ultimo = inicio_dia + dias_tot - 1
-
     df_g = df_grp.copy()
     n_rows = len(df_g)
     cargas = df_g['carga_pond'].values.astype(float)
     viviendas = df_g['viv'].values.astype(float)
     coords = df_g[['x','y']].values.astype(float)
-
-    # PASO 1: bin-packing
     orden_bp = np.argsort(cargas)[::-1]
-    enc_acum = np.zeros(n_enc)
-    enc_asig = np.zeros(n_rows, dtype=int)
+    enc_acum = np.zeros(n_enc); enc_asig = np.zeros(n_rows, dtype=int)
     for pos in orden_bp:
-        em = int(np.argmin(enc_acum))
-        enc_asig[pos] = em + 1
-        enc_acum[em] += cargas[pos]
-
-    # PASO 2: reordenamiento geográfico
+        em = int(np.argmin(enc_acum)); enc_asig[pos] = em + 1; enc_acum[em] += cargas[pos]
     enc_geo_order = {}
     for enc_id in range(1, n_enc+1):
         pos_enc = np.where(enc_asig == enc_id)[0]
         if len(pos_enc)==0: continue
-        sub_coords = coords[pos_enc]
-        centroide = sub_coords.mean(axis=0)
+        sub_coords = coords[pos_enc]; centroide = sub_coords.mean(axis=0)
         nn = nearest_neighbor_order(sub_coords, start_xy=centroide)
         enc_geo_order[enc_id] = [pos_enc[nn_i] for nn_i in nn]
-
-    # PASO 3: distribución diaria UNIFORME
     dia_ini_arr = np.full(n_rows, inicio_dia, dtype=int)
     dia_fin_arr = np.full(n_rows, inicio_dia, dtype=int)
-
     for enc_id, positions in enc_geo_order.items():
         if not positions: continue
         total_viv_enc = sum(viviendas[p] for p in positions)
         target_dia = total_viv_enc / max(1, dias_tot)
         if target_dia < 1: target_dia = max(1, total_viv_enc)
-
-        dia_actual = inicio_dia
-        acum_dia = 0.0
-
+        dia_actual = inicio_dia; acum_dia = 0.0
         for pos in positions:
             viv_m = max(0.0, viviendas[pos])
             if viv_m > viv_max:
-                dias_necesarios = max(1, int(np.ceil(viv_m / target_dia)))
-                dias_necesarios = min(dias_necesarios, ultimo - dia_actual + 1)
-                d_ini = dia_actual
-                d_fin = min(dia_actual + dias_necesarios - 1, ultimo)
-                dia_ini_arr[pos] = d_ini
-                dia_fin_arr[pos] = d_fin
-                dia_actual = min(d_fin + 1, ultimo)
-                acum_dia = 0.0
-            else:
+                dias_n = min(max(1, int(np.ceil(viv_m / target_dia))), ultimo - dia_actual + 1)
                 dia_ini_arr[pos] = dia_actual
-                dia_fin_arr[pos] = dia_actual
+                dia_fin_arr[pos] = min(dia_actual + dias_n - 1, ultimo)
+                dia_actual = min(dia_fin_arr[pos] + 1, ultimo); acum_dia = 0.0
+            else:
+                dia_ini_arr[pos] = dia_actual; dia_fin_arr[pos] = dia_actual
                 acum_dia += viv_m
                 if acum_dia >= target_dia and dia_actual < ultimo:
-                    dia_actual += 1
-                    acum_dia = 0.0
-
-    df_g['encuestador'] = enc_asig
-    df_g['dia_inicio'] = dia_ini_arr
-    df_g['dia_fin'] = dia_fin_arr
-    df_g['dia_operativo'] = dia_ini_arr
-    return df_g
+                    dia_actual += 1; acum_dia = 0.0
+    df_g['encuestador'] = enc_asig; df_g['dia_inicio'] = dia_ini_arr
+    df_g['dia_fin'] = dia_fin_arr; df_g['dia_operativo'] = dia_ini_arr
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -583,6 +454,7 @@ def asignar_encuestadores_y_dias(df_grp, n_enc, dias_tot, viv_min, viv_max,
 # ══════════════════════════════════════════════════════════════════════════════
 
 ESTADO_OK  = "✅ Planificada"
+ESTADO_MV  = "🔀 Trasladada"
 ESTADO_CAN = "❌ Cancelada"
 
 def construir_calendario_jornadas(total_meses, mes_inicio_cal, config_jornadas):
@@ -847,13 +719,9 @@ for k,v in _defs.items():
 #  SIDEBAR
 # ══════════════════════════════════════════════════════════════════════════════
 with st.sidebar:
-    st.markdown(f"""<div class='sidebar-logo'>
-        <img src='{INEC_LOGO}' alt='INEC'>
-        <div>
-            <div class='sidebar-title'>Encuesta Nacional</div>
-            <div class='sidebar-sub'>INEC · Zonal Litoral</div>
-        </div>
-    </div>""", unsafe_allow_html=True)
+    st.markdown("### 🗺️ Encuesta Nacional")
+    st.markdown("<p style='font-size:10px;color:#445566;margin-top:-8px'>INEC · Zonal Litoral</p>",
+                unsafe_allow_html=True)
     st.divider()
 
     # PASO 1 — GeoPackage
@@ -901,14 +769,12 @@ with st.sidebar:
 
     st.divider()
 
-    # Org. territorial (opcional)
     st.markdown("<div class='step'>OPCIONAL</div>",unsafe_allow_html=True)
     st.markdown("**Org. Territorial (.txt)**")
     org_f=st.file_uploader("organizacion_territorial",type=["txt","json"],key="org_up")
     if org_f:
         try:
-            contenido=org_f.read().decode('utf-8')
-            st.session_state.org_territorial=cargar_org_territorial(contenido)
+            st.session_state.org_territorial=cargar_org_territorial(org_f.read().decode('utf-8'))
             st.markdown("<span class='pill-ok'>✓ Territorial</span>",unsafe_allow_html=True)
         except Exception as e: st.error(str(e))
     elif st.session_state.org_territorial is not None:
@@ -941,11 +807,11 @@ with st.sidebar:
 
         j1_n,j2_n,mes_nom=jornada_num_desde_mes(int(mes_sel),mes_ini_cal)
         st.markdown(f"""
-        <div style='font-size:11px;background:#f0f6ff;border-radius:6px;color:#2d4a6f;
-                    padding:8px 12px;border-left:3px solid #003B71;margin-top:6px'>
+        <div style='font-size:11px;background:#0d2035;border-radius:6px;
+                    padding:8px 12px;border-left:3px solid #2e86de;margin-top:6px'>
         📅 Mes {int(mes_sel)} ({mes_nom}) →
-        <b style='color:#003B71'>Jornada {j1_n}</b> +
-        <b style='color:#059669'>Jornada {j2_n}</b>
+        <b style='color:#2e86de'>Jornada {j1_n}</b> +
+        <b style='color:#27ae60'>Jornada {j2_n}</b>
         </div>""",unsafe_allow_html=True)
 
         st.divider()
@@ -977,42 +843,33 @@ with st.sidebar:
                 st.session_state.equipos_cfg[i]["enc"]=ne
 
         st.divider()
-        st.markdown("**Parámetros operativos**")
+        st.markdown("**Parámetros**")
         p=st.session_state.params
-        p["dias_op"] =st.slider("Días operativos",10,14,p["dias_op"],help="Días hábiles por jornada (mitad de mes)")
-        p["viv_min"] =st.slider("Mín viv/día",30,60,p["viv_min"],help="Mínimo de viviendas por encuestador por día")
-        p["viv_max"] =st.slider("Máx viv/día",60,120,p["viv_max"],help="Máximo de viviendas por encuestador por día")
-        p["factor_r"]=st.slider("Factor rural (×)",1.0,2.5,p["factor_r"],0.1,help="Multiplicador de carga para zonas dispersas/rurales (más tiempo por vivienda)")
-        st.markdown("**Rebalanceo clusters**")
-        p["cv_objetivo"] =st.slider("CV objetivo (%)",3,25,p.get("cv_objetivo",10),help="Coeficiente de variación objetivo entre equipos. Menor = más equilibrado pero clusters más deformados")
-        p["max_iter_bal"]=st.slider("Iter. máx.",50,500,p.get("max_iter_bal",300),step=50,help="Iteraciones máximas del algoritmo de rebalanceo")
-        p["k_vecinos"]   =st.slider("Vecinos frontera (k)",4,20,p.get("k_vecinos",8),help="Número de vecinos geográficos para detectar fronteras entre clusters. Mayor = swaps más suaves")
-        p["usar_bomb"]=st.toggle("Equipo Bombero",value=p["usar_bomb"])
-        if p["usar_bomb"]:
-            p["min_dist_bomb_m"]=st.slider("Dist. mín. Bombero (km)",10,150,
-                p.get("min_dist_bomb_m",40000)//1000)*1000
-        p["usar_gye"]   =st.toggle("Restricción Guayaquil",value=p["usar_gye"])
-        p["dias_gye"]   =st.slider("Días GYE",1,5,p["dias_gye"],disabled=not p["usar_gye"])
-        p["umbral_gye"] =st.slider("Umbral GYE (%)",5,30,p["umbral_gye"],disabled=not p["usar_gye"])
+        p["dias_op"] =st.slider("Días por jornada",10,14,p["dias_op"],help="Días hábiles por jornada (mitad de mes)")
+        pc1,pc2=st.columns(2)
+        with pc1: p["viv_min"]=st.number_input("Mín viv/día",30,80,p["viv_min"],help="Viviendas mínimas por encuestador/día")
+        with pc2: p["viv_max"]=st.number_input("Máx viv/día",60,150,p["viv_max"],help="Viviendas máximas por encuestador/día")
+        p["factor_r"]=st.slider("Factor rural",1.0,2.5,p["factor_r"],0.1,help="Multiplicador para zonas dispersas")
+        p["usar_bomb"]=st.toggle("Equipo Bombero",value=p["usar_bomb"],help="Detecta UPMs outlier muy lejanas")
+        p["usar_gye"]=st.toggle("Restricción GYE",value=p["usar_gye"],help="Agrupa UPMs de Guayaquil por barrio")
+        if p["usar_gye"]:
+            p["dias_gye"]=st.slider("Días GYE",1,5,p["dias_gye"])
 
         tot_enc=sum(e["enc"] for e in st.session_state.equipos_cfg)
         tot_viv=int(df_mes["viv"].sum()) if len(df_mes)>0 else 0
         st.markdown(f"""
-        <div style='font-size:11px;color:#4a5568;line-height:2;margin-top:8px'>
-        📍 <b style='color:#003B71'>{len(df_mes):,}</b> UPMs · mes {int(mes_sel)}<br>
-        🏠 <b style='color:#003B71'>{tot_viv:,}</b> viviendas<br>
-        👥 <b style='color:#003B71'>{len(st.session_state.equipos_cfg)}</b> equipos ·
-           <b style='color:#003B71'>{tot_enc}</b> enc.
+        <div style='font-size:11px;color:#445566;line-height:2;margin-top:8px'>
+        📍 <b style='color:#7eb3d8'>{len(df_mes):,}</b> UPMs · mes {int(mes_sel)}<br>
+        🏠 <b style='color:#7eb3d8'>{tot_viv:,}</b> viviendas<br>
+        👥 <b style='color:#7eb3d8'>{len(st.session_state.equipos_cfg)}</b> equipos ·
+           <b style='color:#7eb3d8'>{tot_enc}</b> enc.
         </div>""",unsafe_allow_html=True)
 
 # ── HEADER ────────────────────────────────────
-st.markdown(f"""
+st.markdown("""
 <div class='hdr'>
-  <img src='{INEC_LOGO}' alt='INEC'>
-  <div class='hdr-text'>
-    <h1>Planificación Automática · Actualización Cartográfica</h1>
-    <p>Instituto Nacional de Estadística y Censos &nbsp;·&nbsp; Zonal Litoral &nbsp;·&nbsp; ENDI 2025</p>
-  </div>
+  <h1>Planificación Automática · Actualización Cartográfica · v5</h1>
+  <p>Encuesta Nacional &nbsp;·&nbsp; Zonal Litoral &nbsp;·&nbsp; INEC Ecuador</p>
 </div>""",unsafe_allow_html=True)
 
 if st.session_state.data_raw is None:
@@ -1026,12 +883,12 @@ if df is None or len(df)==0:
 
 p=st.session_state.params
 k1,k2,k3,k4,k5=st.columns(5)
-cv_v=cv_pct(df["viv"]); cv_c="#059669" if cv_v<50 else "#dc2626"
+cv_v=cv_pct(df["viv"]); cv_c="#27ae60" if cv_v<50 else "#e74c3c"
 for col,(val,lbl,sub,c) in zip([k1,k2,k3,k4,k5],[
-    (f"{len(df):,}","UPMs",f"mes {int(df['mes'].iloc[0])}","#003B71"),
-    (f"{int(df['viv'].sum()):,}","Viviendas","precenso 2020","#003B71"),
-    (f"{len(df[df['tipo_entidad'].isin(['man','man_upm'])]):,}","Amanzanadas","man/man_upm","#003B71"),
-    (f"{len(df[df['tipo_entidad'].isin(['sec','sec_upm'])]):,}","Dispersas","sec/sec_upm","#003B71"),
+    (f"{len(df):,}","UPMs",f"mes {int(df['mes'].iloc[0])}","#2e86de"),
+    (f"{int(df['viv'].sum()):,}","Viviendas","precenso 2020","#2e86de"),
+    (f"{len(df[df['tipo_entidad'].isin(['man','man_upm'])]):,}","Amanzanadas","man/man_upm","#2e86de"),
+    (f"{len(df[df['tipo_entidad'].isin(['sec','sec_upm'])]):,}","Dispersas","sec/sec_upm","#2e86de"),
     (f"{cv_v:.1f}%","CV viviendas","dispersión",cv_c),
 ]):
     with col:
@@ -1041,52 +898,41 @@ for col,(val,lbl,sub,c) in zip([k1,k2,k3,k4,k5],[
 
 st.markdown("<br>",unsafe_allow_html=True)
 
-# ── ALCANCE Y CALENDARIO ─────────────────────
+# ── PLANIFICACIÓN ─────────────────────────────
 st.markdown("<div class='stitle'>Configuración de planificación</div>",unsafe_allow_html=True)
 meses_disp_all=sorted(st.session_state.data_raw["mes"].dropna().unique().tolist())
 mes_ini_cal_pre=st.session_state.mes_inicio_cal
 
-scope_col, cascade_col = st.columns([1,2])
-with scope_col:
-    alcance=st.radio("Alcance",["Solo mes seleccionado","Planificación completa"],
-                     index=0 if st.session_state.get("alcance_plan","mes")=="mes" else 1,
-                     key="radio_alcance")
+sc1,sc2=st.columns([1,2])
+with sc1:
+    alcance=st.radio("Alcance",["Solo mes seleccionado","Todos los meses"],
+        index=0 if st.session_state.get("alcance_plan","mes")=="mes" else 1,
+        key="radio_alcance",help="'Todos los meses' planifica toda la encuesta. Puede tardar minutos.")
     st.session_state.alcance_plan="mes" if "Solo" in alcance else "completa"
     if st.session_state.alcance_plan=="completa":
-        st.markdown("<div class='wbox'>⚠️ La planificación completa puede tardar varios minutos.</div>",
-                    unsafe_allow_html=True)
-
-with cascade_col:
-    st.markdown("**Jornadas canceladas** (se desplazan automáticamente)")
-    all_jornadas_pre=[]
-    for m_pre in meses_disp_all:
-        j1_pre,j2_pre,mn_pre=jornada_num_desde_mes(int(m_pre),mes_ini_cal_pre)
-        all_jornadas_pre.append({'jn':j1_pre,'mes':m_pre,'mes_nombre':mn_pre,'mitad':1})
-        all_jornadas_pre.append({'jn':j2_pre,'mes':m_pre,'mes_nombre':mn_pre,'mitad':2})
-    cfg_j_pre=st.session_state.config_jornadas
-    canceladas_pre=[]
-    n_jcols=min(6,len(all_jornadas_pre))
-    if n_jcols>0:
-        jcols=st.columns(n_jcols)
-        for ij,jinfo_p in enumerate(all_jornadas_pre):
-            jn_p=jinfo_p['jn']
-            with jcols[ij%n_jcols]:
-                cancel_p=st.checkbox(f"J{jn_p}",value=cfg_j_pre.get(jn_p,{}).get('estado',ESTADO_OK)==ESTADO_CAN,
-                                     key=f"can_pre_{jn_p}",help=f"Mes {int(jinfo_p['mes'])} {jinfo_p['mes_nombre']}")
-                if cancel_p:
-                    canceladas_pre.append(jn_p)
-                    cfg_j_pre[jn_p]={'estado':ESTADO_CAN,'fecha':None,'trasladada_a':None}
-                else:
-                    if jn_p not in cfg_j_pre or cfg_j_pre[jn_p].get('estado')==ESTADO_CAN:
-                        cfg_j_pre[jn_p]={'estado':ESTADO_OK,'fecha':cfg_j_pre.get(jn_p,{}).get('fecha',None),'trasladada_a':None}
-    st.session_state.config_jornadas=cfg_j_pre
+        st.markdown("<div class='wbox'>⏳ Puede tardar varios minutos.</div>",unsafe_allow_html=True)
+with sc2:
+    st.markdown("**Jornadas canceladas** <span style='font-size:11px;color:#6b7a90'>(se desplazan al slot siguiente)</span>",unsafe_allow_html=True)
+    all_jp=[]
+    for mp in meses_disp_all:
+        j1p,j2p,mnp=jornada_num_desde_mes(int(mp),mes_ini_cal_pre)
+        all_jp.append({'jn':j1p,'mes':mp,'mn':mnp,'m':1})
+        all_jp.append({'jn':j2p,'mes':mp,'mn':mnp,'m':2})
+    cfg_jp=st.session_state.config_jornadas; canceladas_pre=[]
+    nc=min(6,len(all_jp))
+    if nc>0:
+        jcs=st.columns(nc)
+        for ij,jp in enumerate(all_jp):
+            with jcs[ij%nc]:
+                ca=st.checkbox(f"J{jp['jn']}",value=cfg_jp.get(jp['jn'],{}).get('estado',ESTADO_OK)==ESTADO_CAN,
+                    key=f"c_{jp['jn']}",help=f"Mes {int(jp['mes'])} {jp['mn']}")
+                if ca: canceladas_pre.append(jp['jn']); cfg_jp[jp['jn']]={'estado':ESTADO_CAN,'fecha':None,'trasladada_a':None}
+                elif cfg_jp.get(jp['jn'],{}).get('estado')==ESTADO_CAN: cfg_jp[jp['jn']]={'estado':ESTADO_OK,'fecha':None,'trasladada_a':None}
+    st.session_state.config_jornadas=cfg_jp
     if canceladas_pre:
-        n_extra=len(canceladas_pre)
-        st.markdown(f"<div class='ibox'>🔀 <b>{n_extra} jornada(s) cancelada(s)</b> → "
-                    f"el cronograma se desplaza en {n_extra} slot(s).</div>",unsafe_allow_html=True)
+        st.markdown(f"<div class='ibox'>🔀 {len(canceladas_pre)} cancelada(s) → cronograma desplazado.</div>",unsafe_allow_html=True)
 
 st.markdown("<br>",unsafe_allow_html=True)
-
 cb1,cb2=st.columns([1,3])
 with cb1:
     btn=st.button("⚡ Generar Planificación",use_container_width=True,
@@ -1103,252 +949,129 @@ with cb2:
 #  ALGORITMO PRINCIPAL v5
 # ══════════════════════════════════════════════════════════════════════════════
 if btn:
-    G=st.session_state.graph_G
-    eq_cfg=st.session_state.equipos_cfg
-    n_eq=len(eq_cfg); nombres=[e["nombre"] for e in eq_cfg]
-    p=st.session_state.params
-    canceladas_run=[jn_p for jn_p in canceladas_pre] if 'canceladas_pre' in dir() else []
-
-    if st.session_state.alcance_plan=="completa":
-        meses_a_plan=meses_disp_all
-    else:
-        meses_a_plan=[df['mes'].iloc[0]]
-
-    all_df_plan=[]; all_tsp_r={}; all_road_p={}
-    total_meses_plan=len(meses_a_plan)
-    prog=st.progress(0,f"Planificando {total_meses_plan} mes(es)...")
-
-    for mi,mes_plan in enumerate(meses_a_plan):
-        pct_base=int(mi/total_meses_plan*100)
-        prog.progress(pct_base,f"Mes {int(mes_plan)} ({mi+1}/{total_meses_plan})...")
-
-        df_mes_plan=st.session_state.data_raw[st.session_state.data_raw["mes"]==mes_plan].copy()
-        if len(df_mes_plan)==0: continue
-
-        j1_n_m,j2_n_m,_=jornada_num_desde_mes(int(mes_plan),st.session_state.mes_inicio_cal)
-        j1_cancelada=j1_n_m in canceladas_run
-        j2_cancelada=j2_n_m in canceladas_run
-        if j1_cancelada and j2_cancelada: continue
-
-        df_w=df_mes_plan.copy()
-        df_w['mes_plan']=int(mes_plan)
-        df_w['equipo']='sin_asignar'; df_w['jornada']='sin_asignar'
-        df_w['cluster_geo']=-1
-        df_w['carga_pond']=df_w.apply(
-            lambda r: r['viv']*p["factor_r"]
-            if str(r.get('tipo_entidad','')).startswith('sec') else r['viv'],axis=1)
-        df_w['encuestador']=0; df_w['dia_operativo']=0
-        df_w['dia_inicio']=0; df_w['dia_fin']=0; df_w['dist_base_m']=0.0
-
-        pct_mes=lambda p_local: min(99,int(pct_base + p_local/total_meses_plan))
-
-        t_utm=Transformer.from_crs("EPSG:4326","EPSG:32717",always_xy=True)
-        bx,by=t_utm.transform(BASE_LON,BASE_LAT)
-        df_w['dist_base_m']=np.sqrt((df_w['x']-bx)**2+(df_w['y']-by)**2)
-
-        # 2. Restricción GYE
-        prog.progress(pct_mes(8),f"Mes {int(mes_plan)}: restricción GYE...")
-        upms_gye=pd.Series(False,index=df_w.index)
-        if p["usar_gye"] and 'pro_x' in df_w.columns and 'can_x' in df_w.columns:
-            upms_gye=(df_w['pro_x']==PRO_GYE)&(df_w['can_x']==CAN_GYE)
-        pct_gye=upms_gye.sum()/len(df_w) if len(df_w)>0 else 0
-        act_gye=p["usar_gye"] and (pct_gye>=p["umbral_gye"]/100) and upms_gye.sum()>0
-
-        df_gye   =df_w[upms_gye].copy()  if act_gye else pd.DataFrame()
-        df_no_gye=df_w[~upms_gye].copy()
-
-        # Determinar jornadas activas para este mes
-        jornadas_mes=[]
-        if not j1_cancelada: jornadas_mes.append('Jornada 1')
-        if not j2_cancelada: jornadas_mes.append('Jornada 2')
-        n_clust_mes = n_eq * len(jornadas_mes)
-
-        # 3. Clustering balanceado
-        prog.progress(pct_mes(12),f"Mes {int(mes_plan)}: clustering ({n_clust_mes} clusters)...")
-        mask_bomb=pd.Series(False,index=df_w.index)
-
-        if len(df_no_gye)>=n_clust_mes and n_clust_mes>0:
-            km_init=KMeans(n_clusters=n_clust_mes,init='k-means++',n_init=20,
-                           max_iter=500,random_state=42)
-            lab_init=km_init.fit_predict(df_no_gye[['x','y']].values.astype(float))
-            carg_arr=df_no_gye['carga_pond'].values
-            vib_antes={c:float(carg_arr[lab_init==c].sum()) for c in range(n_clust_mes)}
-            if mi==0: st.session_state.viv_por_cluster_antes=vib_antes
-
-            prog.progress(pct_mes(22),f"Mes {int(mes_plan)}: rebalanceo...")
-            labels,bal_log,cv_ini,cv_fin=clustering_balanceado(
-                df_no_gye,n_clusters=n_clust_mes,
-                cv_objetivo=p["cv_objetivo"]/100.0,
-                max_iter=p["max_iter_bal"],k_vecinos=p["k_vecinos"])
-
-            df_no_gye=df_no_gye.copy()
-            df_no_gye['cluster_geo']=labels
-            if mi==0:
-                st.session_state.balance_log=bal_log
-                st.session_state.cv_ini_bal=cv_ini
-                st.session_state.cv_fin_bal=cv_fin
-                try: st.session_state.sil_score=silhouette_score(df_no_gye[['x','y']].values,labels)
-                except: st.session_state.sil_score=None
-                vib_despues={c:float(carg_arr[labels==c].sum()) for c in range(n_clust_mes)}
-                st.session_state.viv_por_cluster_despues=vib_despues
-
-            centroides=np.array([
-                df_no_gye[['x','y']].values[labels==c].mean(axis=0)
-                if (labels==c).sum()>0 else np.array([bx,by])
-                for c in range(n_clust_mes)])
-            dist_c=np.sqrt((centroides[:,0]-bx)**2+(centroides[:,1]-by)**2)
-            orden=np.argsort(dist_c)[::-1]
-
+    G=st.session_state.graph_G; eq_cfg=st.session_state.equipos_cfg
+    n_eq=len(eq_cfg); nombres=[e["nombre"] for e in eq_cfg]; p=st.session_state.params
+    cset=set(canceladas_pre) if 'canceladas_pre' in dir() else set()
+    mplan=meses_disp_all if st.session_state.alcance_plan=="completa" else [df['mes'].iloc[0]]
+    adp=[]; atr={}; arp={}; nm=len(mplan)
+    prog=st.progress(0,f"Planificando {nm} mes(es)...")
+    for mi,mp in enumerate(mplan):
+        pb=int(mi/nm*100); prog.progress(pb,f"Mes {int(mp)} ({mi+1}/{nm})...")
+        dmp=st.session_state.data_raw[st.session_state.data_raw["mes"]==mp].copy()
+        if len(dmp)==0: continue
+        j1m,j2m,_=jornada_num_desde_mes(int(mp),st.session_state.mes_inicio_cal)
+        j1c=j1m in cset; j2c=j2m in cset
+        if j1c and j2c: continue
+        jm=[];
+        if not j1c: jm.append('Jornada 1')
+        if not j2c: jm.append('Jornada 2')
+        nc=n_eq*len(jm); pm=lambda pl: min(99,int(pb+pl/nm))
+        dw=dmp.copy(); dw['mes_plan']=int(mp)
+        dw['equipo']='sin_asignar'; dw['jornada']='sin_asignar'; dw['cluster_geo']=-1
+        dw['carga_pond']=dw.apply(lambda r: r['viv']*p["factor_r"] if str(r.get('tipo_entidad','')).startswith('sec') else r['viv'],axis=1)
+        dw['encuestador']=0; dw['dia_operativo']=0; dw['dia_inicio']=0; dw['dia_fin']=0; dw['dist_base_m']=0.0
+        tu=Transformer.from_crs("EPSG:4326","EPSG:32717",always_xy=True); bx,by=tu.transform(BASE_LON,BASE_LAT)
+        dw['dist_base_m']=np.sqrt((dw['x']-bx)**2+(dw['y']-by)**2)
+        ug=pd.Series(False,index=dw.index)
+        if p["usar_gye"] and 'pro_x' in dw.columns and 'can_x' in dw.columns: ug=(dw['pro_x']==PRO_GYE)&(dw['can_x']==CAN_GYE)
+        pg=ug.sum()/len(dw) if len(dw)>0 else 0
+        ag=p["usar_gye"] and (pg>=p["umbral_gye"]/100) and ug.sum()>0
+        dg=dw[ug].copy() if ag else pd.DataFrame(); dng=dw[~ug].copy()
+        if len(dng)>=nc and nc>0:
+            prog.progress(pm(15),f"Mes {int(mp)}: clustering...")
+            lb,bl,ci,cf=clustering_balanceado(dng,n_clusters=nc,cv_objetivo=p["cv_objetivo"]/100.0,max_iter=p["max_iter_bal"],k_vecinos=p["k_vecinos"])
+            dng=dng.copy(); dng['cluster_geo']=lb
+            if mi==0: st.session_state.balance_log=bl; st.session_state.cv_ini_bal=ci; st.session_state.cv_fin_bal=cf
+            ct=np.array([dng[['x','y']].values[lb==c_].mean(axis=0) if (lb==c_).sum()>0 else np.array([bx,by]) for c_ in range(nc)])
+            dc=np.sqrt((ct[:,0]-bx)**2+(ct[:,1]-by)**2); od=np.argsort(dc)[::-1]
             asig={}
-            if len(jornadas_mes)==2:
-                for i,(cj1,cj2) in enumerate(zip(orden[:n_eq],orden[n_eq:])):
-                    asig[cj1]=(nombres[i],'Jornada 1')
-                    asig[cj2]=(nombres[i],'Jornada 2')
+            if len(jm)==2:
+                for i,(c1,c2) in enumerate(zip(od[:n_eq],od[n_eq:])): asig[c1]=(nombres[i],'Jornada 1'); asig[c2]=(nombres[i],'Jornada 2')
             else:
-                jornada_activa=jornadas_mes[0]
-                for i in range(min(n_eq,len(orden))):
-                    asig[orden[i]]=(nombres[i],jornada_activa)
-
-            df_no_gye['equipo'] =df_no_gye['cluster_geo'].map(lambda c: asig.get(c,('sin_asignar','sin_asignar'))[0])
-            df_no_gye['jornada']=df_no_gye['cluster_geo'].map(lambda c: asig.get(c,('sin_asignar','sin_asignar'))[1])
-
+                for i in range(min(n_eq,len(od))): asig[od[i]]=(nombres[i],jm[0])
+            dng['equipo']=dng['cluster_geo'].map(lambda c_: asig.get(c_,('sin_asignar','sin_asignar'))[0])
+            dng['jornada']=dng['cluster_geo'].map(lambda c_: asig.get(c_,('sin_asignar','sin_asignar'))[1])
             if p["usar_bomb"]:
-                prog.progress(pct_mes(32),f"Mes {int(mes_plan)}: outliers...")
-                MIN_D=p.get("min_dist_bomb_m",40000)
-                for c_id in range(n_clust_mes):
-                    if c_id not in asig: continue
-                    mask_c=df_no_gye['cluster_geo']==c_id
-                    pts=df_no_gye[mask_c]
-                    if len(pts)<8: continue
-                    cx,cy=centroides[c_id]
-                    dists_b=np.sqrt((pts['x']-cx)**2+(pts['y']-cy)**2)
-                    Q1c,Q3c=dists_b.quantile(.25),dists_b.quantile(.75)
-                    iqrc=Q3c-Q1c
-                    if iqrc==0: continue
-                    bomb_idx=dists_b[(dists_b>Q3c+3*iqrc)&(dists_b>MIN_D)].index
-                    if len(bomb_idx)>0:
-                        df_no_gye.loc[bomb_idx,'equipo']='Equipo Bombero'
-                        df_no_gye.loc[bomb_idx,'jornada']='Jornada Especial'
-
-            df_w.update(df_no_gye[['equipo','jornada','cluster_geo']])
-
-        # 4. Encuestadores + días
-        prog.progress(pct_mes(42),f"Mes {int(mes_plan)}: encuestadores...")
-        enc_dict={e["nombre"]:e["enc"] for e in eq_cfg}
-
-        for nombre_eq in nombres:
-            for jornada in jornadas_mes:
-                mask_g=(df_w['equipo']==nombre_eq)&(df_w['jornada']==jornada)
-                grp=df_w[mask_g].copy()
-                if len(grp)==0: continue
-                n_enc=enc_dict.get(nombre_eq,3)
-                if jornada=='Jornada 1' and act_gye:
-                    inicio=p["dias_gye"]+1; dias_disp=p["dias_op"]-p["dias_gye"]
-                else:
-                    inicio=1; dias_disp=p["dias_op"]
-                if dias_disp<=0: continue
-                ga=asignar_encuestadores_y_dias(grp,n_enc,dias_disp,
-                                                p["viv_min"],p["viv_max"],inicio)
-                df_w.update(ga[['encuestador','dia_operativo','dia_inicio','dia_fin']])
-
-        # Fase GYE
-        if act_gye and len(df_gye)>0:
-            n_gye_clusters = min(n_eq, len(df_gye))
-            if n_gye_clusters >= 2:
-                km_gye = KMeans(n_clusters=n_gye_clusters, init='k-means++',
-                                n_init=30, max_iter=500, random_state=42)
-                labels_gye = km_gye.fit_predict(df_gye[['x','y']].values.astype(float))
-                df_gye = df_gye.copy()
-                df_gye['cluster_gye'] = labels_gye
-                for c_id in range(n_gye_clusters):
-                    eq_a = nombres[c_id % n_eq]
-                    grp_gye = df_gye[df_gye['cluster_gye']==c_id].copy()
-                    if len(grp_gye)==0: continue
-                    grp_gye['equipo']=eq_a; grp_gye['jornada']='Jornada 1'
-                    ga_gye=asignar_encuestadores_y_dias(
-                        grp_gye,enc_dict.get(eq_a,3),p["dias_gye"],
-                        p["viv_min"],p["viv_max"],inicio_dia=1)
-                    df_w.update(ga_gye[['equipo','jornada','encuestador',
-                                        'dia_operativo','dia_inicio','dia_fin']])
+                MD=p.get("min_dist_bomb_m",40000)
+                for ci_ in range(nc):
+                    if ci_ not in asig: continue
+                    mc=dng['cluster_geo']==ci_; pt=dng[mc]
+                    if len(pt)<8: continue
+                    ds_=np.sqrt((pt['x']-ct[ci_,0])**2+(pt['y']-ct[ci_,1])**2)
+                    Q1,Q3=ds_.quantile(.25),ds_.quantile(.75); iq=Q3-Q1
+                    if iq==0: continue
+                    bi=ds_[(ds_>Q3+3*iq)&(ds_>MD)].index
+                    if len(bi)>0: dng.loc[bi,'equipo']='Equipo Bombero'; dng.loc[bi,'jornada']='Jornada Especial'
+            dw.update(dng[['equipo','jornada','cluster_geo']])
+        ed={e["nombre"]:e["enc"] for e in eq_cfg}
+        for ne in nombres:
+            for jo in jm:
+                gr=dw[(dw['equipo']==ne)&(dw['jornada']==jo)].copy()
+                if len(gr)==0: continue
+                n_=ed.get(ne,3)
+                if jo=='Jornada 1' and ag: ini=p["dias_gye"]+1; dd=p["dias_op"]-p["dias_gye"]
+                else: ini=1; dd=p["dias_op"]
+                if dd<=0: continue
+                ga=asignar_encuestadores_y_dias(gr,n_,dd,p["viv_min"],p["viv_max"],ini)
+                dw.update(ga[['encuestador','dia_operativo','dia_inicio','dia_fin']])
+        if ag and len(dg)>0:
+            ngc=min(n_eq,len(dg))
+            if ngc>=2:
+                km_=KMeans(n_clusters=ngc,init='k-means++',n_init=30,max_iter=500,random_state=42)
+                lg_=km_.fit_predict(dg[['x','y']].values.astype(float)); dg=dg.copy(); dg['cluster_gye']=lg_
+                for ci_ in range(ngc):
+                    ea=nombres[ci_%n_eq]; gg=dg[dg['cluster_gye']==ci_].copy()
+                    if len(gg)==0: continue
+                    gg['equipo']=ea; gg['jornada']='Jornada 1'
+                    gag=asignar_encuestadores_y_dias(gg,ed.get(ea,3),p["dias_gye"],p["viv_min"],p["viv_max"],1)
+                    dw.update(gag[['equipo','jornada','encuestador','dia_operativo','dia_inicio','dia_fin']])
             else:
-                for idx in df_gye.index:
-                    df_w.loc[idx,['equipo','jornada','encuestador',
-                                  'dia_operativo','dia_inicio','dia_fin']]=[nombres[0],'Jornada 1',1,1,1,1]
-
-        # 5. TSP
-        prog.progress(pct_mes(52),f"Mes {int(mes_plan)}: TSP...")
-        base_nd=ox.nearest_nodes(G,BASE_LON,BASE_LAT)
-        G_u=G.to_undirected(); comp_base=nx.node_connected_component(G_u,base_nd)
-        tsp_r,road_p={},{}
-
-        for ri,nombre_eq in enumerate(nombres):
-            for jornada in jornadas_mes:
-                ji=jornadas_mes.index(jornada)
-                pct_tsp=52+int((ri*len(jornadas_mes)+ji+1)/(n_eq*len(jornadas_mes))*42)
-                prog.progress(pct_mes(pct_tsp),f"Mes {int(mes_plan)}: TSP {nombre_eq}|{jornada}...")
-                mask_g=(df_w['equipo']==nombre_eq)&(df_w['jornada']==jornada)
-                grp=df_w[mask_g]
-                if len(grp)==0: continue
-                nr=ox.nearest_nodes(G,grp['lon'].values,grp['lat'].values)
-                nk=[n for n in nr if n in comp_base]
+                for idx in dg.index: dw.loc[idx,['equipo','jornada','encuestador','dia_operativo','dia_inicio','dia_fin']]=[nombres[0],'Jornada 1',1,1,1,1]
+        prog.progress(pm(52),f"Mes {int(mp)}: TSP...")
+        bnd=ox.nearest_nodes(G,BASE_LON,BASE_LAT); Gu=G.to_undirected(); cb_=nx.node_connected_component(Gu,bnd)
+        tr_,rp_={},{}
+        for ri,ne in enumerate(nombres):
+            for jo in jm:
+                gr=dw[(dw['equipo']==ne)&(dw['jornada']==jo)]
+                if len(gr)==0: continue
+                nr=ox.nearest_nodes(G,gr['lon'].values,gr['lat'].values)
+                nk=[n_ for n_ in nr if n_ in cb_]
                 if not nk: continue
-                nu=[base_nd]+list(dict.fromkeys(nk)); n_nd=len(nu)
-                if n_nd<=2: continue
-                D=np.zeros((n_nd,n_nd))
-                for i in range(n_nd):
-                    for j in range(i+1,n_nd):
-                        try: d=nx.shortest_path_length(G_u,nu[i],nu[j],weight='length');D[i,j]=D[j,i]=d
+                nu=[bnd]+list(dict.fromkeys(nk)); nn_=len(nu)
+                if nn_<=2: continue
+                D=np.zeros((nn_,nn_))
+                for i in range(nn_):
+                    for j in range(i+1,nn_):
+                        try: d=nx.shortest_path_length(Gu,nu[i],nu[j],weight='length');D[i,j]=D[j,i]=d
                         except: D[i,j]=D[j,i]=1e9
                 Gt=nx.Graph()
-                for i in range(n_nd):
-                    for j in range(i+1,n_nd):
+                for i in range(nn_):
+                    for j in range(i+1,nn_):
                         if D[i,j]<1e8: Gt.add_edge(i,j,weight=D[i,j])
                 if not nx.is_connected(Gt): continue
                 try: ciclo=approximation.traveling_salesman_problem(Gt,weight='weight',cycle=True)
                 except: continue
-                if 0 in ciclo:
-                    i0=ciclo.index(0); ciclo=ciclo[i0:]+ciclo[1:i0+1]
+                if 0 in ciclo: i0=ciclo.index(0); ciclo=ciclo[i0:]+ciclo[1:i0+1]
                 dist=sum(D[ciclo[i],ciclo[i+1]] for i in range(len(ciclo)-1))
-                ruta=[]; ng=[nu[idx] for idx in ciclo]
-                for k in range(len(ng)-1):
+                ruta=[]; ng_=[nu[idx] for idx in ciclo]
+                for k in range(len(ng_)-1):
                     try:
-                        seg=nx.shortest_path(G_u,ng[k],ng[k+1],weight='length')
+                        seg=nx.shortest_path(Gu,ng_[k],ng_[k+1],weight='length')
                         ruta.extend((G.nodes[nd]['y'],G.nodes[nd]['x']) for nd in seg[:-1])
                     except: continue
-                if ng: ruta.append((G.nodes[ng[-1]]['y'],G.nodes[ng[-1]]['x']))
-                clave=f"M{int(mes_plan)}||{nombre_eq}||{jornada}"
-                tsp_r[clave]={'equipo':nombre_eq,'jornada':jornada,'mes':int(mes_plan),
-                              'n_puntos':len(grp),'dist_km':dist/1000}
-                road_p[clave]=ruta
-
-        # Acumular
-        all_df_plan.append(df_w)
-        all_tsp_r.update(tsp_r)
-        all_road_p.update(road_p)
-
-    # ── Combinar resultados ──────────────────────────────────────────────────
-    prog.progress(98,"Combinando resultados...")
-    df_plan_final=pd.concat(all_df_plan,ignore_index=True) if all_df_plan else pd.DataFrame()
-    st.session_state.n_bombero=int((df_plan_final['equipo']=='Equipo Bombero').sum()) if len(df_plan_final)>0 else 0
-
-    resumen=df_plan_final[~df_plan_final['equipo'].isin(['Equipo Bombero','sin_asignar'])].groupby(
-        ['equipo','jornada']).agg(
-        n_upms=('id_entidad','count'),viv_reales=('viv','sum'),
-        carga_ponderada=('carga_pond','sum')).reset_index() if len(df_plan_final)>0 else pd.DataFrame()
-    dist_df=pd.DataFrame([
-        {'equipo':v['equipo'],'jornada':v['jornada'],'dist_km':round(v['dist_km'],1)}
-        for v in all_tsp_r.values()
-    ]) if all_tsp_r else pd.DataFrame(columns=['equipo','jornada','dist_km'])
-    resumen_bal=pd.merge(resumen,dist_df,on=['equipo','jornada'],how='left').fillna(0) if len(resumen)>0 else pd.DataFrame()
-
+                if ng_: ruta.append((G.nodes[ng_[-1]]['y'],G.nodes[ng_[-1]]['x']))
+                cl=f"M{int(mp)}||{ne}||{jo}"; tr_[cl]={'equipo':ne,'jornada':jo,'mes':int(mp),'n_puntos':len(gr),'dist_km':dist/1000}; rp_[cl]=ruta
+        adp.append(dw); atr.update(tr_); arp.update(rp_)
+    prog.progress(98,"Combinando...")
+    dpf=pd.concat(adp,ignore_index=True) if adp else pd.DataFrame()
+    st.session_state.n_bombero=int((dpf['equipo']=='Equipo Bombero').sum()) if len(dpf)>0 else 0
+    rs=dpf[~dpf['equipo'].isin(['Equipo Bombero','sin_asignar'])].groupby(['equipo','jornada']).agg(n_upms=('id_entidad','count'),viv_reales=('viv','sum'),carga_ponderada=('carga_pond','sum')).reset_index() if len(dpf)>0 else pd.DataFrame()
+    dd_=pd.DataFrame([{'equipo':v['equipo'],'jornada':v['jornada'],'dist_km':round(v['dist_km'],1)} for v in atr.values()]) if atr else pd.DataFrame(columns=['equipo','jornada','dist_km'])
+    rb=pd.merge(rs,dd_,on=['equipo','jornada'],how='left').fillna(0) if len(rs)>0 else pd.DataFrame()
     prog.progress(100,"¡Listo!"); prog.empty()
-    st.session_state.df_plan=df_plan_final
-    st.session_state.tsp_results=all_tsp_r; st.session_state.road_paths=all_road_p
-    st.session_state.resumen_bal=resumen_bal
-    st.session_state.resultados_generados=True
-    st.success(f"✓ Planificación generada: {len(meses_a_plan)} mes(es), {len(df_plan_final)} UPMs.")
-
-
+    st.session_state.df_plan=dpf; st.session_state.tsp_results=atr; st.session_state.road_paths=arp
+    st.session_state.resumen_bal=rb; st.session_state.resultados_generados=True
+    st.success(f"✓ {nm} mes(es), {len(dpf)} UPMs.")
 
 # ── RESULTADOS ────────────────────────────────
 if not st.session_state.resultados_generados:
@@ -1361,32 +1084,22 @@ tsp_r=st.session_state.tsp_results; road_p=st.session_state.road_paths
 res_bal=st.session_state.resumen_bal; eq_cfg=st.session_state.equipos_cfg
 nombres=[e["nombre"] for e in eq_cfg]; p=st.session_state.params
 mes_ini_cal=st.session_state.mes_inicio_cal
-
-# ── Filtro de mes para resultados ─────────────
 if 'mes_plan' in df_plan.columns:
-    meses_plan_disp=sorted(df_plan['mes_plan'].dropna().unique().tolist())
-else:
-    meses_plan_disp=[int(df['mes'].iloc[0])]
-
-if len(meses_plan_disp)>1:
-    mes_ver=st.selectbox("📅 Ver resultados del mes:",meses_plan_disp,
-        format_func=lambda x: f"Mes {int(x)} — {jornada_num_desde_mes(int(x),mes_ini_cal)[2]}",
-        key="filtro_mes_ver")
+    mpd=sorted(df_plan['mes_plan'].dropna().unique().tolist())
+else: mpd=[int(df['mes'].iloc[0])]
+if len(mpd)>1:
+    mes_ver=st.selectbox("📅 Ver mes:",mpd,format_func=lambda x: f"Mes {int(x)} — {jornada_num_desde_mes(int(x),mes_ini_cal)[2]}",key="flt_mes")
     df_plan_view=df_plan[df_plan['mes_plan']==mes_ver].copy()
     road_p_view={k:v for k,v in road_p.items() if k.startswith(f"M{int(mes_ver)}||")}
 else:
-    mes_ver=meses_plan_disp[0] if meses_plan_disp else int(df['mes'].iloc[0])
-    df_plan_view=df_plan.copy()
-    road_p_view=road_p
-
-j1_n,j2_n,mes_nom=jornada_num_desde_mes(int(mes_ver), mes_ini_cal)
-
+    mes_ver=mpd[0]; df_plan_view=df_plan.copy(); road_p_view=road_p
+j1_n,j2_n,mes_nom=jornada_num_desde_mes(int(mes_ver),mes_ini_cal)
 color_map={n:COLORES[i%len(COLORES)] for i,n in enumerate(nombres)}
-color_map['Equipo Bombero']='#7c3aed'
+color_map['Equipo Bombero']='#7c3aed' 
 
-tab_mapa,tab_analisis,tab_plan,tab_reporte=st.tabs([
+tab_mapa,tab_analisis,tab_reporte=st.tabs([
     "🗺️  Mapa de Rutas","📊  Análisis de Carga",
-    "📅  Planificación de Jornadas","📋  Reporte y Descarga"
+    "📋  Reporte y Descarga"
 ])
 
 # ══ TAB 1 — MAPA ══════════════════════════════
@@ -1399,14 +1112,14 @@ with tab_mapa:
         n_b=int((df_plan_view['equipo']=='Equipo Bombero').sum())
         mbm=st.checkbox(f"Equipo Bombero ({n_b})",value=True)
         mrts=st.checkbox("Mostrar rutas",value=True)
-        fnd=st.selectbox("Fondo",["CartoDB positron","OpenStreetMap","CartoDB dark_matter"])
+        fnd=st.selectbox("Fondo",["CartoDB dark_matter","CartoDB positron","OpenStreetMap"])
         st.divider()
         st.markdown("**Leyenda:**")
         for n,c in color_map.items():
             if n in nombres:
                 st.markdown(f"<span style='color:{c};font-size:17px'>●</span> {n}",
                             unsafe_allow_html=True)
-        st.markdown(f"<span style='color:#7c3aed;font-size:17px'>●</span> Equipo Bombero ({n_b})",
+        st.markdown(f"<span style='color:#9b59b6;font-size:17px'>●</span> Equipo Bombero ({n_b})",
                     unsafe_allow_html=True)
     with cc2:
         m=folium.Map(location=[BASE_LAT,BASE_LON],zoom_start=8,tiles=fnd)
@@ -1433,9 +1146,7 @@ with tab_mapa:
             ).add_to(m)
         if mrts:
             for clave,coords in road_p_view.items():
-                parts=clave.split('||')
-                eq=parts[-2] if len(parts)>=3 else parts[0]
-                jor=parts[-1] if len(parts)>=2 else ''
+                parts=clave.split('||'); eq,jor=parts[-2],parts[-1]
                 if jor=='Jornada 1' and not mj1: continue
                 if jor=='Jornada 2' and not mj2: continue
                 if len(coords)>1:
@@ -1455,17 +1166,17 @@ with tab_analisis:
 
     if cv_ini is not None and cv_fin is not None:
         mejora=cv_ini-cv_fin
-        cc_m="#059669" if mejora>5 else ("#d97706" if mejora>0 else "#dc2626")
+        cc_m="#27ae60" if mejora>5 else ("#f39c12" if mejora>0 else "#e74c3c")
         modo_fin=next((l.get('modo','') for l in reversed(bal_log)
                       if 'objetivo' in l.get('modo','') or 'plateau' in l.get('modo','')
                       or 'sin mejora' in l.get('modo','')),'-')
         st.markdown(f"""
         <div class='balance-box'>
         <b>CV inicial (KMeans puro):</b>
-        <span style='color:#dc2626;font-family:monospace'>{cv_ini:.1f}%</span>
+        <span style='color:#e74c3c;font-family:monospace'>{cv_ini:.1f}%</span>
         &nbsp;→&nbsp;
         <b>CV final (rebalanceo):</b>
-        <span style='color:#059669;font-family:monospace'>{cv_fin:.1f}%</span>
+        <span style='color:#27ae60;font-family:monospace'>{cv_fin:.1f}%</span>
         &nbsp;&nbsp;<b style='color:{cc_m}'>Δ {mejora:.1f} pp</b><br>
         <span style='font-size:11px'>
         Parada: <i>{modo_fin}</i> ·
@@ -1484,10 +1195,10 @@ with tab_analisis:
         })
         fig_comp=px.bar(df_comp,x='Cluster',y='Carga pond.',color='Fase',
                         barmode='group',title='Carga por cluster — antes vs después',
-                        template='plotly_white',
-                        color_discrete_map={'Antes (KMeans)':'#dc2626',
-                                            'Después (rebalanceo)':'#059669'})
-        fig_comp.update_layout(paper_bgcolor="#ffffff",plot_bgcolor="#fafbfc",
+                        template='plotly_dark',
+                        color_discrete_map={'Antes (KMeans)':'#e74c3c',
+                                            'Después (rebalanceo)':'#27ae60'})
+        fig_comp.update_layout(paper_bgcolor="#111827",plot_bgcolor="#0a1020",
                                title_font_size=12)
         st.plotly_chart(fig_comp,use_container_width=True)
         with st.expander("Historial de iteraciones"):
@@ -1506,8 +1217,8 @@ with tab_analisis:
             st.markdown(f"<div class='ibox'><b>{jornada}:</b> 1 equipo.</div>",
                         unsafe_allow_html=True); continue
         cr=cv_pct(sub['viv_reales']); cp=cv_pct(sub['carga_ponderada'])
-        ccr="#059669" if cr<20 else ("#d97706" if cr<40 else "#dc2626")
-        ccp="#059669" if cp<20 else ("#d97706" if cp<40 else "#dc2626")
+        ccr="#27ae60" if cr<20 else ("#f39c12" if cr<40 else "#e74c3c")
+        ccp="#27ae60" if cp<20 else ("#f39c12" if cp<40 else "#e74c3c")
         em="✓" if cp<20 else ("⚠" if cp<40 else "✗")
         st.markdown(f"""<div class='ibox'><b>{jornada}</b><br>
         &nbsp;&nbsp;CV viv. reales: <span style='color:{ccr};font-family:monospace;
@@ -1524,15 +1235,15 @@ with tab_analisis:
     for col_e,nombre_eq in zip(cols_e,eq_act):
         sub_e=df_plan_view[df_plan_view['equipo']==nombre_eq]
         vt=int(sub_e['viv'].sum()); cv_e=cv_pct(sub_e['carga_pond'])
-        ce=color_map.get(nombre_eq,'#003B71')
-        ccv="#059669" if cv_e<20 else ("#d97706" if cv_e<40 else "#dc2626")
+        ce=color_map.get(nombre_eq,'#2e86de')
+        ccv="#27ae60" if cv_e<20 else ("#f39c12" if cv_e<40 else "#e74c3c")
         with col_e:
             st.markdown(f"""<div class='eq-card' style='border-color:{ce}55'>
               <div style='width:10px;height:10px;background:{ce};border-radius:50%;margin:0 auto 7px'></div>
-              <div style='font-family:"JetBrains Mono",monospace;font-size:12px;
+              <div style='font-family:"IBM Plex Mono",monospace;font-size:12px;
                           color:{ce};font-weight:600'>{nombre_eq}</div>
-              <div style='font-size:17px;font-weight:600;color:#1a1a2e;margin:4px 0'>{vt:,}</div>
-              <div style='font-size:10px;color:#8896a6'>viviendas</div>
+              <div style='font-size:17px;font-weight:600;color:#d0d8e8;margin:4px 0'>{vt:,}</div>
+              <div style='font-size:10px;color:#7a8fa6'>viviendas</div>
               <div style='font-size:11px;color:{ccv};margin-top:4px'>CV {cv_e:.1f}%</div>
             </div>""",unsafe_allow_html=True)
 
@@ -1546,15 +1257,15 @@ with tab_analisis:
     cd1,cd2=st.columns(2)
     with cd1:
         fig=px.bar(df_enc,x='encuestador',y='viv_reales',color='jornada',barmode='group',
-                   title=f'Viviendas — {eq_sel}',template='plotly_white',
-                   color_discrete_sequence=['#003B71','#059669'])
-        fig.update_layout(paper_bgcolor="#ffffff",plot_bgcolor="#fafbfc",title_font_size=12)
+                   title=f'Viviendas — {eq_sel}',template='plotly_dark',
+                   color_discrete_sequence=['#2e86de','#27ae60'])
+        fig.update_layout(paper_bgcolor="#111827",plot_bgcolor="#0a1020",title_font_size=12)
         st.plotly_chart(fig,use_container_width=True)
     with cd2:
         fig2=px.bar(df_enc,x='encuestador',y='carga_pond',color='jornada',barmode='group',
-                    title=f'Carga pond. — {eq_sel}',template='plotly_white',
-                    color_discrete_sequence=['#dc2626','#d97706'])
-        fig2.update_layout(paper_bgcolor="#ffffff",plot_bgcolor="#fafbfc",title_font_size=12)
+                    title=f'Carga pond. — {eq_sel}',template='plotly_dark',
+                    color_discrete_sequence=['#e74c3c','#f39c12'])
+        fig2.update_layout(paper_bgcolor="#111827",plot_bgcolor="#0a1020",title_font_size=12)
         st.plotly_chart(fig2,use_container_width=True)
 
     # Distribución diaria
@@ -1583,14 +1294,14 @@ with tab_analisis:
         fig_d=px.bar(pivot,x='dia_rel',y='viv',color='equipo',barmode='group',
                      title=f'Viv/día — {jor_filtro}',
                      labels={'dia_rel':'Día','viv':'Viviendas'},
-                     template='plotly_white',color_discrete_map=color_map)
+                     template='plotly_dark',color_discrete_map=color_map)
         tot_enc_f=sum(e["enc"] for e in eq_cfg if e["nombre"] in eq_act)
         avg_enc_f=tot_enc_f/max(1,len(eq_act))
-        fig_d.add_hline(y=p["viv_min"]*avg_enc_f,line_dash="dot",line_color="#d97706",
+        fig_d.add_hline(y=p["viv_min"]*avg_enc_f,line_dash="dot",line_color="#f39c12",
                         annotation_text=f"Mín ({p['viv_min']})")
-        fig_d.add_hline(y=p["viv_max"]*avg_enc_f,line_dash="dot",line_color="#dc2626",
+        fig_d.add_hline(y=p["viv_max"]*avg_enc_f,line_dash="dot",line_color="#e74c3c",
                         annotation_text=f"Máx ({p['viv_max']})")
-        fig_d.update_layout(paper_bgcolor="#ffffff",plot_bgcolor="#fafbfc",
+        fig_d.update_layout(paper_bgcolor="#111827",plot_bgcolor="#0a1020",
                             xaxis=dict(dtick=1))
         st.plotly_chart(fig_d,use_container_width=True)
         if jor_filtro!="Ambas":
@@ -1598,10 +1309,10 @@ with tab_analisis:
             piv_enc['encuestador']="Enc. "+piv_enc['encuestador'].astype(str)
             fig_enc=px.line(piv_enc,x='dia_rel',y='viv',color='encuestador',markers=True,
                             title=f'Carga diaria por encuestador — {jor_filtro}',
-                            template='plotly_white')
-            fig_enc.add_hline(y=p["viv_min"],line_dash="dot",line_color="#d97706")
-            fig_enc.add_hline(y=p["viv_max"],line_dash="dot",line_color="#dc2626")
-            fig_enc.update_layout(paper_bgcolor="#ffffff",plot_bgcolor="#fafbfc",
+                            template='plotly_dark')
+            fig_enc.add_hline(y=p["viv_min"],line_dash="dot",line_color="#f39c12")
+            fig_enc.add_hline(y=p["viv_max"],line_dash="dot",line_color="#e74c3c")
+            fig_enc.update_layout(paper_bgcolor="#111827",plot_bgcolor="#0a1020",
                                   xaxis=dict(dtick=1))
             st.plotly_chart(fig_enc,use_container_width=True)
 
@@ -1610,108 +1321,16 @@ with tab_analisis:
     n_bm=st.session_state.n_bombero
     st.markdown("<div class='stitle'>Equipo Bombero</div>",unsafe_allow_html=True)
     if n_bm==0:
-        st.markdown("<div class='bcard'><b style='color:#7c3aed'>Equipo Bombero</b> — 0 UPMs.</div>",
+        st.markdown("<div class='bcard'><b style='color:#9b59b6'>Equipo Bombero</b> — 0 UPMs.</div>",
                     unsafe_allow_html=True)
     else:
-        st.markdown(f"<div class='bcard'><b style='color:#7c3aed'>Equipo Bombero</b> — {n_bm} UPMs · "
+        st.markdown(f"<div class='bcard'><b style='color:#9b59b6'>Equipo Bombero</b> — {n_bm} UPMs · "
                     f"{int(df_bm['viv'].sum()):,} viv</div>",unsafe_allow_html=True)
         st.dataframe(df_bm[['id_entidad','tipo_entidad','viv','lat','lon','dist_base_m']]
             .sort_values('dist_base_m',ascending=False).reset_index(drop=True),
             use_container_width=True,height=200)
 
-# ══ TAB 3 — PLANIFICACIÓN DE JORNADAS ══════════════════════════════
-with tab_plan:
-    st.markdown("<div class='stitle'>Calendario de Jornadas del Operativo</div>",
-                unsafe_allow_html=True)
-    st.markdown("""<div class='ibox'>
-    Cuando una jornada se <b>cancela</b>, todas las jornadas posteriores
-    se desplazan automáticamente una posición. Si el desplazamiento excede
-    el último mes, aparece un período adicional al final del cronograma.<br>
-    Las fechas de inicio se usarán en el Excel.
-    </div>""",unsafe_allow_html=True)
-
-    mes_ini_cal=st.session_state.mes_inicio_cal
-    total_meses=int(df['mes'].max()) if df is not None and len(df)>0 else 12
-    # Para el calendario mostramos todos los meses del operativo disponibles
-    meses_todos=sorted(st.session_state.data_raw["mes"].dropna().unique().tolist())
-    total_meses_op=len(meses_todos)
-
-    cfg_j=st.session_state.config_jornadas
-
-    # Construir lista completa de jornadas
-    all_jornadas=[]
-    for mes in meses_todos:
-        j1_n_,j2_n_,mes_n_=jornada_num_desde_mes(int(mes),mes_ini_cal)
-        all_jornadas.append({'jn':j1_n_,'mes':mes,'mes_nombre':mes_n_,'mitad':1})
-        all_jornadas.append({'jn':j2_n_,'mes':mes,'mes_nombre':mes_n_,'mitad':2})
-
-    st.markdown(f"**{len(all_jornadas)} jornadas en {total_meses_op} meses operativos**")
-
-    # Mostrar cascada resultante de cancelaciones
-    slots_originales = [j['jn'] for j in all_jornadas]
-    contenidos_activos = [jn for jn in slots_originales if cfg_j.get(jn,{}).get('estado',ESTADO_OK)!=ESTADO_CAN]
-    n_canceladas_tab = len(slots_originales) - len(contenidos_activos)
-
-    if n_canceladas_tab > 0:
-        st.markdown(f"<div class='wbox'>⚠️ <b>{n_canceladas_tab} jornada(s) cancelada(s)</b> → "
-                    f"el cronograma se desplaza {n_canceladas_tab} slot(s). "
-                    f"Se necesitan {n_canceladas_tab} slot(s) adicional(es) al final.</div>",
-                    unsafe_allow_html=True)
-
-    for mes in meses_todos:
-        j1_n_,j2_n_,mes_n_=jornada_num_desde_mes(int(mes),mes_ini_cal)
-
-        with st.expander(f"📅 Mes {int(mes)} — {mes_n_} · J{j1_n_} + J{j2_n_}",
-                         expanded=(int(mes)==int(df['mes'].iloc[0]))):
-            for j_n_iter in [j1_n_,j2_n_]:
-                st.markdown(f"**Jornada {j_n_iter}** (mitad {'1ª' if j_n_iter==j1_n_ else '2ª'})")
-                cfg_this=cfg_j.get(j_n_iter,{})
-                col_e,col_f=st.columns([1,1])
-                with col_e:
-                    estado_sel=st.selectbox(
-                        "Estado",
-                        [ESTADO_OK,ESTADO_CAN],
-                        index=[ESTADO_OK,ESTADO_CAN].index(
-                            cfg_this.get('estado',ESTADO_OK) if cfg_this.get('estado',ESTADO_OK) in [ESTADO_OK,ESTADO_CAN] else ESTADO_OK),
-                        key=f"est_{j_n_iter}")
-                with col_f:
-                    fecha_sel=st.date_input(
-                        "Fecha de inicio",
-                        value=cfg_this.get('fecha',None) or date.today(),
-                        key=f"fec_{j_n_iter}",
-                        disabled=(estado_sel==ESTADO_CAN))
-
-                cfg_j[j_n_iter]={'estado':estado_sel,'fecha':fecha_sel,'trasladada_a':None}
-
-                if estado_sel==ESTADO_OK:
-                    st.markdown(f"<div class='jplan-ok'>✅ J{j_n_iter} — "
-                                f"inicio {fecha_sel.strftime('%d/%m/%Y')} — "
-                                f"{p['dias_op']} días → fin "
-                                f"{(fecha_sel+timedelta(days=p['dias_op']-1)).strftime('%d/%m/%Y')}"
-                                f"</div>",unsafe_allow_html=True)
-                else:
-                    st.markdown(f"<div class='jplan-can'>❌ J{j_n_iter} cancelada → "
-                                f"se desplaza a la siguiente jornada</div>",
-                                unsafe_allow_html=True)
-
-    st.session_state.config_jornadas=cfg_j
-
-    # Resumen visual del calendario
-    st.markdown("<div class='stitle'>Resumen del cronograma</div>",unsafe_allow_html=True)
-    filas_res=[]
-    for jinfo in all_jornadas:
-        jn=jinfo['jn']; cfg_this=cfg_j.get(jn,{})
-        estado=cfg_this.get('estado',ESTADO_OK)
-        fecha=cfg_this.get('fecha',None)
-        fecha_str=fecha.strftime("%d/%m/%Y") if fecha else "—"
-        fin_str=(fecha+timedelta(days=p['dias_op']-1)).strftime("%d/%m/%Y") if fecha else "—"
-        filas_res.append({
-            'Jornada':f"J{jn}",'Mes':f"{int(jinfo['mes'])} — {jinfo['mes_nombre']}",
-            'Estado':estado,'Inicio':fecha_str,'Fin':fin_str
-        })
-    st.dataframe(pd.DataFrame(filas_res),use_container_width=True,hide_index=True)
-
-# ══ TAB 4 — REPORTE Y DESCARGA ════════════════
+# ══ TAB 3 — REPORTE Y DESCARGA ════════════════
 with tab_reporte:
     st.markdown("<div class='stitle'>Reporte y Descarga Excel</div>",unsafe_allow_html=True)
     st.markdown("""<div class='ibox'>
