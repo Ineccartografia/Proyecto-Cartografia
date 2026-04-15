@@ -1,39 +1,20 @@
 # =============================================================================
-# PLANIFICACIÓN CARTOGRÁFICA ENDI 2025 — STREAMLIT v5
+# PLANIFICACIÓN CARTOGRÁFICA — STREAMLIT v5.1
 # INEC · Zonal Litoral · Autores: Franklin López, Carlos Quinto
 #
-# CAMBIOS v5 (sobre v4):
+# CAMBIOS v5.1 (sobre v5):
 #
-# ── FIX CRÍTICO: encuestador=0 / días=0 ─────────────────────────────────────
-#   Bug en v4: asignar_encuestadores_y_dias hacía reset_index(drop=True),
-#   creando índices [0,1,2,...] que no coincidían con los índices originales
-#   del df_w cuando el grupo tenía índices no contiguos (ej: [5,12,34,67]).
-#   df_w.update() actualizaba filas equivocadas → encuestador=0 para la
-#   mayoría de UPMs fuera de GYE.
-#   Solución: la función ahora trabaja con el índice original intacto y usa
-#   loc/iloc consistentemente para lectura y escritura.
+# ── NUEVO: Edición manual post-planificación ────────────────────────────────
+#   Nuevo tab "✏️ Edición Manual" que permite:
+#     - Reasignar UPMs/manzanas a otro equipo, jornada o encuestador
+#     - Mover rangos de días operativos
+#     - Filtrado por equipo/jornada para edición rápida
+#     - Resumen de cambios antes de confirmar
+#     - Botón para recalcular métricas tras edición
 #
-# ── FIX: criterio de parada del rebalanceo ──────────────────────────────────
-#   v4: solo se detenía por CV_objetivo o max_iter.
-#   Si el CV no bajaba del objetivo pero los clusters eran "suficientemente
-#   iguales" (plateau), el algoritmo seguía iterando hasta max_iter.
-#   v5: se añade detección de plateau: si el CV no mejora más de 0.1pp en
-#   las últimas 10 iteraciones, se detiene. Además se reporta si el resultado
-#   es "bueno" aunque no alcance el objetivo teórico.
-#
-# ── NUEVO: Mes calendario de inicio ─────────────────────────────────────────
-#   En v4 el mes 1 siempre se asumía como Julio.
-#   v5 permite seleccionar el mes real de inicio (Enero–Diciembre) para que
-#   el número de jornada sea correcto independientemente del año.
-#
-# ── NUEVO: Planificación de jornadas (calendario de corte/traslado) ─────────
-#   El operativo puede sufrir cortes presupuestarios que trasladan jornadas.
-#   v5 agrega un panel de planificación donde cada jornada tiene:
-#     - Estado: Planificada / Trasladada / Cancelada
-#     - Fecha de inicio real (puede diferir del calendario ideal)
-#   Cuando una jornada se traslada, el sistema detecta automáticamente si
-#   hay 3 jornadas en un mismo período (la trasladada + las 2 del mes nuevo)
-#   y ajusta el Excel para incluir las 3 hojas en ese periodo.
+# ── NUEVO: Tooltips en sliders ──────────────────────────────────────────────
+#   Todos los sliders del sidebar ahora muestran ayuda contextual
+#   al pasar el ratón (parámetro help= de Streamlit).
 # =============================================================================
 
 import streamlit as st
@@ -64,6 +45,7 @@ st.set_page_config(page_title="INEC · ENDI Planificación",
                    page_icon="📊", layout="wide",
                    initial_sidebar_state="expanded")
 
+# ── CSS ───────────────────────────────────────
 # ── CSS ───────────────────────────────────────
 INEC_LOGO = "https://upload.wikimedia.org/wikipedia/commons/a/a8/Logo_del_INEC_Ecuador.png"
 
@@ -222,12 +204,13 @@ button[kind="primary"]:hover{{
 """, unsafe_allow_html=True)
 
 # ── CONSTANTES ────────────────────────────────
+
+# ── CONSTANTES# ── CONSTANTES ────────────────────────────────
 BASE_LAT = -2.145825935522539
 BASE_LON = -79.89383956329586
 PRO_GYE  = "09"
 CAN_GYE  = "01"
 
-# Meses calendario real (para el selector de mes de inicio)
 MESES_CAL = {
     1:"Enero",2:"Febrero",3:"Marzo",4:"Abril",5:"Mayo",6:"Junio",
     7:"Julio",8:"Agosto",9:"Septiembre",10:"Octubre",11:"Noviembre",12:"Diciembre"
@@ -256,13 +239,116 @@ def parse_codigo(codigo):
     if len(c)>=15: r['man']=c[12:15]
     return r
 
+def normalizar_codigo(valor, ancho=None):
+    if pd.isna(valor):
+        return ''
+    s = str(valor).strip()
+    if s.endswith('.0'):
+        s = s[:-2]
+    s = ''.join(ch for ch in s if ch.isdigit())
+    if not s:
+        return ''
+    if ancho:
+        s = s.zfill(ancho)[-ancho:]
+    return s
+
+def detectar_columnas_catalogo(df_cat):
+    cols = {str(c).strip().upper(): c for c in df_cat.columns}
+    def pick(*candidatas):
+        for cand in candidatas:
+            if cand in cols:
+                return cols[cand]
+        return None
+    return {
+        'parroquia_cod': pick('DPA_PARROQ', 'COD_PARROQUIA', 'PARROQUIA_CODIGO'),
+        'parroquia_nom': pick('DPA_DESPAR', 'DESC_PARROQUIA', 'PARROQUIA'),
+        'canton_cod'   : pick('DPA_CANTON', 'COD_CANTON', 'CANTON_CODIGO'),
+        'canton_nom'   : pick('DPA_DESCAN', 'DESC_CANTON', 'CANTON'),
+        'prov_cod'     : pick('DPA_PROVIN', 'COD_PROVINCIA', 'PROVINCIA_CODIGO'),
+        'prov_nom'     : pick('DPA_DESPRO', 'DESC_PROVINCIA', 'PROVINCIA'),
+        'tipo_txt'     : pick('TXT', 'TIPO', 'TIPO_SECTOR', 'CLASE'),
+        'fcode'        : pick('FCODE', 'COD_FCODE', 'CODIGO_FCODE')
+    }
+
+def cargar_org_territorial_json(contenido_txt):
+    """Carga organización territorial desde JSON (organizacion_territorial.txt)."""
+    import json
+    try:
+        org = json.loads(contenido_txt)
+        # Convert to flat lookup: {PPCCAA: {provincia_nombre, canton_nombre, parroquia_nombre}}
+        lookup = {}
+        for pp, prov_data in org.items():
+            prov_nombre = prov_data.get('DPA_DESPRO', '')
+            for ppcc, cant_data in prov_data.get('cantones', {}).items():
+                canton_nombre = cant_data.get('DPA_DESCAN', '')
+                for ppccaa, parr_data in cant_data.get('parroquias', {}).items():
+                    parroquia_nombre = parr_data.get('DPA_DESPAR', '')
+                    lookup[ppccaa] = {
+                        'provincia_nombre': prov_nombre,
+                        'canton_nombre': canton_nombre,
+                        'parroquia_nombre': parroquia_nombre,
+                        'fcode': ''
+                    }
+        return lookup
+    except:
+        return {}
+
+def cargar_catalogo_territorial(file_obj):
+    nombre = getattr(file_obj, 'name', '').lower()
+    if nombre.endswith('.csv'):
+        df_cat = pd.read_csv(file_obj)
+    else:
+        df_cat = pd.read_excel(file_obj)
+    df_cat.columns = [str(c).strip() for c in df_cat.columns]
+    return df_cat
+
+def preparar_lookup_territorial(df_cat):
+    if df_cat is None or len(df_cat) == 0:
+        return {}, {}
+    cols = detectar_columnas_catalogo(df_cat)
+    cod_col = cols.get('parroquia_cod')
+    if not cod_col:
+        return {}, cols
+    work = df_cat.copy()
+    work['__parroq_cod__'] = work[cod_col].apply(lambda v: normalizar_codigo(v, 6))
+    work = work[work['__parroq_cod__'] != ''].drop_duplicates('__parroq_cod__', keep='first')
+    lookup = {}
+    for _, row in work.iterrows():
+        cod = row['__parroq_cod__']
+        lookup[cod] = {
+            'provincia_codigo' : normalizar_codigo(row[cols['prov_cod']], 2) if cols.get('prov_cod') else cod[:2],
+            'provincia_nombre' : str(row[cols['prov_nom']]).strip() if cols.get('prov_nom') and pd.notna(row[cols['prov_nom']]) else '',
+            'canton_codigo'    : normalizar_codigo(row[cols['canton_cod']], 4) if cols.get('canton_cod') else cod[:4],
+            'canton_nombre'    : str(row[cols['canton_nom']]).strip() if cols.get('canton_nom') and pd.notna(row[cols['canton_nom']]) else '',
+            'parroquia_codigo' : cod,
+            'parroquia_nombre' : str(row[cols['parroquia_nom']]).strip() if cols.get('parroquia_nom') and pd.notna(row[cols['parroquia_nom']]) else '',
+            'tipo_txt'         : str(row[cols['tipo_txt']]).strip() if cols.get('tipo_txt') and pd.notna(row[cols['tipo_txt']]) else '',
+            'fcode'            : str(row[cols['fcode']]).strip() if cols.get('fcode') and pd.notna(row[cols['fcode']]) else ''
+        }
+    return lookup, cols
+
+def enriquecer_plan_con_catalogo(df_plan, catalogo_lookup):
+    if df_plan is None or len(df_plan) == 0:
+        return df_plan
+    if not catalogo_lookup:
+        return df_plan.copy()
+    df_out = df_plan.copy()
+    provs, cants, parroqs, tipos = [], [], [], []
+    for _, row in df_out.iterrows():
+        partes = parse_codigo(row.get('id_entidad', ''))
+        cod_parr = f"{partes['prov']}{partes['canton']}{partes['ciudad_parroq']}"
+        geo = catalogo_lookup.get(cod_parr, {})
+        provs.append(geo.get('provincia_nombre', ''))
+        cants.append(geo.get('canton_nombre', ''))
+        parroqs.append(geo.get('parroquia_nombre', ''))
+        tipos.append(geo.get('tipo_txt', ''))
+    df_out['provincia_nombre'] = provs
+    df_out['canton_nombre'] = cants
+    df_out['parroquia_nombre'] = parroqs
+    df_out['tipo_asentamiento'] = tipos
+    return df_out
+
 def jornada_num_desde_mes(mes_operativo, mes_inicio_cal):
-    """
-    Calcula los números de jornada para un mes operativo dado el mes calendario de inicio.
-    mes_operativo  : int 1..12 (mes dentro del operativo ENDI)
-    mes_inicio_cal : int 1..12 (mes calendario real del mes operativo 1)
-    Retorna (j1_num, j2_num, nombre_mes_cal)
-    """
     mes_cal  = ((mes_inicio_cal - 1 + mes_operativo - 1) % 12) + 1
     j1_num   = (mes_operativo - 1) * 2 + 1
     j2_num   = j1_num + 1
@@ -331,95 +417,97 @@ def cargar_gpkg(path, dissolve_upm=True):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  CLUSTERING BALANCEADO (v5 — igual que v4 pero con criterio de parada mejorado)
+#  CLUSTERING BALANCEADO
 # ══════════════════════════════════════════════════════════════════════════════
 
 def clustering_balanceado(df, n_clusters, cv_objetivo=0.20, max_iter=80, k_vecinos=15):
-    """
-    Clustering en dos fases para balancear la SUMA de viviendas ponderadas por cluster.
-
-    FASE 1 — KMeans geográfico: produce clusters geográficamente compactos.
-
-    FASE 2 — Rebalanceo greedy por proximidad geográfica:
-      En cada iteración identifica el cluster más cargado (k_max) y el menos
-      cargado (k_min). Toma los puntos de k_max ordenados por distancia
-      geográfica al centroide de k_min (del más cercano al más lejano) y mueve
-      el primero cuyo traslado reduzca la desigualdad de sumas.
-
-      Esto garantiza:
-        1. Siempre hay candidatos (no hay condición de distancia comparativa).
-        2. El punto movido es el geográficamente más "fronterizo" hacia k_min.
-        3. Se preserva la coherencia geográfica: se mueven puntos de borde,
-           no puntos del interior del cluster pesado.
-
-    CRITERIO DE PARADA (flexible):
-      a) Desviación máxima de cualquier cluster respecto a la carga media
-         ≤ tolerancia (cv_objetivo*100 %) — objetivo de balance alcanzado.
-      b) 10 iteraciones sin ninguna mejora en la desigualdad.
-      c) max_iter alcanzado.
-      NO usa plateau sobre CV porque el CV de sumas puede oscilar
-      cuando se mueven UPMs con carga muy heterogénea (0–400 viv).
-    """
     coords = df[['x','y']].values.astype(float)
     cargas = df['carga_pond'].values.astype(float)
     n      = len(df)
 
-    km = KMeans(n_clusters=n_clusters, init='k-means++', n_init=10,
-                max_iter=300, random_state=42)
+    km     = KMeans(n_clusters=n_clusters,init='k-means++',n_init=20,
+                    max_iter=500,random_state=42)
     labels = km.fit_predict(coords).copy()
 
     def cluster_sums():
         return np.array([cargas[labels==c].sum() for c in range(n_clusters)])
 
+    def centroides_actuales():
+        return np.array([
+            coords[labels==c].mean(axis=0) if (labels==c).sum()>0 else np.zeros(2)
+            for c in range(n_clusters)
+        ])
+
     cv_ini = cv_pct(pd.Series(cluster_sums()))
     log    = [{'iter':0,'cv':cv_ini,'modo':'inicial'}]
-    sin_mejora = 0
+
+    tree,_  = BallTree(coords,leaf_size=40), None
+    _,nbr   = tree.query(coords,k=min(k_vecinos+1,n))
+
+    no_mejora_frontera = 0
+    cv_history         = [cv_ini]
 
     for it in range(1, max_iter+1):
-        sums  = cluster_sums()
-        media = sums.mean()
-        cv    = cv_pct(pd.Series(sums))
+        sums = cluster_sums()
+        cv   = cv_pct(pd.Series(sums))
 
-        # ── Criterio a: ningún cluster se aleja más del X% de la media ───────
-        if media > 0 and (np.abs(sums - media) / media).max() <= cv_objetivo:
+        if cv <= cv_objetivo*100:
             log.append({'iter':it,'cv':cv,'modo':'objetivo alcanzado ✓'})
             break
 
-        k_max = int(sums.argmax())
-        k_min = int(sums.argmin())
-
-        mask_max = np.where(labels == k_max)[0]
-        mask_min = np.where(labels == k_min)[0]
-        if len(mask_max) == 0 or len(mask_min) == 0:
-            break
-
-        # Centroide del cluster DESTINO (el más liviano)
-        cent_min = coords[mask_min].mean(axis=0)
-
-        # Ordenar todos los puntos del cluster PESADO por distancia al
-        # centroide del cluster liviano — el más cercano es el candidato ideal.
-        dists = np.linalg.norm(coords[mask_max] - cent_min, axis=1)
-        orden = np.argsort(dists)   # de más cercano a más lejano
-
-        mejora = False
-        # Probar hasta los 15 puntos más cercanos geográficamente al destino
-        for pos in orden[:15]:
-            idx = mask_max[pos]
-            labels[idx] = k_min
-            new_cv = cv_pct(pd.Series(cluster_sums()))
-            if new_cv < cv:                         # el traslado mejora el balance
-                log.append({'iter':it,'cv':new_cv,'modo':'rebalanceo'})
-                mejora = True
-                sin_mejora = 0
+        cv_history.append(cv)
+        if len(cv_history) >= 10:
+            mejora_reciente = cv_history[-10] - cv_history[-1]
+            if mejora_reciente < 0.1:
+                log.append({'iter':it,'cv':cv,'modo':'plateau — equilibrio estable'})
                 break
-            else:
-                labels[idx] = k_max                 # revertir y probar siguiente
+
+        orden_pesados  = np.argsort(sums)[::-1]
+        orden_livianos = np.argsort(sums)
+        mejora         = False
+
+        if no_mejora_frontera < 3:
+            for ci_p in orden_pesados[:3]:
+                for ci_l in orden_livianos[:3]:
+                    if ci_p==ci_l: continue
+                    mask_p = np.where(labels==ci_p)[0]
+                    if len(mask_p)==0: continue
+                    mejor_cv,mejor_idx = cv,-1
+                    for idx in mask_p:
+                        if not any(labels[v]==ci_l for v in nbr[idx] if v!=idx): continue
+                        labels[idx]=ci_l
+                        cv_n=cv_pct(pd.Series(cluster_sums()))
+                        labels[idx]=ci_p
+                        if cv_n<mejor_cv: mejor_cv,mejor_idx=cv_n,idx
+                    if mejor_idx>=0:
+                        labels[mejor_idx]=ci_l
+                        log.append({'iter':it,'cv':mejor_cv,'modo':'frontera'})
+                        mejora=True; no_mejora_frontera=0; break
+                if mejora: break
+            if not mejora: no_mejora_frontera+=1
 
         if not mejora:
-            sin_mejora += 1
-            log.append({'iter':it,'cv':cv,'modo':'sin mejora'})
-            if sin_mejora >= 10:
-                break
+            cents  = centroides_actuales()
+            ci_p   = orden_pesados[0]
+            mask_p = np.where(labels==ci_p)[0]
+            mejor_cv_g,mejor_idx_g,mejor_dest = cv,-1,-1
+            for ci_l in orden_livianos[:2]:
+                if ci_p==ci_l or len(mask_p)==0: continue
+                dists = np.linalg.norm(coords[mask_p]-cents[ci_l],axis=1)
+                cands = mask_p[np.argsort(dists)[:10]]
+                for idx in cands:
+                    labels[idx]=ci_l
+                    cv_n=cv_pct(pd.Series(cluster_sums()))
+                    labels[idx]=ci_p
+                    if cv_n<mejor_cv_g: mejor_cv_g,mejor_idx_g,mejor_dest=cv_n,idx,ci_l
+            if mejor_idx_g>=0 and mejor_cv_g<cv:
+                labels[mejor_idx_g]=mejor_dest
+                log.append({'iter':it,'cv':mejor_cv_g,'modo':'global'})
+                mejora=True; no_mejora_frontera=0
+            else:
+                log.append({'iter':it,'cv':cv,'modo':'sin mejora'})
+                if sum(1 for l in log[-6:] if l.get('modo')=='sin mejora')>=5:
+                    break
 
     cv_fin = cv_pct(pd.Series(cluster_sums()))
     log.append({'iter':len(log),'cv':cv_fin,'modo':'final'})
@@ -427,11 +515,10 @@ def clustering_balanceado(df, n_clusters, cv_objetivo=0.20, max_iter=80, k_vecin
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  NEAREST-NEIGHBOR PARA CONTIGÜIDAD GEOGRÁFICA
+#  NEAREST-NEIGHBOR
 # ══════════════════════════════════════════════════════════════════════════════
 
 def nearest_neighbor_order(points_xy, start_xy=None):
-    """Ordena puntos por recorrido nearest-neighbor greedy. O(N²)."""
     n = len(points_xy)
     if n==0: return []
     if n==1: return [0]
@@ -453,63 +540,31 @@ def nearest_neighbor_order(points_xy, start_xy=None):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  ASIGNACIÓN ENCUESTADORES + DÍAS — FIX ÍNDICES (v5)
+#  ASIGNACIÓN ENCUESTADORES + DÍAS
 # ══════════════════════════════════════════════════════════════════════════════
 
 def asignar_encuestadores_y_dias(df_grp, n_enc, dias_tot, viv_min, viv_max,
                                   inicio_dia=1):
-    """
-    Asigna encuestadores y distribuye manzanas en días.
-
-    FIX v5 — índices originales preservados:
-      La función ya NO hace reset_index(drop=True). Trabaja directamente con
-      los índices del DataFrame original (que son los índices de df_w).
-      Esto garantiza que df_w.update(resultado) actualice las filas correctas.
-
-      Internamente usa:
-        - iloc para acceso por posición dentro de los arrays NumPy
-        - loc para escritura de vuelta al DataFrame con índice original
-
-    PASO 1 — Bin-packing balanceado:
-      Ordena UPMs por carga DESC y usa greedy (argmin de carga acumulada)
-      para distribuir entre n_enc encuestadores.
-
-    PASO 2 — Reordenamiento geográfico:
-      Dentro de cada encuestador, ordena las UPMs por nearest-neighbor
-      partiendo del centroide del sub-grupo. Días consecutivos = manzanas
-      físicamente adyacentes.
-
-    PASO 3 — Calendario de bloqueo:
-      calendario[enc][dia] = viv acumuladas ese día.
-      Manzana normal: primer día con espacio libre.
-      Manzana grande (viv > viv_max): bloque de D días consecutivos.
-    """
     target = (viv_min + viv_max) / 2.0
     ultimo = inicio_dia + dias_tot - 1
 
-    # Trabajamos con el índice ORIGINAL del DataFrame de entrada
-    # (no hacemos reset_index)
-    df_g   = df_grp.copy()                    # conserva índice original
-    idx_orig = df_g.index.tolist()            # lista de índices reales
+    df_g   = df_grp.copy()
+    idx_orig = df_g.index.tolist()
     n_rows = len(df_g)
 
-    # Arrays de trabajo indexados por posición (0..n_rows-1)
     cargas = df_g['carga_pond'].values.astype(float)
     viviendas = df_g['viv'].values.astype(float)
     coords = df_g[['x','y']].values.astype(float)
 
-    # ── PASO 1: bin-packing ──────────────────────────────────────────────────
     orden_bp = np.argsort(cargas)[::-1]
     enc_acum = np.zeros(n_enc)
-    enc_asig = np.zeros(n_rows, dtype=int)    # indexado por posición
+    enc_asig = np.zeros(n_rows, dtype=int)
 
     for pos in orden_bp:
         em = int(np.argmin(enc_acum))
         enc_asig[pos] = em + 1
         enc_acum[em] += cargas[pos]
 
-    # ── PASO 2: reordenamiento geográfico ───────────────────────────────────
-    # geo_order: lista de posiciones (0..n_rows-1) en orden de visita por enc
     geo_order = []
     for enc_id in range(1, n_enc+1):
         pos_enc = np.where(enc_asig == enc_id)[0]
@@ -520,7 +575,6 @@ def asignar_encuestadores_y_dias(df_grp, n_enc, dias_tot, viv_min, viv_max,
         for nn_pos in nn:
             geo_order.append((pos_enc[nn_pos], enc_id))
 
-    # ── PASO 3: calendario de bloqueo ───────────────────────────────────────
     dias_range = list(range(inicio_dia, ultimo+1))
     calendario = {e:{d:0.0 for d in dias_range} for e in range(1,n_enc+1)}
     cursor     = {e:inicio_dia for e in range(1,n_enc+1)}
@@ -534,7 +588,6 @@ def asignar_encuestadores_y_dias(df_grp, n_enc, dias_tot, viv_min, viv_max,
         cur   = cursor[enc_id]
 
         if viv_m > viv_max:
-            # Manzana grande: buscar bloque de D días consecutivos libres
             dias_m = max(1, int(np.ceil(viv_m / target)))
             dias_m = min(dias_m, dias_tot)
             bloque = None
@@ -550,7 +603,6 @@ def asignar_encuestadores_y_dias(df_grp, n_enc, dias_tot, viv_min, viv_max,
                 cal[dd] = cal.get(dd, 0.0) + vpd
             cursor[enc_id] = d_fin + 1
         else:
-            # Manzana normal: primer día con espacio
             dia_asig = None
             for d in range(cur, ultimo+1):
                 if cal.get(d, 0.0) < target:
@@ -566,33 +618,21 @@ def asignar_encuestadores_y_dias(df_grp, n_enc, dias_tot, viv_min, viv_max,
         dia_ini_arr[pos] = d_ini
         dia_fin_arr[pos] = d_fin
 
-    # Escribir resultados de vuelta al DataFrame con índice original
     df_g['encuestador']   = enc_asig
     df_g['dia_inicio']    = dia_ini_arr
     df_g['dia_fin']       = dia_fin_arr
     df_g['dia_operativo'] = dia_ini_arr
-    return df_g   # índice original intacto → df_w.update() funcionará correctamente
+    return df_g
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  PLANIFICACIÓN DE JORNADAS (NUEVO v5)
+#  PLANIFICACIÓN DE JORNADAS
 # ══════════════════════════════════════════════════════════════════════════════
 
 ESTADO_OK  = "✅ Planificada"
-ESTADO_MV  = "🔀 Trasladada"
 ESTADO_CAN = "❌ Cancelada"
 
 def construir_calendario_jornadas(total_meses, mes_inicio_cal, config_jornadas):
-    """
-    Construye la lista de jornadas del operativo completo.
-
-    total_meses    : int — cuántos meses tiene el operativo (ej: 12)
-    mes_inicio_cal : int — mes calendario del mes operativo 1 (ej: 7 = julio)
-    config_jornadas: dict {jornada_num: {'estado': str, 'fecha': date|None,
-                                         'trasladada_a': int|None}}
-
-    Retorna lista de dicts con info de cada jornada.
-    """
     jornadas = []
     for mes in range(1, total_meses+1):
         j1_n, j2_n, mes_nombre = jornada_num_desde_mes(mes, mes_inicio_cal)
@@ -615,11 +655,8 @@ def construir_calendario_jornadas(total_meses, mes_inicio_cal, config_jornadas):
 # ══════════════════════════════════════════════════════════════════════════════
 
 def generar_excel(df_plan, eq_cfg, personal_info,
-                  jornadas_activas, dias_op):
-    """
-    Genera Excel con una hoja por jornada activa.
-    jornadas_activas: lista de dicts {'jornada_num', 'jornada_nombre', 'fecha'}
-    """
+                  jornadas_activas, dias_op, catalogo_lookup=None):
+    catalogo_lookup = catalogo_lookup or {}
     wb = openpyxl.Workbook()
     wb.remove(wb.active)
 
@@ -646,7 +683,7 @@ def generar_excel(df_plan, eq_cfg, personal_info,
 
     for jinfo in jornadas_activas:
         j_num         = jinfo['jornada_num']
-        j_nombre_hoja = jinfo['jornada_nombre']   # e.g. "Jornada 1" o "Jornada Especial"
+        j_nombre_hoja = jinfo['jornada_nombre']
         fecha_inicio  = jinfo.get('fecha')
 
         df_jor = df_plan[df_plan['jornada']==j_nombre_hoja].copy()
@@ -687,7 +724,7 @@ def generar_excel(df_plan, eq_cfg, personal_info,
 
             for txt in ["INSTITUTO NACIONAL DE ESTADÍSTICA Y CENSOS",
                         "COORDINACIÓN ZONAL LITORAL CZ8L",
-                        "ACTUALIZACIÓN CARTOGRÁFICA - ENDI ENLISTAMIENTO",
+                        "ACTUALIZACIÓN CARTOGRÁFICA - ENLISTAMIENTO",
                         "PROGRAMACIÓN OPERATIVO DE CAMPO"]:
                 merge_row(cur,1,last_col,txt,bold=True,bg=AZ_OSCURO,fg=BLANCO,ha="center",sz=9)
                 cur+=1
@@ -730,7 +767,6 @@ def generar_excel(df_plan, eq_cfg, personal_info,
             ws.cell(cur,1,"PLACA:"); sc(ws.cell(cur,1),bold=True,sz=9)
             ws.cell(cur,4,pi.get('placa','')); cur+=2
 
-            # Encabezado de tabla
             merge_row(cur,1,4,"EQUIPO",bold=True,bg=AZ_MEDIO,fg=BLANCO,ha="center",sz=8,brd=True)
             merge_row(cur,5,14,"IDENTIFICACIÓN",bold=True,bg=AZ_MEDIO,fg=BLANCO,ha="center",sz=8,brd=True)
             merge_row(cur,15,14+dias_op,"RECORRIDO DE LOS SECTORES — FECHA",
@@ -773,10 +809,22 @@ def generar_excel(df_plan, eq_cfg, personal_info,
                 enc_i=enc_list[enc_id-1] if 0<enc_id<=len(enc_list) else {}
                 ct_str=f"CT{ct_counter[0]:03d}"; ct_counter[0]+=1
 
-                vals=[pi.get('supervisor_cedula',''),enc_i.get('cedula',''),ct_str,
-                      p_cod['prov'],p_cod['canton'],p_cod['ciudad_parroq'],
-                      p_cod['zona'],p_cod['sector'],p_cod['man'],
-                      str(rd['id_entidad']),'','','','']
+                cod_parr = f"{p_cod['prov']}{p_cod['canton']}{p_cod['ciudad_parroq']}"
+                geo = catalogo_lookup.get(cod_parr, {})
+                vals = [
+                    pi.get('supervisor_cedula', ''),
+                    enc_i.get('cedula', ''),
+                    ct_str,
+                    p_cod['prov'], p_cod['canton'],
+                    p_cod['ciudad_parroq'],
+                    p_cod['zona'], p_cod['sector'], p_cod['man'],
+                    str(rd['id_entidad']),
+                    geo.get('provincia_nombre', ''),
+                    geo.get('canton_nombre', ''),
+                    geo.get('parroquia_nombre', ''),
+                    geo.get('fcode', ''),
+                ]
+
                 for ci,val in enumerate(vals,1):
                     sc(ws.cell(cur,ci,val),bg=AZ_CLARO if ci==10 else bg_row,
                        ha="center",sz=8,brd=True)
@@ -810,110 +858,6 @@ def generar_excel(df_plan, eq_cfg, personal_info,
     return buf.getvalue()
 
 
-
-def normalizar_codigo(valor, ancho=None):
-    """Normaliza códigos y preserva ceros a la izquierda."""
-    if pd.isna(valor):
-        return ''
-    s = str(valor).strip()
-    if s.endswith('.0'):
-        s = s[:-2]
-    s = ''.join(ch for ch in s if ch.isdigit())
-    if not s:
-        return ''
-    if ancho:
-        s = s.zfill(ancho)[-ancho:]
-    return s
-
-
-def detectar_columnas_catalogo(df_cat):
-    """Detecta columnas relevantes del catálogo territorial."""
-    cols = {str(c).strip().upper(): c for c in df_cat.columns}
-
-    def pick(*candidatas):
-        for cand in candidatas:
-            if cand in cols:
-                return cols[cand]
-        return None
-
-    return {
-        'parroquia_cod': pick('DPA_PARROQ', 'COD_PARROQUIA', 'PARROQUIA_CODIGO'),
-        'parroquia_nom': pick('DPA_DESPAR', 'DESC_PARROQUIA', 'PARROQUIA'),
-        'canton_cod'   : pick('DPA_CANTON', 'COD_CANTON', 'CANTON_CODIGO'),
-        'canton_nom'   : pick('DPA_DESCAN', 'DESC_CANTON', 'CANTON'),
-        'prov_cod'     : pick('DPA_PROVIN', 'COD_PROVINCIA', 'PROVINCIA_CODIGO'),
-        'prov_nom'     : pick('DPA_DESPRO', 'DESC_PROVINCIA', 'PROVINCIA'),
-        'tipo_txt'     : pick('TXT', 'TIPO', 'TIPO_SECTOR', 'CLASE'),
-        'fcode'        : pick('FCODE', 'COD_FCODE', 'CODIGO_FCODE')
-    }
-
-
-def cargar_catalogo_territorial(file_obj):
-    """Carga el Excel/CSV territorial usado para completar el reporte."""
-    nombre = getattr(file_obj, 'name', '').lower()
-    if nombre.endswith('.csv'):
-        df_cat = pd.read_csv(file_obj)
-    else:
-        df_cat = pd.read_excel(file_obj)
-    df_cat.columns = [str(c).strip() for c in df_cat.columns]
-    return df_cat
-
-
-def preparar_lookup_territorial(df_cat):
-    """Construye un índice por código parroquial para enriquecer el Excel."""
-    if df_cat is None or len(df_cat) == 0:
-        return {}, {}
-
-    cols = detectar_columnas_catalogo(df_cat)
-    cod_col = cols.get('parroquia_cod')
-    if not cod_col:
-        return {}, cols
-
-    work = df_cat.copy()
-    work['__parroq_cod__'] = work[cod_col].apply(lambda v: normalizar_codigo(v, 6))
-    work = work[work['__parroq_cod__'] != ''].drop_duplicates('__parroq_cod__', keep='first')
-
-    lookup = {}
-    for _, row in work.iterrows():
-        cod = row['__parroq_cod__']
-        lookup[cod] = {
-            'provincia_codigo' : normalizar_codigo(row[cols['prov_cod']], 2) if cols.get('prov_cod') else cod[:2],
-            'provincia_nombre' : str(row[cols['prov_nom']]).strip() if cols.get('prov_nom') and pd.notna(row[cols['prov_nom']]) else '',
-            'canton_codigo'    : normalizar_codigo(row[cols['canton_cod']], 4) if cols.get('canton_cod') else cod[:4],
-            'canton_nombre'    : str(row[cols['canton_nom']]).strip() if cols.get('canton_nom') and pd.notna(row[cols['canton_nom']]) else '',
-            'parroquia_codigo' : cod,
-            'parroquia_nombre' : str(row[cols['parroquia_nom']]).strip() if cols.get('parroquia_nom') and pd.notna(row[cols['parroquia_nom']]) else '',
-            'tipo_txt'         : str(row[cols['tipo_txt']]).strip() if cols.get('tipo_txt') and pd.notna(row[cols['tipo_txt']]) else '',
-            'fcode'            : str(row[cols['fcode']]).strip() if cols.get('fcode') and pd.notna(row[cols['fcode']]) else ''
-        }
-    return lookup, cols
-
-
-def enriquecer_plan_con_catalogo(df_plan, catalogo_lookup):
-    """Añade nombres territoriales al plan para vista previa y exportación."""
-    if df_plan is None or len(df_plan) == 0:
-        return df_plan
-    if not catalogo_lookup:
-        return df_plan.copy()
-
-    df_out = df_plan.copy()
-    provs, cants, parroqs, tipos = [], [], [], []
-    for _, row in df_out.iterrows():
-        partes = parse_codigo(row.get('id_entidad', ''))
-        cod_parr = f"{partes['prov']}{partes['canton']}{partes['ciudad_parroq']}"
-        geo = catalogo_lookup.get(cod_parr, {})
-        provs.append(geo.get('provincia_nombre', ''))
-        cants.append(geo.get('canton_nombre', ''))
-        parroqs.append(geo.get('parroquia_nombre', ''))
-        tipos.append(geo.get('tipo_txt', ''))
-    df_out['provincia_nombre'] = provs
-    df_out['canton_nombre'] = cants
-    df_out['parroquia_nombre'] = parroqs
-    df_out['tipo_asentamiento'] = tipos
-    return df_out
-
-
-
 # ══════════════════════════════════════════════════════════════════════════════
 #  SESSION STATE
 # ══════════════════════════════════════════════════════════════════════════════
@@ -925,13 +869,16 @@ _defs = {
     "personal_info":{},
     "balance_log":[],"cv_ini_bal":None,"cv_fin_bal":None,
     "viv_por_cluster_antes":None,"viv_por_cluster_despues":None,
-    # Nuevo v5
-    "mes_inicio_cal": 7,            # Julio por defecto
-    "config_jornadas": {},          # {jornada_num: {estado, fecha, trasladada_a}}
+    "mes_inicio_cal": 7,
+    "config_jornadas": {},
+    "catalogo_df": None, "catalogo_lookup": {}, "catalogo_cols": {},
+    # v5.1 — edición manual
+    "edits_log": [],           # historial de cambios manuales
+    "edit_counter": 0,         # contador de ediciones aplicadas
     "params":{
-        "dias_op":12,"viv_min":50,"viv_max":80,"factor_r":1.5,
-        "usar_bomb":True,"usar_gye":True,"dias_gye":3,"umbral_gye":10,
-        "cv_objetivo":20,"max_iter_bal":80,"k_vecinos":15,
+        "dias_op":12,"viv_min":40,"viv_max":70,"factor_r":1.8,
+        "usar_bomb":False,"usar_gye":True,"dias_gye":3,"umbral_gye":5,
+        "cv_objetivo":10,"max_iter_bal":300,"k_vecinos":8,
     },
     "equipos_cfg":[
         {"id":1,"nombre":"Equipo 1","enc":3},
@@ -1010,7 +957,6 @@ with st.sidebar:
         df_mes=st.session_state.data_raw[st.session_state.data_raw["mes"]==mes_sel].copy()
         st.session_state.data_mes=df_mes
 
-        # ── NUEVO v5: Mes calendario de inicio ──────────────────────────────
         st.markdown("**Mes calendario de inicio del operativo**")
         mes_ini_cal=st.selectbox(
             "El mes operativo 1 corresponde a:",
@@ -1023,11 +969,11 @@ with st.sidebar:
 
         j1_n,j2_n,mes_nom=jornada_num_desde_mes(int(mes_sel),mes_ini_cal)
         st.markdown(f"""
-        <div style='font-size:11px;background:#f0f6ff;border-radius:6px;color:#2d4a6f;
-                    padding:8px 12px;border-left:3px solid #003B71;margin-top:6px'>
+        <div style='font-size:11px;background:#0d2035;border-radius:6px;
+                    padding:8px 12px;border-left:3px solid #2e86de;margin-top:6px'>
         📅 Mes {int(mes_sel)} ({mes_nom}) →
-        <b style='color:#003B71'>Jornada {j1_n}</b> +
-        <b style='color:#059669'>Jornada {j2_n}</b>
+        <b style='color:#2e86de'>Jornada {j1_n}</b> +
+        <b style='color:#27ae60'>Jornada {j2_n}</b>
         </div>""",unsafe_allow_html=True)
 
         st.divider()
@@ -1061,21 +1007,98 @@ with st.sidebar:
         st.divider()
         st.markdown("**Parámetros operativos**")
         p=st.session_state.params
-        p["dias_op"] =st.slider("Días operativos",10,14,p["dias_op"])
-        p["viv_min"] =st.slider("Mín viv/día",30,60,p["viv_min"])
-        p["viv_max"] =st.slider("Máx viv/día",60,120,p["viv_max"])
-        p["factor_r"]=st.slider("Factor rural (×)",1.0,2.5,p["factor_r"],0.1)
+
+        # ── SLIDERS CON TOOLTIPS (v5.1) ──────────────────────────────────────
+        p["dias_op"] = st.slider(
+            "Días operativos", 10, 14, p["dias_op"],
+            help="Cantidad de días laborables que dura cada jornada. "
+                 "Cada jornada (quincenal) se divide en este número de días "
+                 "para programar las visitas de campo. Valores típicos: 10-12."
+        )
+        p["viv_min"] = st.slider(
+            "Mín viv/día", 30, 60, p["viv_min"],
+            help="Número mínimo de viviendas que un encuestador debe cubrir "
+                 "en un día operativo. Si una manzana tiene menos viviendas "
+                 "que este valor, se combinará con otras manzanas en el mismo día. "
+                 "Ajusta según la densidad urbana de la zona."
+        )
+        p["viv_max"] = st.slider(
+            "Máx viv/día", 60, 120, p["viv_max"],
+            help="Número máximo de viviendas que un encuestador puede cubrir "
+                 "en un día operativo. Si una manzana supera este valor, se "
+                 "le asignarán múltiples días consecutivos. Valores altos = "
+                 "jornadas más largas para el encuestador."
+        )
+        p["factor_r"] = st.slider(
+            "Factor rural (×)", 1.0, 2.5, p["factor_r"], 0.1,
+            help="Multiplicador de carga para UPMs dispersas/rurales (tipo sector). "
+                 "Un factor de 1.8× significa que una vivienda en zona dispersa "
+                 "'pesa' 1.8 veces más que una urbana al distribuir la carga, "
+                 "compensando el mayor tiempo de traslado entre viviendas rurales."
+        )
+
         st.markdown("**Rebalanceo clusters**")
-        p["cv_objetivo"] =st.slider("Tolerancia de carga (%)",10,50,p.get("cv_objetivo",20))
-        p["max_iter_bal"]=st.slider("Iter. máx.",20,200,p.get("max_iter_bal",80),step=10)
-        p["k_vecinos"]   =st.slider("Vecinos frontera (k)",5,30,p.get("k_vecinos",15))
-        p["usar_bomb"]=st.toggle("Equipo Bombero",value=p["usar_bomb"])
+        p["cv_objetivo"] = st.slider(
+            "CV objetivo (%)", 3, 25, p.get("cv_objetivo", 10),
+            help="Coeficiente de variación objetivo entre clusters. Mide qué tan "
+                 "equitativamente se distribuye la carga entre equipos. "
+                 "Un CV bajo (3-5%) = distribución muy igualitaria pero puede "
+                 "romper la contigüidad geográfica. Un CV alto (15-25%) = más "
+                 "tolerancia a diferencias pero mejor cohesión territorial. "
+                 "Recomendado: 8-12%."
+        )
+        p["max_iter_bal"] = st.slider(
+            "Iter. máx.", 50, 500, p.get("max_iter_bal", 300), step=50,
+            help="Número máximo de iteraciones del algoritmo de rebalanceo. "
+                 "Más iteraciones = mejor balance posible pero mayor tiempo "
+                 "de cómputo. El algoritmo se detendrá antes si alcanza el "
+                 "CV objetivo o detecta un plateau (sin mejora significativa)."
+        )
+        p["k_vecinos"] = st.slider(
+            "Vecinos frontera (k)", 4, 20, p.get("k_vecinos", 8),
+            help="Número de vecinos geográficos más cercanos que se consideran "
+                 "para el modo de swap 'frontera'. Un k más alto permite "
+                 "intercambios entre clusters menos adyacentes, pero puede "
+                 "reducir la compacidad geográfica. Recomendado: 6-10."
+        )
+
+        p["usar_bomb"] = st.toggle("Equipo Bombero", value=p["usar_bomb"],
+            help="Activa la detección automática de UPMs outlier (muy lejanas "
+                 "del centroide de su cluster) que se asignan a un 'Equipo Bombero' "
+                 "especial. Útil cuando hay manzanas aisladas que desequilibrarían "
+                 "la planificación de un equipo regular."
+        )
         if p["usar_bomb"]:
-            p["min_dist_bomb_m"]=st.slider("Dist. mín. Bombero (km)",10,150,
-                p.get("min_dist_bomb_m",40000)//1000)*1000
-        p["usar_gye"]   =st.toggle("Restricción Guayaquil",value=p["usar_gye"])
-        p["dias_gye"]   =st.slider("Días GYE",1,5,p["dias_gye"],disabled=not p["usar_gye"])
-        p["umbral_gye"] =st.slider("Umbral GYE (%)",5,30,p["umbral_gye"],disabled=not p["usar_gye"])
+            p["min_dist_bomb_m"] = st.slider(
+                "Dist. mín. Bombero (km)", 10, 150,
+                p.get("min_dist_bomb_m", 40000)//1000,
+                help="Distancia mínima (en km) desde el centroide del cluster "
+                     "para que una UPM sea candidata a Equipo Bombero. Solo las "
+                     "UPMs que superen esta distancia Y sean outliers estadísticos "
+                     "(IQR×3) serán reasignadas."
+            )*1000
+
+        p["usar_gye"] = st.toggle("Restricción Guayaquil", value=p["usar_gye"],
+            help="Reserva los primeros días de la Jornada 1 exclusivamente para "
+                 "UPMs dentro del cantón Guayaquil. Esto permite que los equipos "
+                 "trabajen primero en la zona urbana densa antes de desplazarse "
+                 "a zonas periféricas o rurales."
+        )
+        p["dias_gye"] = st.slider(
+            "Días GYE", 1, 5, p["dias_gye"],
+            disabled=not p["usar_gye"],
+            help="Número de días al inicio de la Jornada 1 reservados exclusivamente "
+                 "para trabajar dentro de Guayaquil. Los demás días se usan para "
+                 "las UPMs fuera de GYE. Recomendado: 2-3 días."
+        )
+        p["umbral_gye"] = st.slider(
+            "Umbral GYE (%)", 5, 30, p["umbral_gye"],
+            disabled=not p["usar_gye"],
+            help="Porcentaje mínimo de UPMs que deben pertenecer a Guayaquil "
+                 "para que se active la restricción GYE. Si las UPMs de GYE son "
+                 "menos que este porcentaje del total, la restricción se desactiva "
+                 "automáticamente para ese mes."
+        )
 
         tot_enc=sum(e["enc"] for e in st.session_state.equipos_cfg)
         tot_viv=int(df_mes["viv"].sum()) if len(df_mes)>0 else 0
@@ -1088,13 +1111,10 @@ with st.sidebar:
         </div>""",unsafe_allow_html=True)
 
 # ── HEADER ────────────────────────────────────
-st.markdown(f"""
+st.markdown("""
 <div class='hdr'>
-  <img src='{INEC_LOGO}' alt='INEC'>
-  <div class='hdr-text'>
-    <h1>Planificación Automática · Actualización Cartográfica</h1>
-    <p>Instituto Nacional de Estadística y Censos &nbsp;·&nbsp; Zonal Litoral &nbsp;·&nbsp; ENDI 2025</p>
-  </div>
+  <h1>Planificación Automática · Actualización Cartográfica</h1>
+  <p>Encuesta Nacional &nbsp;·&nbsp; Zonal Litoral &nbsp;·&nbsp; INEC Ecuador</p>
 </div>""",unsafe_allow_html=True)
 
 if st.session_state.data_raw is None:
@@ -1132,40 +1152,11 @@ with cb2:
         st.markdown("<div class='wbox'>⚠️ Carga el <code>.graphml</code> (Paso 2).</div>",
                     unsafe_allow_html=True)
     elif st.session_state.resultados_generados:
-        st.markdown("<div class='ibox'>✓ Planificación lista. Puedes regenerar.</div>",
+        st.markdown("<div class='ibox'>✓ Planificación lista. Puedes regenerar o editar manualmente.</div>",
                     unsafe_allow_html=True)
 
-    # ── Catálogo territorial ──────────────────
-    st.markdown("<div class='stitle'>Catálogo territorial para completar el Excel</div>",
-                unsafe_allow_html=True)
-    st.markdown("""<div class='ibox'>
-    Sube el Excel o CSV con la organización territorial del Ecuador. La app usa
-    ese catálogo para completar provincia, cantón, parroquia y códigos auxiliares
-    en el reporte final.
-    </div>""", unsafe_allow_html=True)
-
-    cat_file = st.file_uploader(
-        "Catálogo territorial (.xlsx, .xls o .csv)",
-        type=["xlsx", "xls", "csv"],
-        key="catalogo_territorial_up"
-    )
-    if cat_file is not None:
-        try:
-            df_cat = cargar_catalogo_territorial(cat_file)
-            lookup_cat, cols_cat = preparar_lookup_territorial(df_cat)
-            st.session_state.catalogo_df = df_cat
-            st.session_state.catalogo_lookup = lookup_cat
-            st.session_state.catalogo_cols = cols_cat
-            st.success(f"✓ Catálogo cargado: {len(df_cat):,} filas")
-        except Exception as e:
-            st.error(f"No se pudo leer el catálogo territorial: {e}")
-
-    if st.session_state.catalogo_df is not None:
-        cols_detectadas = {k: v for k, v in st.session_state.catalogo_cols.items() if v}
-        st.caption(f"Columnas detectadas: {cols_detectadas}")
-
 # ══════════════════════════════════════════════════════════════════════════════
-#  ALGORITMO PRINCIPAL v5
+#  ALGORITMO PRINCIPAL
 # ══════════════════════════════════════════════════════════════════════════════
 if btn:
     G=st.session_state.graph_G
@@ -1184,13 +1175,11 @@ if btn:
 
     prog=st.progress(0,"Iniciando...")
 
-    # 1. Distancias a la base
     prog.progress(5,"Distancias a base...")
     t_utm=Transformer.from_crs("EPSG:4326","EPSG:32717",always_xy=True)
     bx,by=t_utm.transform(BASE_LON,BASE_LAT)
     df_w['dist_base_m']=np.sqrt((df_w['x']-bx)**2+(df_w['y']-by)**2)
 
-    # 2. Restricción GYE
     prog.progress(8,"Verificando restricción Guayaquil...")
     upms_gye=pd.Series(False,index=df_w.index)
     if p["usar_gye"] and 'pro_x' in df_w.columns and 'can_x' in df_w.columns:
@@ -1201,14 +1190,12 @@ if btn:
     df_gye   =df_w[upms_gye].copy()  if act_gye else pd.DataFrame()
     df_no_gye=df_w[~upms_gye].copy()
 
-    # 3. Clustering balanceado
     prog.progress(12,f"KMeans + rebalanceo ({n_clust} clusters)...")
     mask_bomb=pd.Series(False,index=df_w.index)
 
     if len(df_no_gye)>=n_clust:
-        # CV antes (solo KMeans)
-        km_init=KMeans(n_clusters=n_clust,init='k-means++',n_init=10,
-                       max_iter=300,random_state=42)
+        km_init=KMeans(n_clusters=n_clust,init='k-means++',n_init=20,
+                       max_iter=500,random_state=42)
         lab_init=km_init.fit_predict(df_no_gye[['x','y']].values.astype(float))
         carg_arr=df_no_gye['carga_pond'].values
         vib_antes={c:float(carg_arr[lab_init==c].sum()) for c in range(n_clust)}
@@ -1232,7 +1219,6 @@ if btn:
         vib_despues={c:float(carg_arr[labels==c].sum()) for c in range(n_clust)}
         st.session_state.viv_por_cluster_despues=vib_despues
 
-        # Centroides y asignación equipo+jornada
         centroides=np.array([
             df_no_gye[['x','y']].values[labels==c].mean(axis=0)
             if (labels==c).sum()>0 else np.array([bx,by])
@@ -1247,7 +1233,6 @@ if btn:
         df_no_gye['equipo'] =df_no_gye['cluster_geo'].map(lambda c: asig[c][0])
         df_no_gye['jornada']=df_no_gye['cluster_geo'].map(lambda c: asig[c][1])
 
-        # Equipo Bombero
         if p["usar_bomb"]:
             prog.progress(32,"Detectando outliers (Equipo Bombero)...")
             MIN_D=p.get("min_dist_bomb_m",40000)
@@ -1267,20 +1252,17 @@ if btn:
                     df_no_gye.loc[bomb_idx,'jornada']='Jornada Especial'
                     mask_bomb.loc[bomb_idx]=True
 
-        # ── FIX v5: update con índice original intacto ───────────────────────
-        # df_no_gye conserva el índice de df_w → update mapea correctamente
         df_w.update(df_no_gye[['equipo','jornada','cluster_geo']])
 
     st.session_state.n_bombero=int((df_w['equipo']=='Equipo Bombero').sum())
 
-    # 4. Encuestadores + días (FIX índices v5)
     prog.progress(42,"Asignando encuestadores y días...")
     enc_dict={e["nombre"]:e["enc"] for e in eq_cfg}
 
     for nombre_eq in nombres:
         for jornada in ['Jornada 1','Jornada 2']:
             mask_g=(df_w['equipo']==nombre_eq)&(df_w['jornada']==jornada)
-            grp=df_w[mask_g].copy()   # índice original de df_w conservado
+            grp=df_w[mask_g].copy()
             if len(grp)==0: continue
             n_enc=enc_dict.get(nombre_eq,3)
 
@@ -1293,70 +1275,41 @@ if btn:
 
             ga=asignar_encuestadores_y_dias(grp,n_enc,dias_disp,
                                             p["viv_min"],p["viv_max"],inicio)
-            # ga.index == grp.index == índices originales de df_w → update correcto
             df_w.update(ga[['encuestador','dia_operativo','dia_inicio','dia_fin']])
 
-    # Fase GYE — clustering geográfico puro (v5.2)
-    # Usa KMeans SOLO en coordenadas para agrupar por barrio/sector.
-    # NO usa clustering_balanceado porque su fase de rebalanceo por carga
-    # mueve UPMs entre clusters y destruye la coherencia geográfica,
-    # especialmente con pocas UPMs.
     if act_gye and len(df_gye)>0:
         n_gye_clusters = min(n_eq, len(df_gye))
-        prog.progress(38,f"Clustering GYE: {len(df_gye)} UPMs → {n_gye_clusters} clusters...")
         if n_gye_clusters >= 2:
-            # KMeans puramente geográfico — sin rebalanceo
+            # KMeans puro geográfico — SIN rebalanceo para no deformar barrios
             km_gye = KMeans(n_clusters=n_gye_clusters, init='k-means++',
-                            n_init=10, max_iter=300, random_state=42)
-            labels_gye = km_gye.fit_predict(
-                df_gye[['x','y']].values.astype(float))
+                            n_init=30, max_iter=500, random_state=42)
+            labels_gye = km_gye.fit_predict(df_gye[['x','y']].values.astype(float))
             df_gye = df_gye.copy()
             df_gye['cluster_gye'] = labels_gye
 
-            # Asignar cada cluster geográfico a un equipo diferente
             for c_id in range(n_gye_clusters):
                 eq_a = nombres[c_id % n_eq]
-                mask_c = df_gye['cluster_gye'] == c_id
-                grp_gye = df_gye[mask_c].copy()
-                if len(grp_gye) == 0:
-                    continue
-
-                n_enc_eq = enc_dict.get(eq_a, 3)
-                dias_gye = p["dias_gye"]
-
+                grp_gye = df_gye[df_gye['cluster_gye']==c_id].copy()
+                if len(grp_gye)==0: continue
                 grp_gye['equipo'] = eq_a
                 grp_gye['jornada'] = 'Jornada 1'
-
-                # Asignar encuestadores y días dentro de los días GYE
-                if len(grp_gye) > 0:
-                    ga_gye = asignar_encuestadores_y_dias(
-                        grp_gye, n_enc_eq, dias_gye,
-                        p["viv_min"], p["viv_max"], inicio_dia=1)
-                    df_w.update(ga_gye[['equipo', 'jornada', 'encuestador',
-                                         'dia_operativo', 'dia_inicio', 'dia_fin']])
+                ga_gye = asignar_encuestadores_y_dias(
+                    grp_gye, enc_dict.get(eq_a, 3), p["dias_gye"],
+                    p["viv_min"], p["viv_max"], inicio_dia=1)
+                df_w.update(ga_gye[['equipo', 'jornada', 'encuestador',
+                                    'dia_operativo', 'dia_inicio', 'dia_fin']])
         else:
-            # Solo 1 UPM en GYE → asignar al primer equipo
             eq_a = nombres[0]
-            for idx in df_gye.index:
-                df_w.loc[idx, ['equipo','jornada','encuestador',
-                               'dia_operativo','dia_inicio','dia_fin']] = \
-                    [eq_a, 'Jornada 1', 1, 1, 1, 1]
+            df_gye['equipo'] = eq_a
+            df_gye['jornada'] = 'Jornada 1'
+            n_enc_eq = enc_dict.get(eq_a, 3)
+            ga_gye = asignar_encuestadores_y_dias(
+                df_gye, n_enc_eq, p["dias_gye"],
+                p["viv_min"], p["viv_max"], inicio_dia=1)
+            df_w.update(ga_gye[['equipo', 'jornada', 'encuestador',
+                                 'dia_operativo', 'dia_inicio', 'dia_fin']])
 
-        # Diagnóstico GYE
-        gye_asig = df_w.loc[df_gye.index]
-        _gye_info = gye_asig.groupby('equipo').agg(
-            n_upms=('id_entidad','count'),
-            viv=('viv','sum')).reset_index()
-        st.info(f"🏙️ GYE: {len(df_gye)} UPMs en {n_gye_clusters} clusters → "
-                + ", ".join(f"{r['equipo']}: {r['n_upms']} UPMs ({int(r['viv'])} viv)"
-                            for _,r in _gye_info.iterrows()))
-    else:
-        if upms_gye.sum()>0:
-            st.warning(f"⚠️ GYE: {upms_gye.sum()} UPMs detectadas pero act_gye=False "
-                       f"(pct={pct_gye:.1%}, umbral={p['umbral_gye']}%). "
-                       f"Estas UPMs NO se asignarán a ningún equipo.")
-
-    # 5. TSP
+    # TSP
     prog.progress(52,"Optimizando rutas TSP...")
     base_nd=ox.nearest_nodes(G,BASE_LON,BASE_LAT)
     G_u=G.to_undirected(); comp_base=nx.node_connected_component(G_u,base_nd)
@@ -1418,7 +1371,9 @@ if btn:
     st.session_state.tsp_results=tsp_r; st.session_state.road_paths=road_p
     st.session_state.resumen_bal=resumen_bal
     st.session_state.resultados_generados=True
-    st.success("✓ Planificación v5 generada.")
+    st.session_state.edits_log = []
+    st.session_state.edit_counter = 0
+    st.success("✓ Planificación v5.1 generada.")
 
 # ── RESULTADOS ────────────────────────────────
 if not st.session_state.resultados_generados:
@@ -1436,9 +1391,14 @@ j1_n,j2_n,mes_nom=jornada_num_desde_mes(
 color_map={n:COLORES[i%len(COLORES)] for i,n in enumerate(nombres)}
 color_map['Equipo Bombero']='#7c3aed'
 
-tab_mapa,tab_analisis,tab_plan,tab_reporte=st.tabs([
-    "🗺️  Mapa de Rutas","📊  Análisis de Carga",
-    "📅  Planificación de Jornadas","📋  Reporte y Descarga"
+# ══════════════════════════════════════════════════════════════════════════════
+#  TABS (v5.1 — incluye Edición Manual)
+# ══════════════════════════════════════════════════════════════════════════════
+tab_mapa, tab_analisis, tab_edicion, tab_reporte = st.tabs([
+    "🗺️  Mapa de Rutas",
+    "📊  Análisis de Carga",
+    "✏️  Edición Manual",
+    "📋  Reporte y Descarga"
 ])
 
 # ══ TAB 1 — MAPA ══════════════════════════════
@@ -1458,8 +1418,13 @@ with tab_mapa:
             if n in nombres:
                 st.markdown(f"<span style='color:{c};font-size:17px'>●</span> {n}",
                             unsafe_allow_html=True)
-        st.markdown(f"<span style='color:#7c3aed;font-size:17px'>●</span> Equipo Bombero ({n_b})",
+        st.markdown(f"<span style='color:#9b59b6;font-size:17px'>●</span> Equipo Bombero ({n_b})",
                     unsafe_allow_html=True)
+        # Indicador de ediciones manuales
+        n_edits = st.session_state.edit_counter
+        if n_edits > 0:
+            st.markdown(f"<div class='edit-card'>✏️ {n_edits} edición(es) manual(es) aplicada(s)</div>",
+                        unsafe_allow_html=True)
     with cc2:
         m=folium.Map(location=[BASE_LAT,BASE_LON],zoom_start=8,tiles=fnd)
         folium.Marker([BASE_LAT,BASE_LON],popup="<b>Base INEC GYE</b>",
@@ -1512,10 +1477,10 @@ with tab_analisis:
         st.markdown(f"""
         <div class='balance-box'>
         <b>CV inicial (KMeans puro):</b>
-        <span style='color:#dc2626;font-family:monospace'>{cv_ini:.1f}%</span>
+        <span style='color:#e74c3c;font-family:monospace'>{cv_ini:.1f}%</span>
         &nbsp;→&nbsp;
         <b>CV final (rebalanceo):</b>
-        <span style='color:#059669;font-family:monospace'>{cv_fin:.1f}%</span>
+        <span style='color:#27ae60;font-family:monospace'>{cv_fin:.1f}%</span>
         &nbsp;&nbsp;<b style='color:{cc_m}'>Δ {mejora:.1f} pp</b><br>
         <span style='font-size:11px'>
         Parada: <i>{modo_fin}</i> ·
@@ -1527,16 +1492,14 @@ with tab_analisis:
         n_cl=len(viv_ant)
         df_comp=pd.DataFrame({
             'Cluster':[f"C{c}" for c in range(n_cl)]*2,
-            'Carga pond.':(list(viv_ant.values())+list(vib_dep.values())
-                          if 'vib_dep' in dir() else
-                          list(viv_ant.values())+list(viv_dep.values())),
+            'Carga pond.':(list(viv_ant.values())+list(viv_dep.values())),
             'Fase':['Antes (KMeans)']*n_cl+['Después (rebalanceo)']*n_cl
         })
         fig_comp=px.bar(df_comp,x='Cluster',y='Carga pond.',color='Fase',
                         barmode='group',title='Carga por cluster — antes vs después',
                         template='plotly_white',
-                        color_discrete_map={'Antes (KMeans)':'#dc2626',
-                                            'Después (rebalanceo)':'#059669'})
+                        color_discrete_map={'Antes (KMeans)':'#e74c3c',
+                                            'Después (rebalanceo)':'#27ae60'})
         fig_comp.update_layout(paper_bgcolor="#ffffff",plot_bgcolor="#fafbfc",
                                title_font_size=12)
         st.plotly_chart(fig_comp,use_container_width=True)
@@ -1567,26 +1530,24 @@ with tab_analisis:
 
     with st.expander("Tabla de balance"): st.dataframe(res_cv,use_container_width=True)
 
-    # Tarjetas por equipo
     st.markdown("<div class='stitle'>Carga por equipo</div>",unsafe_allow_html=True)
     eq_act=[n for n in nombres if n in df_plan['equipo'].values]
-    cols_e=st.columns(len(eq_act))
+    cols_e=st.columns(len(eq_act)) if eq_act else []
     for col_e,nombre_eq in zip(cols_e,eq_act):
         sub_e=df_plan[df_plan['equipo']==nombre_eq]
         vt=int(sub_e['viv'].sum()); cv_e=cv_pct(sub_e['carga_pond'])
-        ce=color_map.get(nombre_eq,'#003B71')
+        ce=color_map.get(nombre_eq,'#2e86de')
         ccv="#059669" if cv_e<20 else ("#d97706" if cv_e<40 else "#dc2626")
         with col_e:
             st.markdown(f"""<div class='eq-card' style='border-color:{ce}55'>
               <div style='width:10px;height:10px;background:{ce};border-radius:50%;margin:0 auto 7px'></div>
-              <div style='font-family:"JetBrains Mono",monospace;font-size:12px;
+              <div style='font-family:"IBM Plex Mono",monospace;font-size:12px;
                           color:{ce};font-weight:600'>{nombre_eq}</div>
               <div style='font-size:17px;font-weight:600;color:#1a1a2e;margin:4px 0'>{vt:,}</div>
               <div style='font-size:10px;color:#8896a6'>viviendas</div>
               <div style='font-size:11px;color:{ccv};margin-top:4px'>CV {cv_e:.1f}%</div>
             </div>""",unsafe_allow_html=True)
 
-    # Drilldown
     st.markdown("<br>",unsafe_allow_html=True)
     eq_sel=st.selectbox("Detalle:",eq_act)
     df_sel=df_plan[df_plan['equipo']==eq_sel].copy()
@@ -1597,17 +1558,16 @@ with tab_analisis:
     with cd1:
         fig=px.bar(df_enc,x='encuestador',y='viv_reales',color='jornada',barmode='group',
                    title=f'Viviendas — {eq_sel}',template='plotly_white',
-                   color_discrete_sequence=['#003B71','#059669'])
+                   color_discrete_sequence=['#2e86de','#27ae60'])
         fig.update_layout(paper_bgcolor="#ffffff",plot_bgcolor="#fafbfc",title_font_size=12)
         st.plotly_chart(fig,use_container_width=True)
     with cd2:
         fig2=px.bar(df_enc,x='encuestador',y='carga_pond',color='jornada',barmode='group',
                     title=f'Carga pond. — {eq_sel}',template='plotly_white',
-                    color_discrete_sequence=['#dc2626','#d97706'])
+                    color_discrete_sequence=['#e74c3c','#f39c12'])
         fig2.update_layout(paper_bgcolor="#ffffff",plot_bgcolor="#fafbfc",title_font_size=12)
         st.plotly_chart(fig2,use_container_width=True)
 
-    # Distribución diaria
     st.markdown("<div class='stitle'>Distribución diaria</div>",unsafe_allow_html=True)
     jor_opts=["Jornada 1","Jornada 2","Ambas"]
     jor_filtro=st.radio("Filtrar:",jor_opts,horizontal=True,key="radio_jor_v5",index=0)
@@ -1655,141 +1615,380 @@ with tab_analisis:
                                   xaxis=dict(dtick=1))
             st.plotly_chart(fig_enc,use_container_width=True)
 
-    # Bombero
     df_bm=df_plan[df_plan['equipo']=='Equipo Bombero']
     n_bm=st.session_state.n_bombero
     st.markdown("<div class='stitle'>Equipo Bombero</div>",unsafe_allow_html=True)
     if n_bm==0:
-        st.markdown("<div class='bcard'><b style='color:#7c3aed'>Equipo Bombero</b> — 0 UPMs.</div>",
+        st.markdown("<div class='bcard'><b style='color:#9b59b6'>Equipo Bombero</b> — 0 UPMs.</div>",
                     unsafe_allow_html=True)
     else:
-        st.markdown(f"<div class='bcard'><b style='color:#7c3aed'>Equipo Bombero</b> — {n_bm} UPMs · "
+        st.markdown(f"<div class='bcard'><b style='color:#9b59b6'>Equipo Bombero</b> — {n_bm} UPMs · "
                     f"{int(df_bm['viv'].sum()):,} viv</div>",unsafe_allow_html=True)
         st.dataframe(df_bm[['id_entidad','tipo_entidad','viv','lat','lon','dist_base_m']]
             .sort_values('dist_base_m',ascending=False).reset_index(drop=True),
             use_container_width=True,height=200)
 
-# ══ TAB 3 — PLANIFICACIÓN DE JORNADAS (NUEVO v5) ══════════════════════════════
-with tab_plan:
-    st.markdown("<div class='stitle'>Calendario de Jornadas del Operativo</div>",
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  TAB 3 — EDICIÓN MANUAL (NUEVO v5.1)
+# ══════════════════════════════════════════════════════════════════════════════
+with tab_edicion:
+    st.markdown("<div class='stitle'>Edición Manual de la Planificación</div>",
                 unsafe_allow_html=True)
+
     st.markdown("""<div class='ibox'>
-    Configura el estado de cada jornada. Si una jornada se <b>traslada</b>, el sistema
-    detecta automáticamente si en el mes receptor habrá <b>3 jornadas</b> activas
-    (la trasladada + las 2 propias) y lo señala en el calendario.<br>
-    Las fechas de inicio que ingreses aquí se usarán en el Excel.
-    </div>""",unsafe_allow_html=True)
+    Aquí puedes ajustar manualmente la planificación automática: mover manzanas/UPMs
+    a otro <b>equipo</b>, cambiar de <b>jornada</b>, reasignar <b>encuestador</b>
+    o modificar los <b>días operativos</b>. Los cambios se aplican directamente
+    sobre el plan y se reflejan en el mapa, los gráficos y el Excel final.
+    </div>""", unsafe_allow_html=True)
 
-    mes_ini_cal=st.session_state.mes_inicio_cal
-    total_meses=int(df['mes'].max()) if df is not None and len(df)>0 else 12
-    # Para el calendario mostramos todos los meses del operativo disponibles
-    meses_todos=sorted(st.session_state.data_raw["mes"].dropna().unique().tolist())
-    total_meses_op=len(meses_todos)
+    # Historial de ediciones
+    n_edits = st.session_state.edit_counter
+    if n_edits > 0:
+        st.markdown(f"<div class='edit-ok'>"
+                    f"<span class='edit-count'>{n_edits}</span> "
+                    f"edición(es) manual(es) aplicadas en esta sesión</div>",
+                    unsafe_allow_html=True)
 
-    cfg_j=st.session_state.config_jornadas
+    # ── Selector de modo de edición ──────────────────────────────────────────
+    modo_edit = st.radio(
+        "Modo de edición",
+        ["Selección individual", "Selección por lote (filtro)"],
+        horizontal=True,
+        key="modo_edicion_radio",
+        help="Individual: selecciona UPMs específicas por su código. "
+             "Por lote: filtra por equipo/jornada y aplica cambios masivos."
+    )
 
-    # Construir lista completa de jornadas
-    all_jornadas=[]
-    for mes in meses_todos:
-        j1_n_,j2_n_,mes_n_=jornada_num_desde_mes(int(mes),mes_ini_cal)
-        all_jornadas.append({'jn':j1_n_,'mes':mes,'mes_nombre':mes_n_,'mitad':1})
-        all_jornadas.append({'jn':j2_n_,'mes':mes,'mes_nombre':mes_n_,'mitad':2})
+    # Opciones de destino (comunes a ambos modos)
+    equipos_destino = nombres + ['Equipo Bombero']
+    jornadas_destino = ['Jornada 1', 'Jornada 2', 'Jornada Especial']
 
-    # Detectar colisiones (mes que recibe jornada trasladada → 3 jornadas)
-    trasladadas_a={}   # {mes_destino: [jn trasladada, ...]}
-    for jinfo in all_jornadas:
-        jn=jinfo['jn']
-        estado=cfg_j.get(jn,{}).get('estado',ESTADO_OK)
-        tr_a=cfg_j.get(jn,{}).get('trasladada_a',None)
-        if estado==ESTADO_MV and tr_a:
-            trasladadas_a.setdefault(tr_a,[]).append(jn)
+    if modo_edit == "Selección individual":
+        # ── MODO INDIVIDUAL ──────────────────────────────────────────────────
+        st.markdown("#### Seleccionar UPMs para editar")
 
-    st.markdown(f"**{len(all_jornadas)} jornadas en {total_meses_op} meses operativos**")
+        # Filtros de contexto
+        fc1, fc2 = st.columns(2)
+        with fc1:
+            ctx_equipo = st.selectbox(
+                "Filtrar por equipo (contexto)",
+                ["Todos"] + equipos_destino,
+                key="ctx_eq_filter"
+            )
+        with fc2:
+            ctx_jornada = st.selectbox(
+                "Filtrar por jornada (contexto)",
+                ["Todas"] + jornadas_destino,
+                key="ctx_jor_filter"
+            )
 
-    for mes in meses_todos:
-        j1_n_,j2_n_,mes_n_=jornada_num_desde_mes(int(mes),mes_ini_cal)
-        # ¿Hay jornadas trasladadas a este mes?
-        js_extra=trasladadas_a.get(int(mes),[])
-        n_total_mes=2+len(js_extra)
-        alerta_3=""
-        if n_total_mes>=3:
-            alerta_3=f" ⚠️ **{n_total_mes} jornadas** en este mes (incluye traslado)"
+        # Aplicar filtro de contexto
+        df_ctx = df_plan.copy()
+        if ctx_equipo != "Todos":
+            df_ctx = df_ctx[df_ctx['equipo'] == ctx_equipo]
+        if ctx_jornada != "Todas":
+            df_ctx = df_ctx[df_ctx['jornada'] == ctx_jornada]
 
-        with st.expander(f"📅 Mes {int(mes)} — {mes_n_} · J{j1_n_} + J{j2_n_}{alerta_3}",
-                         expanded=(int(mes)==int(df['mes'].iloc[0]))):
-            if js_extra:
-                for jn_extra in js_extra:
-                    st.markdown(f"<div class='jplan-mv'>🔀 Jornada {jn_extra} trasladada a este mes</div>",
-                                unsafe_allow_html=True)
-            for j_n_iter in [j1_n_,j2_n_]:
-                st.markdown(f"**Jornada {j_n_iter}** (mitad {'1ª' if j_n_iter==j1_n_ else '2ª'})")
-                cfg_this=cfg_j.get(j_n_iter,{})
-                col_e,col_f,col_t=st.columns([2,2,2])
-                with col_e:
-                    estado_sel=st.selectbox(
-                        "Estado",
-                        [ESTADO_OK,ESTADO_MV,ESTADO_CAN],
-                        index=[ESTADO_OK,ESTADO_MV,ESTADO_CAN].index(
-                            cfg_this.get('estado',ESTADO_OK)),
-                        key=f"est_{j_n_iter}")
-                with col_f:
-                    fecha_sel=st.date_input(
-                        "Fecha de inicio",
-                        value=cfg_this.get('fecha',None) or date.today(),
-                        key=f"fec_{j_n_iter}")
-                with col_t:
-                    if estado_sel==ESTADO_MV:
-                        # Seleccionar mes destino del traslado
-                        meses_destino=[m for m in meses_todos if int(m)!=int(mes)]
-                        tr_default=cfg_this.get('trasladada_a',
-                                                 int(meses_destino[0]) if meses_destino else None)
-                        tr_idx=0
-                        if tr_default and tr_default in [int(m) for m in meses_destino]:
-                            tr_idx=[int(m) for m in meses_destino].index(tr_default)
-                        tr_mes=st.selectbox(
-                            "Trasladar a mes",
-                            [int(m) for m in meses_destino],
-                            index=tr_idx,
-                            format_func=lambda x: f"Mes {x} — {jornada_num_desde_mes(x,mes_ini_cal)[2]}",
-                            key=f"tr_{j_n_iter}")
-                    else:
-                        tr_mes=None
-                        st.markdown("<div style='height:38px'></div>",unsafe_allow_html=True)
+        if len(df_ctx) == 0:
+            st.warning("No hay UPMs con ese filtro.")
+        else:
+            # Mostrar tabla filtrada
+            cols_show = ['id_entidad', 'viv', 'equipo', 'jornada',
+                         'encuestador', 'dia_inicio', 'dia_fin']
+            cols_show = [c for c in cols_show if c in df_ctx.columns]
 
-                # Guardar
-                cfg_j[j_n_iter]={'estado':estado_sel,'fecha':fecha_sel,'trasladada_a':tr_mes}
+            st.markdown(f"**{len(df_ctx):,} UPMs** en este filtro")
 
-                # Indicador visual
-                if estado_sel==ESTADO_OK:
-                    st.markdown(f"<div class='jplan-ok'>✅ J{j_n_iter} — "
-                                f"inicio {fecha_sel.strftime('%d/%m/%Y')} — "
-                                f"{p['dias_op']} días → fin "
-                                f"{(fecha_sel+timedelta(days=p['dias_op']-1)).strftime('%d/%m/%Y')}"
-                                f"</div>",unsafe_allow_html=True)
-                elif estado_sel==ESTADO_MV:
-                    st.markdown(f"<div class='jplan-mv'>🔀 J{j_n_iter} trasladada → "
-                                f"Mes {tr_mes} · se encuestará en ese período</div>",
-                                unsafe_allow_html=True)
+            # Selección de UPMs por multiselect
+            ids_disponibles = df_ctx['id_entidad'].astype(str).tolist()
+            ids_seleccionados = st.multiselect(
+                "Selecciona UPMs a editar (puedes buscar por código):",
+                ids_disponibles,
+                key="edit_upm_select",
+                help="Escribe parte del código para buscar. "
+                     "Puedes seleccionar varias UPMs a la vez."
+            )
+
+            if ids_seleccionados:
+                # Mostrar las UPMs seleccionadas
+                mask_sel = df_plan['id_entidad'].astype(str).isin(ids_seleccionados)
+                df_sel_edit = df_plan[mask_sel]
+                st.dataframe(
+                    df_sel_edit[cols_show].reset_index(drop=True),
+                    use_container_width=True,
+                    height=min(200, 35 * len(df_sel_edit) + 38)
+                )
+
+                st.markdown("---")
+                st.markdown("#### Nuevos valores para las UPMs seleccionadas")
+                st.markdown("<div class='wbox'>Deja en blanco los campos que no quieras cambiar.</div>",
+                            unsafe_allow_html=True)
+
+                ec1, ec2, ec3 = st.columns(3)
+                with ec1:
+                    nuevo_equipo = st.selectbox(
+                        "Nuevo equipo",
+                        ["— Sin cambio —"] + equipos_destino,
+                        key="edit_nuevo_equipo"
+                    )
+                with ec2:
+                    nueva_jornada = st.selectbox(
+                        "Nueva jornada",
+                        ["— Sin cambio —"] + jornadas_destino,
+                        key="edit_nueva_jornada"
+                    )
+                with ec3:
+                    max_enc = max(e['enc'] for e in eq_cfg)
+                    nuevo_enc = st.selectbox(
+                        "Nuevo encuestador",
+                        ["— Sin cambio —"] + [str(i) for i in range(1, max_enc + 1)],
+                        key="edit_nuevo_enc"
+                    )
+
+                ed1, ed2 = st.columns(2)
+                with ed1:
+                    nuevo_dia_ini = st.number_input(
+                        "Nuevo día inicio (0 = sin cambio)",
+                        min_value=0, max_value=p["dias_op"],
+                        value=0, key="edit_dia_ini",
+                        help="Día operativo de inicio (1 a días_op). "
+                             "Deja en 0 para no cambiar."
+                    )
+                with ed2:
+                    nuevo_dia_fin = st.number_input(
+                        "Nuevo día fin (0 = sin cambio)",
+                        min_value=0, max_value=p["dias_op"],
+                        value=0, key="edit_dia_fin",
+                        help="Día operativo de fin (1 a días_op). "
+                             "Deja en 0 para no cambiar."
+                    )
+
+                # Resumen previo de cambios
+                cambios = []
+                if nuevo_equipo != "— Sin cambio —":
+                    cambios.append(f"Equipo → **{nuevo_equipo}**")
+                if nueva_jornada != "— Sin cambio —":
+                    cambios.append(f"Jornada → **{nueva_jornada}**")
+                if nuevo_enc != "— Sin cambio —":
+                    cambios.append(f"Encuestador → **{nuevo_enc}**")
+                if nuevo_dia_ini > 0:
+                    cambios.append(f"Día inicio → **{nuevo_dia_ini}**")
+                if nuevo_dia_fin > 0:
+                    cambios.append(f"Día fin → **{nuevo_dia_fin}**")
+
+                if cambios:
+                    st.markdown(f"**Resumen:** {len(ids_seleccionados)} UPM(s) · "
+                                + " · ".join(cambios))
+
+                    if st.button("✅ Aplicar cambios", type="primary",
+                                 key="btn_aplicar_individual",
+                                 use_container_width=True):
+                        idx_edit = df_plan.index[mask_sel]
+                        log_entry = {
+                            'tipo': 'individual',
+                            'upms': ids_seleccionados.copy(),
+                            'cambios': {}
+                        }
+                        if nuevo_equipo != "— Sin cambio —":
+                            df_plan.loc[idx_edit, 'equipo'] = nuevo_equipo
+                            log_entry['cambios']['equipo'] = nuevo_equipo
+                        if nueva_jornada != "— Sin cambio —":
+                            df_plan.loc[idx_edit, 'jornada'] = nueva_jornada
+                            log_entry['cambios']['jornada'] = nueva_jornada
+                        if nuevo_enc != "— Sin cambio —":
+                            df_plan.loc[idx_edit, 'encuestador'] = int(nuevo_enc)
+                            log_entry['cambios']['encuestador'] = int(nuevo_enc)
+                        if nuevo_dia_ini > 0:
+                            df_plan.loc[idx_edit, 'dia_inicio'] = nuevo_dia_ini
+                            df_plan.loc[idx_edit, 'dia_operativo'] = nuevo_dia_ini
+                            log_entry['cambios']['dia_inicio'] = nuevo_dia_ini
+                        if nuevo_dia_fin > 0:
+                            df_plan.loc[idx_edit, 'dia_fin'] = nuevo_dia_fin
+                            log_entry['cambios']['dia_fin'] = nuevo_dia_fin
+
+                        st.session_state.df_plan = df_plan
+                        st.session_state.edits_log.append(log_entry)
+                        st.session_state.edit_counter += 1
+
+                        # Recalcular resumen
+                        resumen = df_plan[~df_plan['equipo'].isin(
+                            ['Equipo Bombero', 'sin_asignar'])].groupby(
+                            ['equipo', 'jornada']).agg(
+                            n_upms=('id_entidad', 'count'),
+                            viv_reales=('viv', 'sum'),
+                            carga_ponderada=('carga_pond', 'sum')).reset_index()
+                        st.session_state.resumen_bal = resumen
+
+                        st.success(f"✓ {len(ids_seleccionados)} UPM(s) actualizadas.")
+                        st.rerun()
                 else:
-                    st.markdown(f"<div class='jplan-can'>❌ J{j_n_iter} cancelada</div>",
+                    st.markdown("<div class='wbox'>Selecciona al menos un campo para cambiar.</div>",
                                 unsafe_allow_html=True)
 
-    st.session_state.config_jornadas=cfg_j
+    else:
+        # ── MODO POR LOTE ────────────────────────────────────────────────────
+        st.markdown("#### Selección por lote (filtro masivo)")
 
-    # Resumen visual del calendario
-    st.markdown("<div class='stitle'>Resumen del cronograma</div>",unsafe_allow_html=True)
-    filas_res=[]
-    for jinfo in all_jornadas:
-        jn=jinfo['jn']; cfg_this=cfg_j.get(jn,{})
-        estado=cfg_this.get('estado',ESTADO_OK)
-        fecha=cfg_this.get('fecha',None)
-        fecha_str=fecha.strftime("%d/%m/%Y") if fecha else "—"
-        fin_str=(fecha+timedelta(days=p['dias_op']-1)).strftime("%d/%m/%Y") if fecha else "—"
-        filas_res.append({
-            'Jornada':f"J{jn}",'Mes':f"{int(jinfo['mes'])} — {jinfo['mes_nombre']}",
-            'Estado':estado,'Inicio':fecha_str,'Fin':fin_str
-        })
-    st.dataframe(pd.DataFrame(filas_res),use_container_width=True,hide_index=True)
+        bl1, bl2, bl3 = st.columns(3)
+        with bl1:
+            lote_equipo_orig = st.selectbox(
+                "Equipo origen",
+                equipos_destino,
+                key="lote_eq_orig"
+            )
+        with bl2:
+            lote_jornada_orig = st.selectbox(
+                "Jornada origen",
+                jornadas_destino,
+                key="lote_jor_orig"
+            )
+        with bl3:
+            lote_enc_orig = st.selectbox(
+                "Encuestador origen",
+                ["Todos"] + [str(i) for i in range(1, max(e['enc'] for e in eq_cfg) + 1)],
+                key="lote_enc_orig"
+            )
+
+        mask_lote = (
+            (df_plan['equipo'] == lote_equipo_orig) &
+            (df_plan['jornada'] == lote_jornada_orig)
+        )
+        if lote_enc_orig != "Todos":
+            mask_lote = mask_lote & (df_plan['encuestador'] == int(lote_enc_orig))
+
+        df_lote = df_plan[mask_lote]
+
+        if len(df_lote) == 0:
+            st.info("No hay UPMs con ese filtro.")
+        else:
+            st.markdown(f"**{len(df_lote):,} UPMs** coinciden con el filtro "
+                        f"({int(df_lote['viv'].sum()):,} viviendas)")
+
+            cols_show_l = ['id_entidad', 'viv', 'encuestador', 'dia_inicio', 'dia_fin']
+            cols_show_l = [c for c in cols_show_l if c in df_lote.columns]
+            with st.expander(f"Ver {len(df_lote)} UPMs del lote"):
+                st.dataframe(
+                    df_lote[cols_show_l].sort_values(
+                        ['encuestador', 'dia_inicio']).reset_index(drop=True),
+                    use_container_width=True,
+                    height=300
+                )
+
+            st.markdown("---")
+            st.markdown("#### Destino para todo el lote")
+
+            ld1, ld2, ld3 = st.columns(3)
+            with ld1:
+                lote_equipo_dest = st.selectbox(
+                    "Mover a equipo",
+                    ["— Sin cambio —"] + equipos_destino,
+                    key="lote_eq_dest"
+                )
+            with ld2:
+                lote_jornada_dest = st.selectbox(
+                    "Mover a jornada",
+                    ["— Sin cambio —"] + jornadas_destino,
+                    key="lote_jor_dest"
+                )
+            with ld3:
+                lote_enc_dest = st.selectbox(
+                    "Asignar a encuestador",
+                    ["— Sin cambio —"] + [str(i) for i in range(1, max(e['enc'] for e in eq_cfg) + 1)],
+                    key="lote_enc_dest"
+                )
+
+            cambios_lote = []
+            if lote_equipo_dest != "— Sin cambio —":
+                cambios_lote.append(f"Equipo → **{lote_equipo_dest}**")
+            if lote_jornada_dest != "— Sin cambio —":
+                cambios_lote.append(f"Jornada → **{lote_jornada_dest}**")
+            if lote_enc_dest != "— Sin cambio —":
+                cambios_lote.append(f"Encuestador → **{lote_enc_dest}**")
+
+            if cambios_lote:
+                st.markdown(f"**Cambio masivo:** {len(df_lote)} UPMs · "
+                            + " · ".join(cambios_lote))
+
+                if st.button("✅ Aplicar cambio masivo", type="primary",
+                             key="btn_aplicar_lote",
+                             use_container_width=True):
+                    idx_lote = df_plan.index[mask_lote]
+                    log_entry = {
+                        'tipo': 'lote',
+                        'origen': f"{lote_equipo_orig}/{lote_jornada_orig}/{lote_enc_orig}",
+                        'n_upms': len(df_lote),
+                        'cambios': {}
+                    }
+                    if lote_equipo_dest != "— Sin cambio —":
+                        df_plan.loc[idx_lote, 'equipo'] = lote_equipo_dest
+                        log_entry['cambios']['equipo'] = lote_equipo_dest
+                    if lote_jornada_dest != "— Sin cambio —":
+                        df_plan.loc[idx_lote, 'jornada'] = lote_jornada_dest
+                        log_entry['cambios']['jornada'] = lote_jornada_dest
+                    if lote_enc_dest != "— Sin cambio —":
+                        df_plan.loc[idx_lote, 'encuestador'] = int(lote_enc_dest)
+                        log_entry['cambios']['encuestador'] = int(lote_enc_dest)
+
+                    st.session_state.df_plan = df_plan
+                    st.session_state.edits_log.append(log_entry)
+                    st.session_state.edit_counter += 1
+
+                    resumen = df_plan[~df_plan['equipo'].isin(
+                        ['Equipo Bombero', 'sin_asignar'])].groupby(
+                        ['equipo', 'jornada']).agg(
+                        n_upms=('id_entidad', 'count'),
+                        viv_reales=('viv', 'sum'),
+                        carga_ponderada=('carga_pond', 'sum')).reset_index()
+                    st.session_state.resumen_bal = resumen
+
+                    st.success(f"✓ {len(df_lote)} UPMs actualizadas en lote.")
+                    st.rerun()
+            else:
+                st.markdown("<div class='wbox'>Selecciona al menos un cambio de destino.</div>",
+                            unsafe_allow_html=True)
+
+    # ── Historial de ediciones ────────────────────────────────────────────────
+    st.markdown("<div class='stitle'>Historial de ediciones manuales</div>",
+                unsafe_allow_html=True)
+
+    if not st.session_state.edits_log:
+        st.markdown("<div class='ibox'>Sin ediciones manuales en esta sesión. "
+                    "La planificación refleja el resultado automático.</div>",
+                    unsafe_allow_html=True)
+    else:
+        for i, log_e in enumerate(reversed(st.session_state.edits_log), 1):
+            if log_e['tipo'] == 'individual':
+                upms_str = ", ".join(log_e['upms'][:5])
+                if len(log_e['upms']) > 5:
+                    upms_str += f" (+{len(log_e['upms'])-5} más)"
+                cambios_str = " · ".join(f"{k}→{v}" for k, v in log_e['cambios'].items())
+                st.markdown(f"<div class='edit-card'>"
+                            f"<b>#{len(st.session_state.edits_log)-i+1}</b> Individual · "
+                            f"UPMs: {upms_str}<br>"
+                            f"<span style='font-size:11px'>{cambios_str}</span></div>",
+                            unsafe_allow_html=True)
+            else:
+                cambios_str = " · ".join(f"{k}→{v}" for k, v in log_e['cambios'].items())
+                st.markdown(f"<div class='edit-card'>"
+                            f"<b>#{len(st.session_state.edits_log)-i+1}</b> Lote · "
+                            f"{log_e['n_upms']} UPMs desde {log_e['origen']}<br>"
+                            f"<span style='font-size:11px'>{cambios_str}</span></div>",
+                            unsafe_allow_html=True)
+
+    # ── Resumen post-edición ──────────────────────────────────────────────────
+    if st.session_state.edit_counter > 0:
+        st.markdown("<div class='stitle'>Estado actual tras ediciones</div>",
+                    unsafe_allow_html=True)
+        df_post = df_plan[~df_plan['equipo'].isin(['sin_asignar'])].copy()
+        res_post = df_post.groupby(['equipo', 'jornada']).agg(
+            n_upms=('id_entidad', 'count'),
+            viv=('viv', 'sum'),
+            carga=('carga_pond', 'sum')
+        ).reset_index()
+        st.dataframe(res_post, use_container_width=True, hide_index=True)
+
 
 # ══ TAB 4 — REPORTE Y DESCARGA ════════════════
 with tab_reporte:
@@ -1799,6 +1998,52 @@ with tab_reporte:
     Las jornadas canceladas se omiten. El número de jornada en cada hoja
     corresponde al número real del cronograma INEC.
     </div>""",unsafe_allow_html=True)
+
+    # Indicar si hay ediciones manuales
+    if st.session_state.edit_counter > 0:
+        st.markdown(f"<div class='edit-ok'>✏️ El Excel incluirá "
+                    f"{st.session_state.edit_counter} edición(es) manual(es).</div>",
+                    unsafe_allow_html=True)
+
+    # Catálogo territorial
+    st.markdown("<div class='stitle'>Catálogo territorial para completar el Excel</div>",
+                unsafe_allow_html=True)
+    st.markdown("""<div class='ibox'>
+    Sube el Excel o CSV con la organización territorial del Ecuador. La app usa
+    ese catálogo para completar provincia, cantón, parroquia y códigos auxiliares
+    en el reporte final.
+    </div>""", unsafe_allow_html=True)
+
+    cat_file = st.file_uploader(
+        "Catálogo territorial (.xlsx, .csv, .txt o .json)",
+        type=["xlsx", "xls", "csv", "txt", "json"],
+        key="catalogo_territorial_up"
+    )
+    if cat_file is not None:
+        try:
+            fname_up = cat_file.name.lower()
+            if fname_up.endswith('.txt') or fname_up.endswith('.json'):
+                # JSON format (organizacion_territorial.txt)
+                contenido = cat_file.read().decode('utf-8')
+                lookup_cat = cargar_org_territorial_json(contenido)
+                st.session_state.catalogo_df = None
+                st.session_state.catalogo_lookup = lookup_cat
+                st.session_state.catalogo_cols = {}
+                st.success(f"✓ Catálogo JSON cargado: {len(lookup_cat):,} parroquias")
+            else:
+                # CSV/Excel format
+                df_cat = cargar_catalogo_territorial(cat_file)
+                lookup_cat, cols_cat = preparar_lookup_territorial(df_cat)
+                st.session_state.catalogo_df = df_cat
+                st.session_state.catalogo_lookup = lookup_cat
+                st.session_state.catalogo_cols = cols_cat
+                st.success(f"✓ Catálogo cargado: {len(df_cat):,} filas")
+        except Exception as e:
+            st.error(f"No se pudo leer el catálogo territorial: {e}")
+
+    if st.session_state.catalogo_lookup:
+        n_entries = len(st.session_state.catalogo_lookup)
+        st.caption(f"✓ {n_entries} registros territoriales cargados")
 
     # Personal por equipo
     st.markdown("<div class='stitle'>Personal por equipo</div>",unsafe_allow_html=True)
@@ -1852,32 +2097,12 @@ with tab_reporte:
     # Descarga Excel
     st.markdown("<div class='stitle'>Descargar Excel</div>",unsafe_allow_html=True)
 
-    cfg_j=st.session_state.config_jornadas
     mes_ini_cal=st.session_state.mes_inicio_cal
-
-    # Construir lista de jornadas activas para el Excel
-    # Incluye: planificadas + trasladadas (recibidas en el mes activo)
-    jornadas_excel=[]
-    for jinfo in all_jornadas if 'all_jornadas' in dir() else []:
-        jn=jinfo['jn']; cfg_this=cfg_j.get(jn,{})
-        estado=cfg_this.get('estado',ESTADO_OK)
-        if estado==ESTADO_CAN: continue
-        jornadas_excel.append({
-            'jornada_num':jn,
-            'jornada_nombre':'Jornada 1' if jinfo['mitad']==1 else 'Jornada 2',
-            'fecha':cfg_this.get('fecha',None)
-        })
-    # Fallback: si no se configuró el tab de planificación, usar jornadas del mes actual
-    if not jornadas_excel:
-        j1_n_,j2_n_,_=jornada_num_desde_mes(int(df['mes'].iloc[0]),mes_ini_cal)
-        cfg_j_=st.session_state.config_jornadas
-        for jn_,jnom_ in [(j1_n_,'Jornada 1'),(j2_n_,'Jornada 2')]:
-            jornadas_excel.append({
-                'jornada_num':jn_,'jornada_nombre':jnom_,
-                'fecha':cfg_j_.get(jn_,{}).get('fecha',None)
-            })
-
-    mes_n_excel=jornada_num_desde_mes(int(df['mes'].iloc[0]),mes_ini_cal)[2]
+    j1_n_,j2_n_,mes_n_excel=jornada_num_desde_mes(int(df['mes'].iloc[0]),mes_ini_cal)
+    jornadas_excel=[
+        {'jornada_num':j1_n_,'jornada_nombre':'Jornada 1','fecha':None},
+        {'jornada_num':j2_n_,'jornada_nombre':'Jornada 2','fecha':None},
+    ]
 
     if st.button("📋 Generar Excel",use_container_width=True,type="primary"):
         with st.spinner("Generando Excel..."):
@@ -1886,8 +2111,9 @@ with tab_reporte:
                     df_plan=df_plan,eq_cfg=eq_cfg,
                     personal_info=st.session_state.personal_info,
                     jornadas_activas=jornadas_excel,
-                    dias_op=p["dias_op"]
-                )
+                    dias_op=p["dias_op"],
+                    catalogo_lookup = st.session_state.get('catalogo_lookup', {}))
+
                 nums=[str(ji['jornada_num']) for ji in jornadas_excel]
                 fname=f"planificacion_J{'_'.join(nums)}_{mes_n_excel}.xlsx"
                 st.download_button(
@@ -1899,5 +2125,3 @@ with tab_reporte:
             except Exception as e:
                 st.error(f"Error: {e}")
                 import traceback; st.code(traceback.format_exc())
-
-                
