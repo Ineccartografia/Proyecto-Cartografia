@@ -46,7 +46,6 @@ st.set_page_config(page_title="INEC · ENDI Planificación",
                    initial_sidebar_state="expanded")
 
 # ── CSS ───────────────────────────────────────
-# ── CSS ───────────────────────────────────────
 INEC_LOGO = "https://upload.wikimedia.org/wikipedia/commons/a/a8/Logo_del_INEC_Ecuador.png"
 
 st.markdown(f"""
@@ -200,6 +199,40 @@ button[kind="primary"]:hover{{
 .sidebar-logo .sidebar-sub{{
   font-size:10px;color:#8896a6!important;margin-top:2px;font-weight:400
 }}
+
+.rule-ok{{
+  background:#ecfdf5;border:1px solid #a7f3d0;border-left:3px solid #059669;
+  border-radius:6px;padding:8px 12px;margin:4px 0;font-size:12px;color:#065f46
+}}
+.rule-warn{{
+  background:#fffbeb;border:1px solid #fde68a;border-left:3px solid #d97706;
+  border-radius:6px;padding:8px 12px;margin:4px 0;font-size:12px;color:#92400e
+}}
+.rule-err{{
+  background:#fef2f2;border:1px solid #fecaca;border-left:3px solid #dc2626;
+  border-radius:6px;padding:8px 12px;margin:4px 0;font-size:12px;color:#991b1b
+}}
+.mini-kpi{{
+  background:#ffffff;border:1px solid #e2e6ed;border-radius:8px;
+  padding:10px 12px;text-align:center;box-shadow:0 1px 2px rgba(0,0,0,.03)
+}}
+.mini-kpi .v{{font-family:'JetBrains Mono',monospace;font-size:18px;
+             font-weight:600;color:#003B71;line-height:1}}
+.mini-kpi .l{{font-size:9px;color:#8896a6;margin-top:4px;
+             text-transform:uppercase;letter-spacing:.5px;font-weight:500}}
+.edit-card{{
+  background:#f5f3ff;border:1px solid #ddd6fe;border-left:3px solid #7c3aed;
+  border-radius:6px;padding:8px 12px;margin:4px 0;font-size:12px;color:#5b21b6
+}}
+.edit-ok{{
+  background:#ecfdf5;border:1px solid #a7f3d0;border-left:3px solid #059669;
+  border-radius:6px;padding:8px 12px;margin:4px 0;font-size:12px;color:#065f46
+}}
+.edit-count{{
+  display:inline-block;background:#7c3aed;color:#fff;border-radius:10px;
+  padding:1px 8px;font-family:'JetBrains Mono',monospace;font-size:11px;
+  font-weight:600;margin-right:6px
+}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -223,6 +256,84 @@ COLORES  = ['#dc2626','#003B71','#059669','#d97706','#7c3aed',
 def cv_pct(s):
     m = s.mean()
     return float(s.std()/m*100) if m > 0 else 0.0
+
+def calcular_cargas_trabajo(df_plan, max_viv_por_carga=120):
+    """
+    Calcula cargas de trabajo por (equipo, jornada, encuestador) según la
+    lógica acumulativa:
+      - viv_urbanas_acumuladas / 120 = cargas_urbanas (decimal)
+      - + 1 carga por cada sector disperso
+      - cargas_total_exactas = cargas_urbanas + n_sectores
+      - cargas_total = ceil(cargas_total_exactas)
+ 
+    Devuelve DataFrame con columnas:
+      equipo, jornada, encuestador,
+      n_upms, n_manzanas, n_sectores,
+      viv_urbana, viv_dispersa, viv_total,
+      cargas_urb_exact, cargas_exact, cargas_total
+    """
+    df = df_plan.copy()
+    df = df[~df['equipo'].isin(['sin_asignar'])]
+    if len(df) == 0:
+        return pd.DataFrame(columns=[
+            'equipo', 'jornada', 'encuestador',
+            'n_upms', 'n_manzanas', 'n_sectores',
+            'viv_urbana', 'viv_dispersa', 'viv_total',
+            'cargas_urb_exact', 'cargas_exact', 'cargas_total'
+        ])
+ 
+    df['_es_sec'] = df['tipo_entidad'].astype(str).str.startswith('sec')
+    df['_es_man'] = ~df['_es_sec']
+    df['_viv_urb'] = np.where(df['_es_man'], df['viv'], 0)
+    df['_viv_dis'] = np.where(df['_es_sec'], df['viv'], 0)
+ 
+    g = df.groupby(['equipo', 'jornada', 'encuestador']).agg(
+        n_upms       = ('id_entidad', 'count'),
+        n_manzanas   = ('_es_man', 'sum'),
+        n_sectores   = ('_es_sec', 'sum'),
+        viv_urbana   = ('_viv_urb', 'sum'),
+        viv_dispersa = ('_viv_dis', 'sum'),
+        viv_total    = ('viv', 'sum'),
+    ).reset_index()
+ 
+    g['n_manzanas'] = g['n_manzanas'].astype(int)
+    g['n_sectores'] = g['n_sectores'].astype(int)
+    g['viv_urbana'] = g['viv_urbana'].astype(int)
+    g['viv_dispersa'] = g['viv_dispersa'].astype(int)
+    g['viv_total'] = g['viv_total'].astype(int)
+ 
+    # Lógica correcta
+    g['cargas_urb_exact'] = g['viv_urbana'] / max_viv_por_carga
+    g['cargas_exact']     = g['cargas_urb_exact'] + g['n_sectores']
+    g['cargas_total']     = np.ceil(g['cargas_exact']).astype(int)
+    # Caso borde: si no tiene nada asignado, 0
+    g.loc[(g['viv_urbana'] == 0) & (g['n_sectores'] == 0), 'cargas_total'] = 0
+ 
+    # Redondear decimales para presentación
+    g['cargas_urb_exact'] = g['cargas_urb_exact'].round(2)
+    g['cargas_exact']     = g['cargas_exact'].round(2)
+ 
+    return g
+ 
+ 
+def detectar_violaciones_reglas(df_plan, max_cargas_enc=5, max_viv_carga=120):
+    """
+    Devuelve (sobrecarga, megamanzanas) según la nueva lógica.
+    Sobrecarga: encuestadores cuyo cargas_total > max_cargas_enc.
+    Megamanzanas: manzanas individuales con > max_viv_carga viviendas.
+    """
+    cargas_df = calcular_cargas_trabajo(df_plan, max_viv_carga)
+    sobrecarga = cargas_df[cargas_df['cargas_total'] > max_cargas_enc].copy()
+ 
+    mask_mega = (~df_plan['tipo_entidad'].astype(str).str.startswith('sec')) & \
+                (df_plan['viv'] > max_viv_carga) & \
+                (~df_plan['equipo'].isin(['sin_asignar']))
+    megas = df_plan[mask_mega][['id_entidad', 'tipo_entidad', 'viv',
+                                 'equipo', 'jornada', 'encuestador']].copy()
+    megas = megas.sort_values('viv', ascending=False).reset_index(drop=True)
+    return sobrecarga, megas
+ 
+
 
 def utm_to_wgs84(df):
     t = Transformer.from_crs("epsg:32717","epsg:4326",always_xy=True)
@@ -1403,232 +1514,634 @@ tab_mapa, tab_analisis, tab_edicion, tab_reporte = st.tabs([
 
 # ══ TAB 1 — MAPA ══════════════════════════════
 with tab_mapa:
-    st.markdown("<div class='stitle'>Mapa del Operativo de Campo</div>",unsafe_allow_html=True)
-    cc1,cc2=st.columns([1,3])
+    st.markdown("<div class='stitle'>Mapa del Operativo de Campo</div>",
+                unsafe_allow_html=True)
+
+    # Equipos presentes en la planificación
+    equipos_en_mapa = [n for n in nombres if n in df_plan['equipo'].values]
+    hay_bombero = (df_plan['equipo'] == 'Equipo Bombero').sum() > 0
+
+    cc1, cc2 = st.columns([1, 3])
+
     with cc1:
-        mj1=st.checkbox("Jornada 1",value=True)
-        mj2=st.checkbox("Jornada 2",value=True)
-        n_b=int((df_plan['equipo']=='Equipo Bombero').sum())
-        mbm=st.checkbox(f"Equipo Bombero ({n_b})",value=True)
-        mrts=st.checkbox("Mostrar rutas",value=True)
-        fnd=st.selectbox("Fondo",["CartoDB positron","OpenStreetMap","CartoDB dark_matter"])
+        # ── Filtro de jornada (radio — excluyentes) ──────────────────────────
+        st.markdown("**Jornada a mostrar**")
+        jornada_mapa = st.radio(
+            "jor_mapa_lbl",
+            ["Ambas", "Jornada 1", "Jornada 2"],
+            index=0,
+            label_visibility="collapsed",
+            key="jor_mapa_radio",
+            help="Filtra qué jornada se dibuja en el mapa. "
+                 "El Equipo Bombero (Jornada Especial) se muestra aparte."
+        )
+        mostrar_bombero = st.checkbox(
+            f"Equipo Bombero ({int((df_plan['equipo']=='Equipo Bombero').sum())} UPMs)",
+            value=hay_bombero,
+            disabled=not hay_bombero,
+            key="chk_bombero_mapa"
+        )
+
         st.divider()
-        st.markdown("**Leyenda:**")
-        for n,c in color_map.items():
-            if n in nombres:
-                st.markdown(f"<span style='color:{c};font-size:17px'>●</span> {n}",
-                            unsafe_allow_html=True)
-        st.markdown(f"<span style='color:#9b59b6;font-size:17px'>●</span> Equipo Bombero ({n_b})",
-                    unsafe_allow_html=True)
-        # Indicador de ediciones manuales
+
+        # ── Checkboxes por equipo (v5.2) ─────────────────────────────────────
+        st.markdown("**Equipos a mostrar**")
+
+        bc1, bc2 = st.columns(2)
+        with bc1:
+            if st.button("Todos", use_container_width=True, key="btn_todos_eq"):
+                for ne in equipos_en_mapa:
+                    st.session_state[f"chk_eq_{ne}"] = True
+                st.rerun()
+        with bc2:
+            if st.button("Ninguno", use_container_width=True, key="btn_ninguno_eq"):
+                for ne in equipos_en_mapa:
+                    st.session_state[f"chk_eq_{ne}"] = False
+                st.rerun()
+
+        equipos_visibles = []
+        for ne in equipos_en_mapa:
+            n_upms_ne = int((df_plan['equipo'] == ne).sum())
+            viv_ne    = int(df_plan.loc[df_plan['equipo'] == ne, 'viv'].sum())
+            color_ne  = color_map.get(ne, '#888')
+
+            key_chk = f"chk_eq_{ne}"
+            if key_chk not in st.session_state:
+                st.session_state[key_chk] = True
+
+            cb_col, lbl_col = st.columns([1, 4])
+            with cb_col:
+                visible = st.checkbox(
+                    " ",
+                    value=st.session_state[key_chk],
+                    key=key_chk,
+                    label_visibility="collapsed"
+                )
+            with lbl_col:
+                st.markdown(
+                    f"<div style='line-height:1.2;padding-top:4px'>"
+                    f"<span style='color:{color_ne};font-size:14px'>●</span> "
+                    f"<b style='font-size:12px'>{ne}</b><br>"
+                    f"<span style='font-size:10px;color:#8896a6;"
+                    f"font-family:JetBrains Mono,monospace'>"
+                    f"{n_upms_ne} UPMs · {viv_ne:,} viv</span>"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
+            if visible:
+                equipos_visibles.append(ne)
+
+        st.divider()
+
+        mrts = st.checkbox("Mostrar rutas TSP", value=True, key="chk_rutas_mapa")
+        fnd  = st.selectbox(
+            "Fondo del mapa",
+            ["CartoDB positron", "OpenStreetMap", "CartoDB dark_matter"],
+            key="sel_fondo_mapa"
+        )
+
         n_edits = st.session_state.edit_counter
         if n_edits > 0:
-            st.markdown(f"<div class='edit-card'>✏️ {n_edits} edición(es) manual(es) aplicada(s)</div>",
-                        unsafe_allow_html=True)
+            st.markdown(
+                f"<div class='edit-card'>✏️ {n_edits} edición(es) manual(es) "
+                f"aplicada(s)</div>",
+                unsafe_allow_html=True
+            )
+
     with cc2:
-        m=folium.Map(location=[BASE_LAT,BASE_LON],zoom_start=8,tiles=fnd)
-        folium.Marker([BASE_LAT,BASE_LON],popup="<b>Base INEC GYE</b>",
-            icon=folium.Icon(color='white',icon='home',prefix='fa')).add_to(m)
-        for _,row in df_plan.iterrows():
-            eq,jor=row.get('equipo',''),row.get('jornada','')
-            if jor=='Jornada 1' and not mj1: continue
-            if jor=='Jornada 2' and not mj2: continue
-            if jor=='Jornada Especial' and not mbm: continue
-            clr=color_map.get(eq,'#888')
-            d_ini=int(row.get('dia_inicio',row.get('dia_operativo',0)))
-            d_fin=int(row.get('dia_fin',d_ini))
-            dias_str=f"Día {d_ini}" if d_ini==d_fin else f"Días {d_ini}–{d_fin}"
+        # ── Filtrar df_plan según selecciones ───────────────────────────────
+        df_mapa = df_plan.copy()
+
+        if jornada_mapa == "Jornada 1":
+            df_mapa = df_mapa[df_mapa['jornada'] == 'Jornada 1']
+        elif jornada_mapa == "Jornada 2":
+            df_mapa = df_mapa[df_mapa['jornada'] == 'Jornada 2']
+
+        equipos_filtro = list(equipos_visibles)
+        if mostrar_bombero:
+            equipos_filtro.append('Equipo Bombero')
+        df_mapa = df_mapa[df_mapa['equipo'].isin(equipos_filtro)]
+
+        if len(df_mapa) == 0:
+            st.markdown(
+                "<div class='wbox'>No hay UPMs que mostrar con el filtro actual. "
+                "Activa al menos un equipo o cambia la jornada.</div>",
+                unsafe_allow_html=True
+            )
+
+        st.markdown(
+            f"<div style='font-size:11px;color:#6b7a90;margin-bottom:6px'>"
+            f"Mostrando <b>{len(df_mapa):,} UPMs</b> · "
+            f"<b>{int(df_mapa['viv'].sum()) if len(df_mapa)>0 else 0:,} "
+            f"viviendas</b></div>",
+            unsafe_allow_html=True
+        )
+
+        m = folium.Map(location=[BASE_LAT, BASE_LON], zoom_start=8, tiles=fnd)
+        folium.Marker(
+            [BASE_LAT, BASE_LON], popup="<b>Base INEC GYE</b>",
+            icon=folium.Icon(color='white', icon='home', prefix='fa')
+        ).add_to(m)
+
+        for _, row in df_mapa.iterrows():
+            eq  = row.get('equipo', '')
+            jor = row.get('jornada', '')
+            clr = color_map.get(eq, '#888')
+            d_ini = int(row.get('dia_inicio', row.get('dia_operativo', 0)))
+            d_fin = int(row.get('dia_fin', d_ini))
+            dias_str = f"Día {d_ini}" if d_ini == d_fin else f"Días {d_ini}–{d_fin}"
             folium.CircleMarker(
-                location=[row['lat'],row['lon']],radius=5,color=clr,
-                fill=True,fill_color=clr,fill_opacity=.85,
+                location=[row['lat'], row['lon']], radius=5, color=clr,
+                fill=True, fill_color=clr, fill_opacity=.85,
                 popup=folium.Popup(
-                    f"<b>ID:</b> {row['id_entidad']}<br><b>Viv:</b> {int(row['viv'])}<br>"
-                    f"<b>Equipo:</b> {eq}<br><b>Jornada:</b> {jor}<br>"
+                    f"<b>ID:</b> {row['id_entidad']}<br>"
+                    f"<b>Tipo:</b> {row.get('tipo_entidad','')}<br>"
+                    f"<b>Viv:</b> {int(row['viv'])}<br>"
+                    f"<b>Equipo:</b> {eq}<br>"
+                    f"<b>Jornada:</b> {jor}<br>"
                     f"<b>Enc:</b> {int(row.get('encuestador',0))}<br>"
-                    f"<b>{dias_str}</b>",max_width=210),
-                tooltip=f"{eq}·Enc{int(row.get('encuestador',0))}·{int(row['viv'])}viv"
+                    f"<b>{dias_str}</b>", max_width=230),
+                tooltip=f"{eq} · Enc{int(row.get('encuestador',0))} · "
+                        f"{int(row['viv'])}viv"
             ).add_to(m)
+
         if mrts:
-            for clave,coords in road_p.items():
-                eq,jor=clave.split('||')
-                if jor=='Jornada 1' and not mj1: continue
-                if jor=='Jornada 2' and not mj2: continue
-                if len(coords)>1:
-                    folium.PolyLine(coords,weight=3,color=color_map.get(eq,'#888'),
-                                    opacity=.75,tooltip=f"{eq}|{jor}").add_to(m)
-        st_folium(m,width=None,height=540,returned_objects=[],key="mapa_v5")
+            for clave, coords in road_p.items():
+                eq_r, jor_r = clave.split('||')
+                if eq_r not in equipos_filtro:
+                    continue
+                if jornada_mapa == "Jornada 1" and jor_r != "Jornada 1":
+                    continue
+                if jornada_mapa == "Jornada 2" and jor_r != "Jornada 2":
+                    continue
+                if len(coords) > 1:
+                    folium.PolyLine(
+                        coords, weight=3,
+                        color=color_map.get(eq_r, '#888'),
+                        opacity=.75,
+                        tooltip=f"{eq_r}|{jor_r}"
+                    ).add_to(m)
 
+        st_folium(m, width=None, height=560, returned_objects=[],
+                  key="mapa_v5_2")
 # ══ TAB 2 — ANÁLISIS ══════════════════════════
+# ══ TAB 2 — ANÁLISIS (v5.2.1 — cargas acumulativas) ════════════════
+# REEMPLAZA EL BLOQUE DESDE "# ══ TAB 2 — ANÁLISIS ══" HASTA JUSTO ANTES DE
+# "# ══════════... TAB 3 — EDICIÓN MANUAL" EN tu app.
+#
+# REQUIERE que hayas reemplazado también las funciones helper con las del
+# archivo cargas_v2.py (calcular_cargas_trabajo + detectar_violaciones_reglas).
 with tab_analisis:
-    st.markdown("<div class='stitle'>Rebalanceo de Clusters</div>",unsafe_allow_html=True)
+    st.markdown("<div class='stitle'>Análisis de Carga — "
+                "Estadísticos Descriptivos</div>",
+                unsafe_allow_html=True)
 
-    cv_ini=st.session_state.get("cv_ini_bal")
-    cv_fin=st.session_state.get("cv_fin_bal")
-    bal_log=st.session_state.get("balance_log",[])
-    viv_ant=st.session_state.get("viv_por_cluster_antes")
-    viv_dep=st.session_state.get("viv_por_cluster_despues")
+    # ── FILTRO GLOBAL DE JORNADA ─────────────────────────────────────────────
+    fg1, fg2, fg3 = st.columns([2, 2, 3])
+    with fg1:
+        jornada_ana = st.radio(
+            "Jornada a analizar",
+            ["Ambas", "Jornada 1", "Jornada 2"],
+            index=0, horizontal=True,
+            key="jor_analisis_radio",
+            help="Este filtro afecta TODOS los gráficos y tablas de esta "
+                 "pestaña. El Equipo Bombero se analiza aparte al final."
+        )
+    with fg2:
+        incluir_bombero = st.checkbox(
+            "Incluir Equipo Bombero en gráficos",
+            value=False, key="chk_bomb_analisis",
+            help="Por defecto el Equipo Bombero se analiza aparte."
+        )
+    with fg3:
+        st.markdown(
+            f"<div style='font-size:11px;color:#6b7a90;padding-top:10px'>"
+            f"📊 Filtro activo: <b>{jornada_ana}</b> "
+            f"{'· con Bombero' if incluir_bombero else '· sin Bombero'}"
+            f"</div>",
+            unsafe_allow_html=True
+        )
 
-    if cv_ini is not None and cv_fin is not None:
-        mejora=cv_ini-cv_fin
-        cc_m="#059669" if mejora>5 else ("#d97706" if mejora>0 else "#dc2626")
-        modo_fin=next((l.get('modo','') for l in reversed(bal_log)
-                      if 'objetivo' in l.get('modo','') or 'plateau' in l.get('modo','')
-                      or 'sin mejora' in l.get('modo','')),'-')
-        st.markdown(f"""
-        <div class='balance-box'>
-        <b>CV inicial (KMeans puro):</b>
-        <span style='color:#e74c3c;font-family:monospace'>{cv_ini:.1f}%</span>
-        &nbsp;→&nbsp;
-        <b>CV final (rebalanceo):</b>
-        <span style='color:#27ae60;font-family:monospace'>{cv_fin:.1f}%</span>
-        &nbsp;&nbsp;<b style='color:{cc_m}'>Δ {mejora:.1f} pp</b><br>
-        <span style='font-size:11px'>
-        Parada: <i>{modo_fin}</i> ·
-        Iteraciones: {len([l for l in bal_log if l.get('modo') not in ['inicial','final']])}
-        </span>
-        </div>""",unsafe_allow_html=True)
+    # ── df_ana ───────────────────────────────────────────────────────────────
+    df_ana = df_plan.copy()
+    df_ana = df_ana[df_ana['equipo'] != 'sin_asignar']
+    if not incluir_bombero:
+        df_ana = df_ana[df_ana['equipo'] != 'Equipo Bombero']
+    if jornada_ana == "Jornada 1":
+        df_ana = df_ana[df_ana['jornada'] == 'Jornada 1']
+    elif jornada_ana == "Jornada 2":
+        df_ana = df_ana[df_ana['jornada'] == 'Jornada 2']
 
-    if viv_ant and viv_dep:
-        n_cl=len(viv_ant)
-        df_comp=pd.DataFrame({
-            'Cluster':[f"C{c}" for c in range(n_cl)]*2,
-            'Carga pond.':(list(viv_ant.values())+list(viv_dep.values())),
-            'Fase':['Antes (KMeans)']*n_cl+['Después (rebalanceo)']*n_cl
-        })
-        fig_comp=px.bar(df_comp,x='Cluster',y='Carga pond.',color='Fase',
-                        barmode='group',title='Carga por cluster — antes vs después',
-                        template='plotly_white',
-                        color_discrete_map={'Antes (KMeans)':'#e74c3c',
-                                            'Después (rebalanceo)':'#27ae60'})
-        fig_comp.update_layout(paper_bgcolor="#ffffff",plot_bgcolor="#fafbfc",
-                               title_font_size=12)
-        st.plotly_chart(fig_comp,use_container_width=True)
-        with st.expander("Historial de iteraciones"):
-            if bal_log:
-                st.dataframe(pd.DataFrame(bal_log),use_container_width=True,height=250)
+    if len(df_ana) == 0:
+        st.warning("No hay datos con el filtro actual.")
+        st.stop()
 
-    st.divider()
-    st.markdown("<div class='stitle'>Equidad entre equipos</div>",unsafe_allow_html=True)
-    df_main=df_plan[~df_plan['equipo'].isin(['Equipo Bombero','sin_asignar'])].copy()
-    res_cv=df_main.groupby(['equipo','jornada']).agg(
-        viv_reales=('viv','sum'),carga_ponderada=('carga_pond','sum')).reset_index()
-    for jornada in ['Jornada 1','Jornada 2']:
-        sub=res_cv[res_cv['jornada']==jornada]
-        if len(sub)==0: continue
-        if len(sub)==1:
-            st.markdown(f"<div class='ibox'><b>{jornada}:</b> 1 equipo.</div>",
-                        unsafe_allow_html=True); continue
-        cr=cv_pct(sub['viv_reales']); cp=cv_pct(sub['carga_ponderada'])
-        ccr="#059669" if cr<20 else ("#d97706" if cr<40 else "#dc2626")
-        ccp="#059669" if cp<20 else ("#d97706" if cp<40 else "#dc2626")
-        em="✓" if cp<20 else ("⚠" if cp<40 else "✗")
-        st.markdown(f"""<div class='ibox'><b>{jornada}</b><br>
-        &nbsp;&nbsp;CV viv. reales: <span style='color:{ccr};font-family:monospace;
-        font-weight:600'>{cr:.1f}%</span><br>
-        &nbsp;&nbsp;CV carga pond.: <span style='color:{ccp};font-family:monospace;
-        font-weight:600'>{cp:.1f}%</span> {em}</div>""",unsafe_allow_html=True)
+    # ── (A) ESTADÍSTICAS DESCRIPTIVAS ────────────────────────────────────────
+    st.markdown("<div class='stitle'>Resumen general (filtro aplicado)</div>",
+                unsafe_allow_html=True)
 
-    with st.expander("Tabla de balance"): st.dataframe(res_cv,use_container_width=True)
+    _es_sec_all = df_ana['tipo_entidad'].astype(str).str.startswith('sec')
+    n_upms_f   = len(df_ana)
+    n_manz_f   = int((~_es_sec_all).sum())
+    n_sec_f    = int(_es_sec_all.sum())
+    viv_f      = int(df_ana['viv'].sum())
+    viv_manz_f = int(df_ana.loc[~_es_sec_all, 'viv'].sum())
+    viv_sec_f  = int(df_ana.loc[_es_sec_all, 'viv'].sum())
+    n_eq_f     = df_ana['equipo'].nunique()
+    n_enc_f    = df_ana.groupby(['equipo', 'jornada'])['encuestador'].nunique().sum()
 
-    st.markdown("<div class='stitle'>Carga por equipo</div>",unsafe_allow_html=True)
-    eq_act=[n for n in nombres if n in df_plan['equipo'].values]
-    cols_e=st.columns(len(eq_act)) if eq_act else []
-    for col_e,nombre_eq in zip(cols_e,eq_act):
-        sub_e=df_plan[df_plan['equipo']==nombre_eq]
-        vt=int(sub_e['viv'].sum()); cv_e=cv_pct(sub_e['carga_pond'])
-        ce=color_map.get(nombre_eq,'#2e86de')
-        ccv="#059669" if cv_e<20 else ("#d97706" if cv_e<40 else "#dc2626")
-        with col_e:
-            st.markdown(f"""<div class='eq-card' style='border-color:{ce}55'>
-              <div style='width:10px;height:10px;background:{ce};border-radius:50%;margin:0 auto 7px'></div>
-              <div style='font-family:"IBM Plex Mono",monospace;font-size:12px;
-                          color:{ce};font-weight:600'>{nombre_eq}</div>
-              <div style='font-size:17px;font-weight:600;color:#1a1a2e;margin:4px 0'>{vt:,}</div>
-              <div style='font-size:10px;color:#8896a6'>viviendas</div>
-              <div style='font-size:11px;color:{ccv};margin-top:4px'>CV {cv_e:.1f}%</div>
-            </div>""",unsafe_allow_html=True)
+    m1, m2, m3, m4, m5, m6, m7, m8 = st.columns(8)
+    for col, (v, l) in zip(
+        [m1, m2, m3, m4, m5, m6, m7, m8],
+        [(f"{n_upms_f:,}",   "UPMs"),
+         (f"{n_manz_f:,}",   "Manzanas"),
+         (f"{n_sec_f:,}",    "Sec. dispersos"),
+         (f"{viv_f:,}",      "Viv. total"),
+         (f"{viv_manz_f:,}", "Viv. en Mz"),
+         (f"{viv_sec_f:,}",  "Viv. en SecDis"),
+         (f"{n_eq_f}",       "Equipos"),
+         (f"{int(n_enc_f)}", "Enc-Jornadas")]
+    ):
+        with col:
+            st.markdown(
+                f"<div class='mini-kpi'><div class='v'>{v}</div>"
+                f"<div class='l'>{l}</div></div>",
+                unsafe_allow_html=True
+            )
 
-    st.markdown("<br>",unsafe_allow_html=True)
-    eq_sel=st.selectbox("Detalle:",eq_act)
-    df_sel=df_plan[df_plan['equipo']==eq_sel].copy()
-    df_enc=df_sel.groupby(['jornada','encuestador']).agg(
-        upms=('id_entidad','count'),viv_reales=('viv','sum'),
-        carga_pond=('carga_pond','sum')).reset_index()
-    cd1,cd2=st.columns(2)
-    with cd1:
-        fig=px.bar(df_enc,x='encuestador',y='viv_reales',color='jornada',barmode='group',
-                   title=f'Viviendas — {eq_sel}',template='plotly_white',
-                   color_discrete_sequence=['#2e86de','#27ae60'])
-        fig.update_layout(paper_bgcolor="#ffffff",plot_bgcolor="#fafbfc",title_font_size=12)
-        st.plotly_chart(fig,use_container_width=True)
-    with cd2:
-        fig2=px.bar(df_enc,x='encuestador',y='carga_pond',color='jornada',barmode='group',
-                    title=f'Carga pond. — {eq_sel}',template='plotly_white',
-                    color_discrete_sequence=['#e74c3c','#f39c12'])
-        fig2.update_layout(paper_bgcolor="#ffffff",plot_bgcolor="#fafbfc",title_font_size=12)
-        st.plotly_chart(fig2,use_container_width=True)
+    st.markdown("<br>", unsafe_allow_html=True)
 
-    st.markdown("<div class='stitle'>Distribución diaria</div>",unsafe_allow_html=True)
-    jor_opts=["Jornada 1","Jornada 2","Ambas"]
-    jor_filtro=st.radio("Filtrar:",jor_opts,horizontal=True,key="radio_jor_v5",index=0)
-    pivot_all=df_plan[df_plan['equipo'].isin(eq_act)].copy()
-    if jor_filtro!="Ambas": pivot_all=pivot_all[pivot_all['jornada']==jor_filtro]
-    rows_exp=[]
-    for _,row in pivot_all.iterrows():
-        d_ini=int(row.get('dia_inicio',row.get('dia_operativo',1)))
-        d_fin=int(row.get('dia_fin',d_ini))
-        dias_dur=max(1,d_fin-d_ini+1); viv_d=row['viv']/dias_dur
-        for dd in range(d_ini,d_fin+1):
-            rows_exp.append({'equipo':row['equipo'],'jornada':row['jornada'],
-                             'encuestador':int(row.get('encuestador',0)),
-                             'dia_abs':dd,'viv':viv_d})
-    if rows_exp:
-        df_exp=pd.DataFrame(rows_exp)
-        if jor_filtro!="Ambas":
-            df_exp['dia_rel']=df_exp['dia_abs']-df_exp['dia_abs'].min()+1
-        else:
-            df_exp['dia_rel']=df_exp.groupby('jornada')['dia_abs'].transform(
-                lambda s: s-s.min()+1).astype(int)
-        pivot=df_exp.groupby(['equipo','dia_rel'])['viv'].sum().reset_index()
-        fig_d=px.bar(pivot,x='dia_rel',y='viv',color='equipo',barmode='group',
-                     title=f'Viv/día — {jor_filtro}',
-                     labels={'dia_rel':'Día','viv':'Viviendas'},
-                     template='plotly_white',color_discrete_map=color_map)
-        tot_enc_f=sum(e["enc"] for e in eq_cfg if e["nombre"] in eq_act)
-        avg_enc_f=tot_enc_f/max(1,len(eq_act))
-        fig_d.add_hline(y=p["viv_min"]*avg_enc_f,line_dash="dot",line_color="#d97706",
-                        annotation_text=f"Mín ({p['viv_min']})")
-        fig_d.add_hline(y=p["viv_max"]*avg_enc_f,line_dash="dot",line_color="#dc2626",
-                        annotation_text=f"Máx ({p['viv_max']})")
-        fig_d.update_layout(paper_bgcolor="#ffffff",plot_bgcolor="#fafbfc",
-                            xaxis=dict(dtick=1))
-        st.plotly_chart(fig_d,use_container_width=True)
-        if jor_filtro!="Ambas":
-            piv_enc=df_exp.groupby(['encuestador','dia_rel'])['viv'].sum().reset_index()
-            piv_enc['encuestador']="Enc. "+piv_enc['encuestador'].astype(str)
-            fig_enc=px.line(piv_enc,x='dia_rel',y='viv',color='encuestador',markers=True,
-                            title=f'Carga diaria por encuestador — {jor_filtro}',
-                            template='plotly_white')
-            fig_enc.add_hline(y=p["viv_min"],line_dash="dot",line_color="#d97706")
-            fig_enc.add_hline(y=p["viv_max"],line_dash="dot",line_color="#dc2626")
-            fig_enc.update_layout(paper_bgcolor="#ffffff",plot_bgcolor="#fafbfc",
-                                  xaxis=dict(dtick=1))
-            st.plotly_chart(fig_enc,use_container_width=True)
+    # ── (B) DIAGNÓSTICO REBALANCEO ───────────────────────────────────────────
+    with st.expander("🔬 Diagnóstico del rebalanceo de clusters",
+                      expanded=False):
+        cv_ini = st.session_state.get("cv_ini_bal")
+        cv_fin = st.session_state.get("cv_fin_bal")
+        bal_log = st.session_state.get("balance_log", [])
+        viv_ant = st.session_state.get("viv_por_cluster_antes")
+        viv_dep = st.session_state.get("viv_por_cluster_despues")
 
-    df_bm=df_plan[df_plan['equipo']=='Equipo Bombero']
-    n_bm=st.session_state.n_bombero
-    st.markdown("<div class='stitle'>Equipo Bombero</div>",unsafe_allow_html=True)
-    if n_bm==0:
-        st.markdown("<div class='bcard'><b style='color:#9b59b6'>Equipo Bombero</b> — 0 UPMs.</div>",
-                    unsafe_allow_html=True)
+        if cv_ini is not None and cv_fin is not None:
+            mejora = cv_ini - cv_fin
+            cc_m = "#059669" if mejora > 5 else ("#d97706" if mejora > 0 else "#dc2626")
+            st.markdown(f"""
+            <div class='balance-box'>
+            <b>CV inicial:</b>
+            <span style='color:#e74c3c;font-family:monospace'>{cv_ini:.1f}%</span>
+            &nbsp;→&nbsp;
+            <b>CV final:</b>
+            <span style='color:#27ae60;font-family:monospace'>{cv_fin:.1f}%</span>
+            &nbsp;&nbsp;<b style='color:{cc_m}'>Δ {mejora:.1f} pp</b>
+            </div>""", unsafe_allow_html=True)
+
+        if viv_ant and viv_dep:
+            n_cl = len(viv_ant)
+            df_comp = pd.DataFrame({
+                'Cluster': [f"C{c}" for c in range(n_cl)] * 2,
+                'Carga pond.': list(viv_ant.values()) + list(viv_dep.values()),
+                'Fase': ['Antes'] * n_cl + ['Después'] * n_cl
+            })
+            fig_comp = px.bar(df_comp, x='Cluster', y='Carga pond.',
+                              color='Fase', barmode='group',
+                              template='plotly_white',
+                              color_discrete_map={'Antes': '#e74c3c',
+                                                    'Después': '#27ae60'})
+            fig_comp.update_layout(paper_bgcolor="#ffffff",
+                                    plot_bgcolor="#fafbfc",
+                                    title_font_size=12)
+            st.plotly_chart(fig_comp, use_container_width=True)
+
+    # ── (C) TABLA POR EQUIPO × JORNADA ───────────────────────────────────────
+    st.markdown("<div class='stitle'>Carga por equipo y jornada</div>",
+                unsafe_allow_html=True)
+
+    df_eq_jor = df_ana.copy()
+    df_eq_jor['_es_sec'] = df_eq_jor['tipo_entidad'].astype(str).str.startswith('sec')
+    res_eq = df_eq_jor.groupby(['equipo', 'jornada']).agg(
+        UPMs       = ('id_entidad', 'count'),
+        Manzanas   = ('_es_sec', lambda s: int((~s).sum())),
+        SecDisp    = ('_es_sec', 'sum'),
+        Viviendas  = ('viv', 'sum'),
+        CargaPond  = ('carga_pond', 'sum'),
+        Encuest    = ('encuestador', 'nunique'),
+    ).reset_index()
+    res_eq['SecDisp']   = res_eq['SecDisp'].astype(int)
+    res_eq['Viviendas'] = res_eq['Viviendas'].astype(int)
+    res_eq['CargaPond'] = res_eq['CargaPond'].round(1)
+
+    st.dataframe(res_eq, use_container_width=True, hide_index=True)
+
+    # CV entre equipos
+    jornadas_a_revisar = ([jornada_ana] if jornada_ana != "Ambas"
+                           else ["Jornada 1", "Jornada 2"])
+    for jnm in jornadas_a_revisar:
+        sub_cv = res_eq[res_eq['jornada'] == jnm]
+        if len(sub_cv) >= 2:
+            cv_v = cv_pct(sub_cv['Viviendas'])
+            cv_c = cv_pct(sub_cv['CargaPond'])
+            cc_v = "#059669" if cv_v < 20 else ("#d97706" if cv_v < 40 else "#dc2626")
+            cc_c = "#059669" if cv_c < 20 else ("#d97706" if cv_c < 40 else "#dc2626")
+            st.markdown(
+                f"<div class='ibox'><b>{jnm}</b> · "
+                f"CV viv: <span style='color:{cc_v};font-weight:600;"
+                f"font-family:monospace'>{cv_v:.1f}%</span> · "
+                f"CV carga pond.: <span style='color:{cc_c};font-weight:600;"
+                f"font-family:monospace'>{cv_c:.1f}%</span></div>",
+                unsafe_allow_html=True
+            )
+
+    fig_eq = px.bar(
+        res_eq, x='equipo', y='Viviendas',
+        color='jornada' if jornada_ana == "Ambas" else 'equipo',
+        barmode='group', text='Viviendas',
+        title=f'Viviendas por equipo — {jornada_ana}',
+        template='plotly_white',
+        color_discrete_map=(color_map if jornada_ana != "Ambas"
+                            else {'Jornada 1': '#2e86de', 'Jornada 2': '#27ae60'})
+    )
+    fig_eq.update_traces(textposition='outside', textfont_size=10)
+    fig_eq.update_layout(paper_bgcolor="#ffffff", plot_bgcolor="#fafbfc",
+                         title_font_size=13)
+    st.plotly_chart(fig_eq, use_container_width=True)
+
+    # ── (D) CARGA POR ENCUESTADOR (v5.2.1 — lógica acumulativa) ──────────────
+    st.markdown("<div class='stitle'>Carga de trabajo por encuestador</div>",
+                unsafe_allow_html=True)
+
+    st.markdown("""<div class='ibox' style='font-size:12px'>
+    <b>Cómo se calculan las cargas:</b><br>
+    • Las viviendas de <b>manzanas urbanas se acumulan</b>: cada 120 viv = 1 carga urbana
+      (ej. 10 manzanas × 30 viv = 300 viv → 2.5 cargas urbanas).<br>
+    • Cada <b>sector disperso</b> suma <b>+1 carga fija</b>, sin importar sus viviendas.<br>
+    • <b>Total por encuestador = cargas urbanas + nº de sectores dispersos.</b><br>
+    • Máximo permitido: <b>5 cargas por encuestador</b>.
+    </div>""", unsafe_allow_html=True)
+
+    MAX_CARGAS_ENC = 5
+    MAX_VIV_CARGA  = 120
+
+    cargas_df = calcular_cargas_trabajo(df_ana, max_viv_por_carga=MAX_VIV_CARGA)
+
+    # Vista amigable
+    cargas_show = cargas_df.rename(columns={
+        'equipo': 'Equipo', 'jornada': 'Jornada', 'encuestador': 'Enc',
+        'n_upms': 'UPMs', 'n_manzanas': 'Mz', 'n_sectores': 'SecDisp',
+        'viv_urbana': 'Viv. Mz', 'viv_dispersa': 'Viv. SecDisp',
+        'viv_total': 'Viv. total',
+        'cargas_urb_exact': 'Cargas urb.',
+        'cargas_exact': 'Cargas exactas',
+        'cargas_total': 'Cargas (ceil)'
+    })
+
+    sobrecarga_df, megas_df = detectar_violaciones_reglas(
+        df_ana, max_cargas_enc=MAX_CARGAS_ENC, max_viv_carga=MAX_VIV_CARGA
+    )
+    n_sobre = len(sobrecarga_df)
+    n_megas = len(megas_df)
+
+    # Alertas
+    if n_sobre == 0 and n_megas == 0:
+        st.markdown(
+            f"<div class='rule-ok'>✓ Todas las cargas respetan las reglas: "
+            f"≤{MAX_CARGAS_ENC} cargas/encuestador, ≤{MAX_VIV_CARGA} viv/carga "
+            f"urbana (filtro actual).</div>",
+            unsafe_allow_html=True
+        )
     else:
-        st.markdown(f"<div class='bcard'><b style='color:#9b59b6'>Equipo Bombero</b> — {n_bm} UPMs · "
-                    f"{int(df_bm['viv'].sum()):,} viv</div>",unsafe_allow_html=True)
-        st.dataframe(df_bm[['id_entidad','tipo_entidad','viv','lat','lon','dist_base_m']]
-            .sort_values('dist_base_m',ascending=False).reset_index(drop=True),
-            use_container_width=True,height=200)
+        if n_sobre > 0:
+            st.markdown(
+                f"<div class='rule-err'>⚠ <b>{n_sobre}</b> encuestador(es) "
+                f"superan el máximo de {MAX_CARGAS_ENC} cargas.</div>",
+                unsafe_allow_html=True
+            )
+        if n_megas > 0:
+            st.markdown(
+                f"<div class='rule-warn'>ℹ <b>{n_megas}</b> manzana(s) individuales "
+                f"con > {MAX_VIV_CARGA} viviendas (megamanzanas — caso excepcional "
+                f"permitido).</div>",
+                unsafe_allow_html=True
+            )
 
+    # Coloreado de la tabla
+    def color_cargas_total(val):
+        try:
+            v = int(val)
+            if v > MAX_CARGAS_ENC:
+                return 'background-color: #fef2f2; color: #991b1b; font-weight: 700'
+            if v == MAX_CARGAS_ENC:
+                return 'background-color: #fffbeb; color: #92400e; font-weight: 600'
+            if v == 0:
+                return 'color: #9ca3af'
+            return 'color: #065f46'
+        except:
+            return ''
 
+    st.dataframe(
+        cargas_show.style.map(color_cargas_total,
+                                     subset=['Cargas (ceil)']),
+        use_container_width=True, hide_index=True,
+        height=min(400, 35 * len(cargas_show) + 38)
+    )
+
+    # Gráfico de barras apiladas: cargas urbanas vs sectores, por encuestador
+    cargas_plot = cargas_df.copy()
+    cargas_plot['enc_lbl'] = (cargas_plot['equipo'] + " · J" +
+                               cargas_plot['jornada'].str[-1] + " · E" +
+                               cargas_plot['encuestador'].astype(str))
+    cargas_plot = cargas_plot.sort_values(['equipo', 'jornada', 'encuestador'])
+
+    # Armar df "largo" para apilar
+    df_stack = pd.DataFrame({
+        'enc_lbl': list(cargas_plot['enc_lbl']) * 2,
+        'Tipo': (['Cargas urbanas (Mz)'] * len(cargas_plot) +
+                 ['Cargas dispersas (SecDis)'] * len(cargas_plot)),
+        'Cargas': list(cargas_plot['cargas_urb_exact']) +
+                  list(cargas_plot['n_sectores']),
+        'equipo': list(cargas_plot['equipo']) * 2
+    })
+
+    fig_c = px.bar(
+        df_stack, x='enc_lbl', y='Cargas', color='Tipo',
+        title=f'Composición de cargas por encuestador — {jornada_ana}',
+        labels={'enc_lbl': 'Encuestador', 'Cargas': 'Cargas de trabajo'},
+        template='plotly_white',
+        color_discrete_map={'Cargas urbanas (Mz)': '#003B71',
+                             'Cargas dispersas (SecDis)': '#d97706'}
+    )
+    fig_c.add_hline(y=MAX_CARGAS_ENC, line_dash="dash", line_color="#dc2626",
+                    annotation_text=f"Máx {MAX_CARGAS_ENC}",
+                    annotation_position="top right")
+    fig_c.update_layout(paper_bgcolor="#ffffff", plot_bgcolor="#fafbfc",
+                        xaxis_tickangle=-45, title_font_size=13,
+                        barmode='stack')
+    st.plotly_chart(fig_c, use_container_width=True)
+
+    if n_megas > 0:
+        with st.expander(f"Ver {n_megas} megamanzana(s) — >{MAX_VIV_CARGA} viviendas"):
+            st.dataframe(megas_df, use_container_width=True, hide_index=True)
+
+    # ── (E) DETALLE POR EQUIPO ───────────────────────────────────────────────
+    st.markdown("<div class='stitle'>Detalle por equipo</div>",
+                unsafe_allow_html=True)
+    eq_act = sorted(df_ana['equipo'].unique().tolist())
+    if not eq_act:
+        st.info("Sin equipos que mostrar.")
+    else:
+        eq_sel = st.selectbox("Equipo:", eq_act, key="eq_sel_detalle_v52")
+        df_sel = df_ana[df_ana['equipo'] == eq_sel].copy()
+        df_sel['_es_sec'] = df_sel['tipo_entidad'].astype(str).str.startswith('sec')
+
+        df_enc = df_sel.groupby(['jornada', 'encuestador']).agg(
+            UPMs       = ('id_entidad', 'count'),
+            Mz         = ('_es_sec', lambda s: int((~s).sum())),
+            SecDisp    = ('_es_sec', 'sum'),
+            Viviendas  = ('viv', 'sum'),
+            CargaPond  = ('carga_pond', 'sum'),
+        ).reset_index()
+        df_enc['SecDisp']   = df_enc['SecDisp'].astype(int)
+        df_enc['Viviendas'] = df_enc['Viviendas'].astype(int)
+        df_enc['CargaPond'] = df_enc['CargaPond'].round(1)
+
+        st.dataframe(df_enc, use_container_width=True, hide_index=True)
+
+        cd1, cd2 = st.columns(2)
+        with cd1:
+            fig1 = px.bar(
+                df_enc, x='encuestador', y='Viviendas',
+                color='jornada' if jornada_ana == "Ambas" else None,
+                barmode='group', text='Viviendas',
+                title=f'Viviendas por encuestador — {eq_sel}',
+                template='plotly_white',
+                color_discrete_sequence=['#2e86de', '#27ae60']
+            )
+            fig1.update_traces(textposition='outside', textfont_size=10)
+            fig1.update_layout(paper_bgcolor="#ffffff", plot_bgcolor="#fafbfc",
+                               title_font_size=12)
+            st.plotly_chart(fig1, use_container_width=True)
+        with cd2:
+            df_tipo = df_enc.melt(
+                id_vars=['jornada', 'encuestador'],
+                value_vars=['Mz', 'SecDisp'],
+                var_name='Tipo', value_name='N'
+            )
+            fig2 = px.bar(
+                df_tipo, x='encuestador', y='N', color='Tipo',
+                barmode='stack',
+                title=f'Manzanas vs Sec. dispersos — {eq_sel}',
+                template='plotly_white',
+                color_discrete_map={'Mz': '#003B71', 'SecDisp': '#d97706'}
+            )
+            fig2.update_layout(paper_bgcolor="#ffffff", plot_bgcolor="#fafbfc",
+                               title_font_size=12)
+            st.plotly_chart(fig2, use_container_width=True)
+
+    # ── (F) DISTRIBUCIÓN DIARIA ─────────────────────────────────────────────
+    st.markdown("<div class='stitle'>Distribución diaria</div>",
+                unsafe_allow_html=True)
+
+    rows_exp = []
+    for _, row in df_ana.iterrows():
+        d_ini = int(row.get('dia_inicio', row.get('dia_operativo', 1)))
+        d_fin = int(row.get('dia_fin', d_ini))
+        dias_dur = max(1, d_fin - d_ini + 1)
+        viv_d = row['viv'] / dias_dur
+        for dd in range(d_ini, d_fin + 1):
+            rows_exp.append({
+                'equipo': row['equipo'], 'jornada': row['jornada'],
+                'encuestador': int(row.get('encuestador', 0)),
+                'dia_abs': dd, 'viv': viv_d
+            })
+
+    if rows_exp:
+        df_exp = pd.DataFrame(rows_exp)
+        if jornada_ana == "Ambas":
+            df_exp['dia_rel'] = df_exp.groupby('jornada')['dia_abs'].transform(
+                lambda s: s - s.min() + 1).astype(int)
+        else:
+            df_exp['dia_rel'] = (df_exp['dia_abs'] - df_exp['dia_abs'].min() + 1).astype(int)
+
+        if jornada_ana == "Ambas":
+            pivot_eq2 = df_exp.groupby(['equipo', 'jornada', 'dia_rel'])['viv'].sum().reset_index()
+            fig_d = px.bar(
+                pivot_eq2, x='dia_rel', y='viv',
+                color='equipo', facet_row='jornada', barmode='group',
+                title='Viv/día por equipo (facetas por jornada)',
+                labels={'dia_rel': 'Día operativo', 'viv': 'Viviendas'},
+                template='plotly_white', color_discrete_map=color_map
+            )
+        else:
+            pivot_eq = df_exp.groupby(['equipo', 'dia_rel'])['viv'].sum().reset_index()
+            fig_d = px.bar(
+                pivot_eq, x='dia_rel', y='viv', color='equipo', barmode='group',
+                title=f'Viv/día por equipo — {jornada_ana}',
+                labels={'dia_rel': 'Día operativo', 'viv': 'Viviendas'},
+                template='plotly_white', color_discrete_map=color_map
+            )
+
+        eqs_en_exp = df_exp['equipo'].unique()
+        enc_por_eq = [next((e['enc'] for e in eq_cfg if e['nombre'] == ne), None)
+                      for ne in eqs_en_exp]
+        enc_por_eq = [x for x in enc_por_eq if x is not None]
+        avg_enc_f = np.mean(enc_por_eq) if enc_por_eq else 3
+        fig_d.add_hline(y=p["viv_min"] * avg_enc_f, line_dash="dot",
+                        line_color="#d97706",
+                        annotation_text=f"Mín ({p['viv_min']}/enc)")
+        fig_d.add_hline(y=p["viv_max"] * avg_enc_f, line_dash="dot",
+                        line_color="#dc2626",
+                        annotation_text=f"Máx ({p['viv_max']}/enc)")
+        fig_d.update_layout(paper_bgcolor="#ffffff", plot_bgcolor="#fafbfc",
+                            xaxis=dict(dtick=1), title_font_size=12)
+        st.plotly_chart(fig_d, use_container_width=True)
+
+        if jornada_ana != "Ambas":
+            piv_enc = df_exp.groupby(['encuestador', 'dia_rel'])['viv'].sum().reset_index()
+            piv_enc['encuestador'] = "Enc. " + piv_enc['encuestador'].astype(str)
+            fig_enc = px.line(
+                piv_enc, x='dia_rel', y='viv', color='encuestador', markers=True,
+                title=f'Carga diaria por encuestador — {jornada_ana}',
+                template='plotly_white'
+            )
+            fig_enc.add_hline(y=p["viv_min"], line_dash="dot",
+                              line_color="#d97706",
+                              annotation_text=f"Mín {p['viv_min']}")
+            fig_enc.add_hline(y=p["viv_max"], line_dash="dot",
+                              line_color="#dc2626",
+                              annotation_text=f"Máx {p['viv_max']}")
+            fig_enc.update_layout(paper_bgcolor="#ffffff",
+                                   plot_bgcolor="#fafbfc",
+                                   xaxis=dict(dtick=1), title_font_size=12)
+            st.plotly_chart(fig_enc, use_container_width=True)
+        else:
+            st.markdown(
+                "<div class='ibox'>💡 Para ver la carga diaria por encuestador, "
+                "filtra una sola jornada arriba.</div>",
+                unsafe_allow_html=True
+            )
+
+    # ── (G) EQUIPO BOMBERO ───────────────────────────────────────────────────
+    df_bm = df_plan[df_plan['equipo'] == 'Equipo Bombero']
+    n_bm = len(df_bm)
+    st.markdown("<div class='stitle'>Equipo Bombero</div>",
+                unsafe_allow_html=True)
+    if n_bm == 0:
+        st.markdown(
+            "<div class='bcard'><b style='color:#9b59b6'>Equipo Bombero</b> — "
+            "0 UPMs.</div>",
+            unsafe_allow_html=True
+        )
+    else:
+        st.markdown(
+            f"<div class='bcard'><b style='color:#9b59b6'>Equipo Bombero</b> — "
+            f"{n_bm} UPMs · {int(df_bm['viv'].sum()):,} viv (aparte del filtro "
+            f"de jornada)</div>",
+            unsafe_allow_html=True
+        )
+        st.dataframe(
+            df_bm[['id_entidad', 'tipo_entidad', 'viv', 'lat', 'lon',
+                   'dist_base_m']]
+            .sort_values('dist_base_m', ascending=False).reset_index(drop=True),
+            use_container_width=True, height=200
+        )
+      
 # ══════════════════════════════════════════════════════════════════════════════
 #  TAB 3 — EDICIÓN MANUAL (NUEVO v5.1)
 # ══════════════════════════════════════════════════════════════════════════════
